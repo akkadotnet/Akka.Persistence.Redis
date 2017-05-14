@@ -21,7 +21,7 @@ namespace Akka.Persistence.Redis.Tests
         static RedisJournalSpec()
         {
             var connectionString = "127.0.0.1:6379";
-            var database = 0;
+            var database = 1;
 
             SpecConfig = ConfigurationFactory.ParseString(@"
                 akka.test.single-expect-default = 3s
