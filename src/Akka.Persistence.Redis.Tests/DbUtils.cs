@@ -17,8 +17,8 @@ namespace Akka.Persistence.Redis.Tests
     {
         public static void Clean(string keyPrefix)
         {
-            var connectionString = ConfigurationManager.ConnectionStrings["redis"].ConnectionString;
-            var database = Convert.ToInt32(ConfigurationManager.AppSettings["redisDatabase"]);
+            var connectionString = "127.0.0.1:6379";
+            var database = 0;
 
             var redisConnection = ConnectionMultiplexer.Connect(connectionString);
             var server = redisConnection.GetServer(redisConnection.GetEndPoints().First());

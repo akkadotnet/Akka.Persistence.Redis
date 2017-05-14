@@ -8,7 +8,7 @@
 namespace Akka.Persistence.Redis.Journal
 {
     /// <summary>
-    /// Class used for storing intermediate result of the <see cref="IPersistentRepresentation"/>
+    /// Class used for storing intermediate result of the <see cref="Akka.Persistence.IPersistentRepresentation"/>
     /// </summary>
     internal class JournalEntry
     {
