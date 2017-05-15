@@ -15,18 +15,13 @@ namespace Akka.Persistence.Redis.Tests
 {
     public static class DbUtils
     {
-        public static void Clean(string keyPrefix)
+        public static void Clean(int database)
         {
-            var connectionString = "127.0.0.1:6379";
-            var database = 0;
+            var connectionString = "localhost,allowAdmin=true";
 
             var redisConnection = ConnectionMultiplexer.Connect(connectionString);
             var server = redisConnection.GetServer(redisConnection.GetEndPoints().First());
-            var db = redisConnection.GetDatabase(database);
-            foreach (var key in server.Keys(database: database, pattern: $"{keyPrefix}:*"))
-            {
-                db.KeyDelete(key);
-            }
+            server.FlushDatabase(database);
         }
     }
 }

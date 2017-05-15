@@ -29,5 +29,8 @@ namespace Akka.Persistence.Redis.Journal
 
         public static string GetHighestSequenceNrKey(string persistenceId) =>
             $"journal:persisted:{persistenceId}:highestSequenceNr";
+
+        public static string GetIdentifiersChannel() =>
+            "journal:channel:ids";
     }
 }

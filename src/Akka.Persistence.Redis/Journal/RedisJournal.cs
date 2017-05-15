@@ -105,6 +105,8 @@ namespace Akka.Persistence.Redis.Journal
                 transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId);
             }
 
+            Database.Publish(GetIdentifiersChannel(), aw.PersistenceId);
+
             if (!await transaction.ExecuteAsync())
             {
                 throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {typeof(JournalEntry).Name} to redis");
