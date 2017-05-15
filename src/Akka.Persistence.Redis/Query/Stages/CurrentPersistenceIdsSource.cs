@@ -9,7 +9,7 @@ using StackExchange.Redis;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
-    public class CurrentPersistenceIdsSource : GraphStage<SourceShape<string>>
+    internal class CurrentPersistenceIdsSource : GraphStage<SourceShape<string>>
     {
         private readonly IDatabase _redisDatabase;
 

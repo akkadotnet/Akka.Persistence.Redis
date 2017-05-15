@@ -8,7 +8,7 @@ using StackExchange.Redis;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
-    public class PersistenceIdsSource : GraphStage<SourceShape<string>>
+    internal class PersistenceIdsSource : GraphStage<SourceShape<string>>
     {
         private readonly ConnectionMultiplexer _redisDatabase;
 
