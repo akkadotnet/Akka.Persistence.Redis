@@ -72,7 +72,7 @@ namespace Akka.Persistence.Redis.Journal
 
         protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
         {
-            var writeTasks = messages.Select(WriteBatchAsync).ToArray();
+            var writeTasks = messages.Select(WriteBatchAsync).ToList();
 
             foreach (var writeTask in writeTasks)
             {
@@ -92,20 +92,29 @@ namespace Akka.Persistence.Redis.Journal
             var payloads = aw.Payload.AsInstanceOf<IImmutableList<IPersistentRepresentation>>();
             foreach (var payload in payloads)
             {
-                transaction.SortedSetAddAsync(
-                    GetJournalKey(payload.PersistenceId),
-                    PersistentToBytes(payload, _system.Serialization),
-                    payload.SequenceNr);
+                var (bytes, tags) = Extract(payload);
+
+                // save the payload
+                transaction.SortedSetAddAsync(GetJournalKey(payload.PersistenceId), bytes, payload.SequenceNr);
 
                 // notify about new event being appended for this persistence id
                 transaction.PublishAsync(GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
 
-                transaction.StringSetAsync(GetHighestSequenceNrKey(payload.PersistenceId), aw.HighestSequenceNr);
-
-                transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId);
+                // save tags
+                foreach (var tag in tags)
+                {
+                    transaction.ListRightPushAsync(GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
+                    transaction.StringSetAsync(GetTagsKey(), tag);
+                    transaction.PublishAsync(GetTagsChannel(), tag);
+                }
             }
 
-            Database.Publish(GetIdentifiersChannel(), aw.PersistenceId);
+            // set highest sequence number key
+            transaction.StringSetAsync(GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
+
+            transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId);
+
+            Database.Publish(GetIdentifiersChannel(), aw.PersistenceId); // TODO: should not publish always
 
             if (!await transaction.ExecuteAsync())
             {
@@ -113,5 +122,17 @@ namespace Akka.Persistence.Redis.Journal
             }
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+
+        private (byte[], IImmutableSet<String>) Extract(IPersistentRepresentation pr)
+        {
+            if (pr.Payload is Tagged tag)
+            {
+                return (PersistentToBytes(pr.WithPayload(tag.Payload), _system.Serialization), tag.Tags);
+            }
+            else
+            {
+                return (PersistentToBytes(pr, _system.Serialization), ImmutableHashSet<string>.Empty);
+            }
+        }
     }
 }

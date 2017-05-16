@@ -15,6 +15,7 @@ namespace Akka.Persistence.Redis.Tests.Query
     public class EventsByPersistenceIdSpec : Akka.TestKit.Xunit2.TestKit
     {
         public static readonly AtomicCounter Counter = new AtomicCounter(0);
+        public const int Database = 1;
 
         public static Config Config(int id) => ConfigurationFactory.ParseString($@"
             akka.loglevel = INFO
@@ -38,14 +39,14 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_implement_standard_EventsByTagQuery()
+        public void Redis_query_EventsByPersistenceId_should_implement_standard_EventsByTagQuery()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             queries.Should().BeAssignableTo<IEventsByPersistenceIdQuery>();
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_find_existing_events()
+        public void Redis_query_EventsByPersistenceId_should_find_existing_events()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("a");
@@ -61,7 +62,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_find_existing_events_up_to_a_sequence_number()
+        public void Redis_query_EventsByPersistenceId_should_find_existing_events_up_to_a_sequence_number()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("b");
@@ -73,7 +74,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_not_see_new_events_after_demand_request()
+        public void Redis_query_EventsByPersistenceId_should_not_see_new_events_after_demand_request()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("f");
@@ -93,7 +94,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_cleaned_journal_from_0_to_MaxLong()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_cleaned_journal_from_0_to_MaxLong()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("g1");
@@ -106,7 +107,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_cleaned_journal_from_0_to_0()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_cleaned_journal_from_0_to_0()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("g2");
@@ -119,7 +120,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_remaining_values_after_partial_journal_cleanup()
+        public void Redis_query_EventsByPersistenceId_should_return_remaining_values_after_partial_journal_cleanup()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("h");
@@ -132,7 +133,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_empty_journal()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_empty_journal()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = SetupEmpty("i");
@@ -142,7 +143,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_journal_from_0_to_0()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_journal_from_0_to_0()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("k1");
@@ -152,7 +153,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_empty_journal_from_0_to_0()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_empty_journal_from_0_to_0()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = SetupEmpty("k2");
@@ -162,7 +163,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_query_EventsByPersistenceId_should_return_empty_stream_for_journal_from_SequenceNr_greater_than_HighestSequenceNr()
+        public void Redis_query_EventsByPersistenceId_should_return_empty_stream_for_journal_from_SequenceNr_greater_than_HighestSequenceNr()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("l");
@@ -173,7 +174,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_live_query_EventsByPersistenceId_should_find_new_events()
+        public void Redis_live_query_EventsByPersistenceId_should_find_new_events()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("c");
@@ -190,7 +191,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_live_query_EventsByPersistenceId_should_find_new_events_up_to_SequenceNr()
+        public void Redis_live_query_EventsByPersistenceId_should_find_new_events_up_to_SequenceNr()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("d");
@@ -207,7 +208,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact]
-        public void RocksDb_live_query_EventsByPersistenceId_should_find_new_events_after_demand_request()
+        public void Redis_live_query_EventsByPersistenceId_should_find_new_events_after_demand_request()
         {
             var queries = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
             var pref = Setup("e");
@@ -249,6 +250,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         protected override void Dispose(bool disposing)
         {
             _materializer.Dispose();
+            DbUtils.Clean(Database);
             base.Dispose(disposing);
         }
     }

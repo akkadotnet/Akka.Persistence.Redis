@@ -16,6 +16,7 @@ namespace Akka.Persistence.Redis.Query
         IEventsByPersistenceIdQuery,
         ICurrentEventsByPersistenceIdQuery
     {
+        private readonly ExtendedActorSystem _system;
         private readonly TimeSpan _refreshInterval;
         private readonly string _writeJournalPluginId;
         private readonly int _maxBufferSize;
@@ -35,6 +36,7 @@ namespace Akka.Persistence.Redis.Query
 
         public RedisReadJournal(ExtendedActorSystem system, Config config)
         {
+            _system = system;
             _refreshInterval = config.GetTimeSpan("refresh-interval");
             _writeJournalPluginId = config.GetString("write-plugin");
             _maxBufferSize = config.GetInt("max-buffer-size");
@@ -64,7 +66,7 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, null, true));
+            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
@@ -72,6 +74,6 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, null, false));
+            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Akka.Persistence.Redis.Journal
 {
-    public static class RedisUtils
+    internal static class RedisUtils
     {
         public static byte[] PersistentToBytes(IPersistentRepresentation message, Akka.Serialization.Serialization serialization)
         {
@@ -20,17 +20,13 @@ namespace Akka.Persistence.Redis.Journal
         }
 
         public static string GetIdentifiersKey() => "journal:persistenceIds";
-
-        public static string GetJournalKey(string persistenceId) =>
-            $"journal:persisted:{persistenceId}";
-
-        public static string GetJournalChannel(string persistenceId) =>
-            $"journal:channel:persisted:{persistenceId}";
-
-        public static string GetHighestSequenceNrKey(string persistenceId) =>
-            $"journal:persisted:{persistenceId}:highestSequenceNr";
-
-        public static string GetIdentifiersChannel() =>
-            "journal:channel:ids";
+        public static string GetTagsKey() => "journal:tags";
+        public static string GetHighestSequenceNrKey(string persistenceId) => $"journal:persisted:{persistenceId}:highestSequenceNr";
+        public static string GetJournalKey(string persistenceId) => $"journal:persisted:{persistenceId}";
+        public static string GetJournalChannel(string persistenceId) => $"journal:channel:persisted:{persistenceId}";
+        public static string GetTagKey(string tag) => $"journal:tag:{tag}";
+        public static string GetTagsChannel() => "journal:channel:tags";
+        public static string GetIdentifiersChannel() => "journal:channel:ids";
     }
 }
+

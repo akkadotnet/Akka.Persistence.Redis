@@ -20,6 +20,7 @@ namespace Akka.Persistence.Redis.Query.Stages
         private readonly string _persistenceId;
         private readonly long _fromSequenceNr;
         private readonly long _toSequenceNr;
+        private readonly ActorSystem _system;
         private readonly bool _live;
 
         public EventsByPersistenceIdSource(Config conf, ConnectionMultiplexer redis, string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
@@ -28,6 +29,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             _persistenceId = persistenceId;
             _fromSequenceNr = fromSequenceNr;
             _toSequenceNr = toSequenceNr;
+            _system = system;
             _live = live;
 
             Outlet = live 
@@ -43,7 +45,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new EventsByPersistenceIdLogic(_redis, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
+            return new EventsByPersistenceIdLogic(_redis, _system, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
         }
 
         private enum State
@@ -54,38 +56,26 @@ namespace Akka.Persistence.Redis.Query.Stages
             WaitingForNotification = 3
         }
 
-        private class EventRef
-        {
-            public EventRef(long sequenceNr, string persistenceId)
-            {
-                SequenceNr = sequenceNr;
-                PersistenceId = persistenceId;
-            }
-
-            public long SequenceNr { get; }
-
-            public string PersistenceId { get; }
-        }
-
         private class EventsByPersistenceIdLogic : GraphStageLogic
         {
             private State _state = State.Idle;
 
-            private readonly Queue<string> _buffer = new Queue<string>();
-            private ISubscriber subscription;
-            private int max = 0;
-            private long currentSequenceNr;
-            private Action<IEnumerable<IPersistentRepresentation>> _callback;
+            private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
+            private ISubscriber _subscription;
+            private int max = 100; //TODO: take from config
+            private long _currentSequenceNr;
+            private Action<IReadOnlyList<IPersistentRepresentation>> _callback;
 
             private readonly Outlet<EventEnvelope> _outlet;
             private readonly ConnectionMultiplexer _redis;
+            private readonly ActorSystem _system;
             private readonly string _persistenceId;
-            private readonly long _fromSequenceNr;
             private readonly long _toSequenceNr;
             private readonly bool _live;
 
             public EventsByPersistenceIdLogic(
                 ConnectionMultiplexer redis,
+                ActorSystem system,
                 string persistenceId,
                 long fromSequenceNr,
                 long toSequenceNr,
@@ -94,20 +84,20 @@ namespace Akka.Persistence.Redis.Query.Stages
             {
                 _outlet = outlet;
                 _redis = redis;
+                _system = system;
                 _persistenceId = persistenceId;
-                _fromSequenceNr = fromSequenceNr;
                 _toSequenceNr = toSequenceNr;
                 _live = live;
 
-                currentSequenceNr = fromSequenceNr;
+                _currentSequenceNr = fromSequenceNr;
                 SetHandler(outlet, Query);
             }
 
             public override void PreStart()
             {
-                _callback = GetAsyncCallback<IEnumerable<IPersistentRepresentation>>(events =>
+                _callback = GetAsyncCallback<IReadOnlyList<IPersistentRepresentation>>(events =>
                 {
-                    if (events.Count() == 0)
+                    if (events.Count == 0)
                     {
                         switch (_state)
                         {
@@ -135,12 +125,42 @@ namespace Akka.Persistence.Redis.Query.Stages
                     }
                     else
                     {
-                        // TODO
+                        var (evts, maxSequenceNr) = events.Aggregate((new List<EventEnvelope>(), _currentSequenceNr), (tuple, pr) =>
+                        {
+                            if (!pr.IsDeleted &&
+                                pr.SequenceNr >= _currentSequenceNr &&
+                                pr.SequenceNr <= _toSequenceNr)
+                            {
+                                tuple.Item1.Add(new EventEnvelope(pr.SequenceNr, pr.PersistenceId, pr.SequenceNr, pr.Payload));
+                                tuple.Item2 = pr.SequenceNr + 1;
+                            }
+                            else
+                            {
+                                tuple.Item2 = pr.SequenceNr + 1;
+                            }
+
+                            return tuple;
+                        });
+
+                        _currentSequenceNr = maxSequenceNr;
+                        // TODO: log.debug(f"Max sequence number is now $maxSequenceNr")
+                        if (evts.Count > 0)
+                        {
+                            evts.ForEach(_buffer.Enqueue);
+                            Deliver();
+                        }
+                        else
+                        {
+                            // requery immediately
+                            _state = State.Idle;
+                            Query();
+                        }
                     }
                 });
 
                 if (_live)
                 {
+                    // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
                         if (data.channel.Equals(RedisUtils.GetJournalChannel(_persistenceId)))
@@ -170,8 +190,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                     });
 
-                    subscription = _redis.GetSubscriber();
-                    subscription.Subscribe(RedisUtils.GetJournalChannel(_persistenceId), (channel, value) =>
+                    _subscription = _redis.GetSubscriber();
+                    _subscription.Subscribe(RedisUtils.GetJournalChannel(_persistenceId), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -180,7 +200,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
             public override void PostStop()
             {
-                subscription?.UnsubscribeAll();
+                _subscription?.UnsubscribeAll();
             }
 
             private void Query()
@@ -193,7 +213,11 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
-                            // TODO
+                            var events = _redis.GetDatabase(1).SortedSetRangeByScore(RedisUtils.GetJournalKey(_persistenceId), _currentSequenceNr,
+                                Math.Min(_currentSequenceNr + max - 1, _toSequenceNr)).Select(e => (byte[])e).ToList();
+
+                            var deserializedEvents = events.Select(e => RedisUtils.PersistentFromBytes(e, _system.Serialization)).ToList();
+                            _callback(deserializedEvents);
                         }
                         else
                         {
@@ -214,7 +238,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _state = State.Idle;
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
-                if (_buffer.Count == 0 && currentSequenceNr > _toSequenceNr)
+                if (_buffer.Count == 0 && _currentSequenceNr > _toSequenceNr)
                 {
                     // we delivered last buffered event and the upper bound was reached, complete 
                     CompleteStage();
