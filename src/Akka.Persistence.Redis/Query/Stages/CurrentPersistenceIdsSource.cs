@@ -1,7 +1,6 @@
 ﻿using System;
 using Akka.Streams.Stage;
 using System.Collections.Generic;
-using System.Linq;
 using Akka.Persistence.Redis.Journal;
 using Akka.Streams;
 using Akka.Util.Internal;
@@ -11,23 +10,25 @@ namespace Akka.Persistence.Redis.Query.Stages
 {
     internal class CurrentPersistenceIdsSource : GraphStage<SourceShape<string>>
     {
-        private readonly IDatabase _redisDatabase;
+        private readonly ConnectionMultiplexer _redis;
+        private int _database;
 
-        public CurrentPersistenceIdsSource(IDatabase redisDatabase)
+        public CurrentPersistenceIdsSource(ConnectionMultiplexer redis, int database)
         {
-            this._redisDatabase = redisDatabase;
+            _redis = redis;
+            _database = database;
         }
 
-        public Outlet<string> Outlet { get; } = new Outlet<string>("CurrentPersistenceIdsSource");
+        public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(CurrentPersistenceIdsSource));
 
         public override SourceShape<string> Shape => new SourceShape<string>(Outlet);
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new CurrentPersistenceIdsLogic(_redisDatabase, Outlet, Shape);
+            return new CurrentPersistenceIdsLogic(_redis.GetDatabase(_database), Outlet, Shape);
         }
 
-        private class CurrentPersistenceIdsLogic : GraphStageLogic
+        private sealed class CurrentPersistenceIdsLogic : GraphStageLogic
         {
             private bool _start = true;
             private long _index = 0L;

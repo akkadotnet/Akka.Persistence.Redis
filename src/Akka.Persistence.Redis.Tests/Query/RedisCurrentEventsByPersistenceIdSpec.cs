@@ -9,7 +9,7 @@ using Xunit;
 namespace Akka.Persistence.Redis.Tests.Query
 {
     [Collection("RedisSpec")]
-    public class RedisEventsByPersistenceIdSpec : EventsByPersistenceIdSpec
+    public class RedisCurrentEventsByPersistenceIdSpec : EventsByPersistenceIdSpec
     {
         public static readonly AtomicCounter Counter = new AtomicCounter(0);
         public const int Database = 1;
@@ -30,7 +30,7 @@ namespace Akka.Persistence.Redis.Tests.Query
 
         private readonly ActorMaterializer _materializer;
 
-        public RedisEventsByPersistenceIdSpec() : base(Config(Counter.GetAndIncrement()))
+        public RedisCurrentEventsByPersistenceIdSpec() : base(Config(Counter.GetAndIncrement()))
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }

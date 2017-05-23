@@ -1,7 +1,7 @@
 using System;
 using Akka.Actor;
 
-namespace Akka.Persistence.Redis.Tests.Query
+namespace Akka.Persistence.TestKit.Query
 {
     public class TestActor : PersistentActor
     {

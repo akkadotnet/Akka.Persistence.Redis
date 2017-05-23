@@ -10,20 +10,22 @@ namespace Akka.Persistence.Redis.Query.Stages
 {
     internal class PersistenceIdsSource : GraphStage<SourceShape<string>>
     {
-        private readonly ConnectionMultiplexer _redisDatabase;
+        private readonly ConnectionMultiplexer _redis;
+        private int _database;
 
-        public PersistenceIdsSource(ConnectionMultiplexer redisDatabase)
+        public PersistenceIdsSource(ConnectionMultiplexer redis, int database)
         {
-            _redisDatabase = redisDatabase;
+            _redis = redis;
+            _database = database;
         }
 
-        public Outlet<string> Outlet { get; } = new Outlet<string>("PersistenceIdsSource");
+        public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(PersistenceIdsSource));
 
         public override SourceShape<string> Shape => new SourceShape<string>(Outlet);
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new PersistenceIdsLogic(_redisDatabase, Outlet, Shape);
+            return new PersistenceIdsLogic(_redis, _database, Outlet, Shape);
         }
 
         private class PersistenceIdsLogic : GraphStageLogic
@@ -36,11 +38,14 @@ namespace Akka.Persistence.Redis.Query.Stages
 
             private readonly Outlet<string> _outlet;
             private readonly ConnectionMultiplexer _redis;
+            private int _database;
 
-            public PersistenceIdsLogic(ConnectionMultiplexer redis, Outlet<string> outlet, Shape shape) : base(shape)
+            public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, Outlet<string> outlet, Shape shape) : base(shape)
             {
-                _outlet = outlet;
                 _redis = redis;
+                _database = database;
+
+                _outlet = outlet;
 
                 SetHandler(outlet, onPull: () =>
                 {
@@ -67,7 +72,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
                         try
                         {
-                            var cursor = redis.GetDatabase(1).SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index); // TODO: get it from config
+                            var cursor = _redis.GetDatabase(_database).SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index);
                             callback(cursor);
                         }
                         catch (Exception e)

@@ -21,7 +21,8 @@ namespace Akka.Persistence.Redis.Query
         private readonly string _writeJournalPluginId;
         private readonly int _maxBufferSize;
 
-        private ConnectionMultiplexer redis;
+        private ConnectionMultiplexer _redis;
+        private int _database;
         private IDatabase redisDatabase;
 
         /// <summary>
@@ -42,23 +43,23 @@ namespace Akka.Persistence.Redis.Query
             _maxBufferSize = config.GetInt("max-buffer-size");
 
             var address = system.Settings.Config.GetString("akka.persistence.journal.redis.configuration-string");
-            var database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");
+            _database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");
 
-            redis = ConnectionMultiplexer.Connect(address);
-            redisDatabase = redis.GetDatabase(database);
+            _redis = ConnectionMultiplexer.Connect(address);
+            redisDatabase = _redis.GetDatabase(_database);
         }
 
         /// <summary>
         /// Returns the live stream of persisted identifiers. Identifiers may appear several times in the stream.
         /// </summary>
         public Source<string, NotUsed> AllPersistenceIds() =>
-            Source.FromGraph(new PersistenceIdsSource(redis));
+            Source.FromGraph(new PersistenceIdsSource(_redis, _database));
 
         /// <summary>
         /// Returns the stream of current persisted identifiers. This stream is not live, once the identifiers were all returned, it is closed.
         /// </summary>
         public Source<string, NotUsed> CurrentPersistenceIds() =>
-            Source.FromGraph(new CurrentPersistenceIdsSource(redisDatabase));
+            Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database));
 
         /// <summary>
         /// Returns the live stream of events for the given <paramref name="persistenceId"/>.
@@ -66,7 +67,7 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
+            Source.FromGraph(new EventsByPersistenceIdSource(null, _redis, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
@@ -74,6 +75,6 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, redis, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
+            Source.FromGraph(new EventsByPersistenceIdSource(null, _redis, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
     }
 }

@@ -1,17 +1,14 @@
 ﻿using Akka.Configuration;
 using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Query;
-using Akka.Streams;
-using Akka.Util.Internal;
 using Akka.Persistence.TestKit.Query;
 using Xunit;
 
 namespace Akka.Persistence.Redis.Tests.Query
 {
     [Collection("RedisSpec")]
-    public class RedisEventsByPersistenceIdSpec : EventsByPersistenceIdSpec
+    public sealed class RedisCurrentPersistenceIdsSpec : CurrentPersistenceIdsSpec
     {
-        public static readonly AtomicCounter Counter = new AtomicCounter(0);
         public const int Database = 1;
 
         public static Config Config(int id) => ConfigurationFactory.ParseString($@"
@@ -28,9 +25,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
-        private readonly ActorMaterializer _materializer;
-
-        public RedisEventsByPersistenceIdSpec() : base(Config(Counter.GetAndIncrement()))
+        public RedisCurrentPersistenceIdsSpec() : base(Config(Database))
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
