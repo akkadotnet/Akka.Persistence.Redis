@@ -11,7 +11,7 @@ namespace Akka.Persistence.Redis.Query.Stages
     internal class CurrentPersistenceIdsSource : GraphStage<SourceShape<string>>
     {
         private readonly ConnectionMultiplexer _redis;
-        private int _database;
+        private readonly int _database;
 
         public CurrentPersistenceIdsSource(ConnectionMultiplexer redis, int database)
         {
@@ -52,25 +52,24 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _start = false;
 
                             // enqueue received data
-                            foreach (var item in data)
+                            try
                             {
-                                _buffer.Enqueue(item);
+                                foreach (var item in data)
+                                {
+                                    _buffer.Enqueue(item);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                // TODO: log.Error(e, "Error while querying persistence identifiers")
+                                FailStage(e);
                             }
 
                             // deliver element
                             Deliver();
                         });
 
-                        try
-                        {
-                            var cursor = redisDatabase.SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index);
-                            callback(cursor);
-                        }
-                        catch (Exception e)
-                        {
-                            // TODO: log it
-                            FailStage(e);
-                        }
+                        callback(redisDatabase.SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index));
                     }
                     else
                     {

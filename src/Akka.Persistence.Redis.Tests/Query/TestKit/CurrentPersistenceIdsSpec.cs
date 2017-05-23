@@ -59,9 +59,8 @@ namespace Akka.Persistence.TestKit.Query
                     .ExpectComplete());
         }
 
-        private IActorRef Setup(string persistenceId, int n)
+        protected IActorRef Setup(string persistenceId, int n)
         {
-
             var pref = Sys.ActorOf(Query.TestActor.Props(persistenceId));
             for (int i = 1; i <= n; i++)
             {

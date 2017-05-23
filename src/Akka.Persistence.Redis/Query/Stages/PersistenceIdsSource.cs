@@ -11,7 +11,7 @@ namespace Akka.Persistence.Redis.Query.Stages
     internal class PersistenceIdsSource : GraphStage<SourceShape<string>>
     {
         private readonly ConnectionMultiplexer _redis;
-        private int _database;
+        private readonly int _database;
 
         public PersistenceIdsSource(ConnectionMultiplexer redis, int database)
         {
@@ -34,11 +34,11 @@ namespace Akka.Persistence.Redis.Query.Stages
             private long _index = 0;
             private readonly Queue<string> _buffer = new Queue<string>();
             private bool _downstreamWaiting = false;
-            private ISubscriber subscription;
+            private ISubscriber _subscription;
 
             private readonly Outlet<string> _outlet;
             private readonly ConnectionMultiplexer _redis;
-            private int _database;
+            private readonly int _database;
 
             public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, Outlet<string> outlet, Shape shape) : base(shape)
             {
@@ -61,25 +61,24 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _start = false;
 
                             // enqueue received data
-                            foreach (var item in data)
+                            try
                             {
-                                _buffer.Enqueue(item);
+                                foreach (var item in data)
+                                {
+                                    _buffer.Enqueue(item);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                // TODO: log.Error(e, "Error while querying persistence identifiers")
+                                FailStage(e);
                             }
 
                             // deliver element
                             Deliver();
                         });
 
-                        try
-                        {
-                            var cursor = _redis.GetDatabase(_database).SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index);
-                            callback(cursor);
-                        }
-                        catch (Exception e)
-                        {
-                            // TODO: log it
-                            FailStage(e);
-                        }
+                        callback(_redis.GetDatabase(_database).SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index));
                     }
                     else if (_buffer.Count == 0)
                     {
@@ -101,8 +100,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                     {
                         // TODO: log.Debug("Message received")
 
-                        _start = false;
-
                         // enqueue the element
                         _buffer.Enqueue(data.bs);
 
@@ -111,21 +108,20 @@ namespace Akka.Persistence.Redis.Query.Stages
                     }
                     else
                     {
-                        // TODO: log.Debug($"Message from unexpected channel: {channel}")
+                        // TODO: if (log.IsDebugEnabled) log.Debug($"Message from unexpected channel: {channel}")
                     }
                 });
 
-                subscription = _redis.GetSubscriber();
-                subscription.Subscribe(RedisUtils.GetIdentifiersChannel(), (channel, value) =>
+                _subscription = _redis.GetSubscriber();
+                _subscription.Subscribe(RedisUtils.GetIdentifiersChannel(), (channel, value) =>
                 {
                     callback.Invoke((channel, value));
                 });
-                base.PreStart();
             }
 
             public override void PostStop()
             {
-                subscription?.UnsubscribeAll();
+                _subscription?.UnsubscribeAll();
             }
 
             private void Deliver()

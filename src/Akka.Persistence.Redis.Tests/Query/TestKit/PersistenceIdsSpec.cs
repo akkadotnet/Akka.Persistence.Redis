@@ -39,10 +39,7 @@ namespace Akka.Persistence.TestKit.Query
             var source = queries.AllPersistenceIds();
             var probe = source.RunWith(this.SinkProbe<string>(), Materializer);
 
-            probe.Within(TimeSpan.FromSeconds(10), () =>
-            {
-                return probe.Request(5).ExpectNextUnordered("e", "f");
-            });
+            probe.Within(TimeSpan.FromSeconds(10), () => probe.Request(5).ExpectNextUnordered("e", "f"));
 
             Setup("g", 1);
             probe.ExpectNext("g", TimeSpan.FromSeconds(10));
@@ -103,15 +100,35 @@ namespace Akka.Persistence.TestKit.Query
             });
         }
 
-        [Fact]
+        [Fact(Skip = "Not implemented yet")]
         public void ReadJournal_AllPersistenceIds_should_deliver_persistenceId_only_once_if_there_are_multiple_events_spanning_partitions()
         {
-            // TODO
+            var queries = ReadJournal.AsInstanceOf<IAllPersistenceIdsQuery>();
+
+            Setup("p", 1000);
+
+            var source = queries.AllPersistenceIds();
+            var probe = source.RunWith(this.SinkProbe<string>(), Materializer);
+
+            probe.Within(TimeSpan.FromSeconds(10), () =>
+            {
+                return probe.Request(10)
+                    .ExpectNext("p")
+                    .ExpectNoMsg(TimeSpan.FromMilliseconds(1000));
+            });
+
+            Setup("q", 1000);
+
+            probe.Within(TimeSpan.FromSeconds(10), () =>
+            {
+                return probe.Request(10)
+                    .ExpectNext("q")
+                    .ExpectNoMsg(TimeSpan.FromMilliseconds(1000));
+            });
         }
 
-        private IActorRef Setup(string persistenceId, int n)
+        protected IActorRef Setup(string persistenceId, int n)
         {
-
             var pref = Sys.ActorOf(Query.TestActor.Props(persistenceId));
             for (int i = 1; i <= n; i++)
             {
