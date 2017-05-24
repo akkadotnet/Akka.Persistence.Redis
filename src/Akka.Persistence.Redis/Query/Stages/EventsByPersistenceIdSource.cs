@@ -17,15 +17,17 @@ namespace Akka.Persistence.Redis.Query.Stages
     internal class EventsByPersistenceIdSource : GraphStage<SourceShape<EventEnvelope>>
     {
         private readonly ConnectionMultiplexer _redis;
+        private readonly int _database;
         private readonly string _persistenceId;
         private readonly long _fromSequenceNr;
         private readonly long _toSequenceNr;
         private readonly ActorSystem _system;
         private readonly bool _live;
 
-        public EventsByPersistenceIdSource(Config conf, ConnectionMultiplexer redis, string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
+        public EventsByPersistenceIdSource(ConnectionMultiplexer redis, int database, Config conf, string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
         {
             _redis = redis;
+            _database = database;
             _persistenceId = persistenceId;
             _fromSequenceNr = fromSequenceNr;
             _toSequenceNr = toSequenceNr;
@@ -45,7 +47,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new EventsByPersistenceIdLogic(_redis, _system, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
+            return new EventsByPersistenceIdLogic(_redis, _database, _system, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
         }
 
         private enum State
@@ -68,6 +70,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
             private readonly Outlet<EventEnvelope> _outlet;
             private readonly ConnectionMultiplexer _redis;
+            private readonly int _database;
             private readonly ActorSystem _system;
             private readonly string _persistenceId;
             private readonly long _toSequenceNr;
@@ -75,6 +78,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
             public EventsByPersistenceIdLogic(
                 ConnectionMultiplexer redis,
+                int database,
                 ActorSystem system,
                 string persistenceId,
                 long fromSequenceNr,
@@ -84,6 +88,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             {
                 _outlet = outlet;
                 _redis = redis;
+                _database = database;
                 _system = system;
                 _persistenceId = persistenceId;
                 _toSequenceNr = toSequenceNr;
@@ -118,7 +123,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 }
                                 break;
                             default:
-                                // TODO: log.error(f"Unexpected source state: $state")
+                                // TODO: log.Error($"Unexpected source state: {_state}")
                                 FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
                                 break;
                         }
@@ -213,8 +218,11 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
-                            var events = _redis.GetDatabase(1).SortedSetRangeByScore(RedisUtils.GetJournalKey(_persistenceId), _currentSequenceNr,
-                                Math.Min(_currentSequenceNr + max - 1, _toSequenceNr)).Select(e => (byte[])e).ToList();
+                            var events = _redis.GetDatabase(_database).SortedSetRangeByScore(
+                                key: RedisUtils.GetJournalKey(_persistenceId),
+                                start: _currentSequenceNr,
+                                stop: Math.Min(_currentSequenceNr + max - 1, _toSequenceNr),
+                                order: Order.Ascending).Select(e => (byte[])e).ToList();
 
                             var deserializedEvents = events.Select(e => RedisUtils.PersistentFromBytes(e, _system.Serialization)).ToList();
                             _callback(deserializedEvents);

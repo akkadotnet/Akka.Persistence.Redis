@@ -23,7 +23,6 @@ namespace Akka.Persistence.Redis.Query
 
         private ConnectionMultiplexer _redis;
         private int _database;
-        private IDatabase redisDatabase;
 
         /// <summary>
         /// The default identifier for <see cref="RedisReadJournal" /> to be used with <see cref="PersistenceQueryExtensions.ReadJournalFor{TJournal}" />.
@@ -43,10 +42,9 @@ namespace Akka.Persistence.Redis.Query
             _maxBufferSize = config.GetInt("max-buffer-size");
 
             var address = system.Settings.Config.GetString("akka.persistence.journal.redis.configuration-string");
-            _database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");
 
+            _database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");
             _redis = ConnectionMultiplexer.Connect(address);
-            redisDatabase = _redis.GetDatabase(_database);
         }
 
         /// <summary>
@@ -67,7 +65,7 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, _redis, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
+            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, null, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
@@ -75,6 +73,6 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(null, _redis, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
+            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, null, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
     }
 }

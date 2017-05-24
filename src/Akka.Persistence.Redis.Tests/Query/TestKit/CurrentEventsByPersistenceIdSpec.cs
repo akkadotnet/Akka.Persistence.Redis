@@ -151,7 +151,7 @@ namespace Akka.Persistence.TestKit.Query
             var queries = ReadJournal.AsInstanceOf<ICurrentEventsByPersistenceIdQuery>();
             var pref = Setup("l");
 
-            var src = queries.CurrentEventsByPersistenceId("l", 4, 3);
+            var src = queries.CurrentEventsByPersistenceId("l", 4L, 3L);
             src.Select(x => x.Event).RunWith(this.SinkProbe<object>(), Materializer).Request(1).ExpectComplete();
         }
 
