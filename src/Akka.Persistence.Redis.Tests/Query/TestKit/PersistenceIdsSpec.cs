@@ -100,8 +100,8 @@ namespace Akka.Persistence.TestKit.Query
             });
         }
 
-        [Fact(Skip = "Not implemented yet")]
-        public void ReadJournal_AllPersistenceIds_should_deliver_persistenceId_only_once_if_there_are_multiple_events_spanning_partitions()
+        [Fact]
+        public void ReadJournal_AllPersistenceIds_should_deliver_persistenceId_only_once_if_there_are_multiple_events()
         {
             var queries = ReadJournal.AsInstanceOf<IAllPersistenceIdsQuery>();
 

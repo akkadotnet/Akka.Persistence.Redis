@@ -112,9 +112,13 @@ namespace Akka.Persistence.Redis.Journal
             // set highest sequence number key
             transaction.StringSetAsync(GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
 
-            transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId);
-
-            Database.Publish(GetIdentifiersChannel(), aw.PersistenceId); // TODO: should not publish always
+            transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
+            {
+                if (task.Result)
+                {
+                    Database.Publish(GetIdentifiersChannel(), aw.PersistenceId);
+                }
+            });
 
             if (!await transaction.ExecuteAsync())
             {
