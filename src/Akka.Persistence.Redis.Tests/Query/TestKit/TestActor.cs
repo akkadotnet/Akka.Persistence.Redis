@@ -3,20 +3,19 @@ using Akka.Actor;
 
 namespace Akka.Persistence.TestKit.Query
 {
-    public class TestActor : PersistentActor
+    public class TestActor : UntypedPersistentActor
     {
-        [Serializable]
+        public static Props Props(string persistenceId) => Actor.Props.Create(() => new TestActor(persistenceId));
+
         public sealed class DeleteCommand
         {
-            public readonly long ToSequenceNr;
-
             public DeleteCommand(long toSequenceNr)
             {
                 ToSequenceNr = toSequenceNr;
             }
-        }
 
-        public static Props Props(string persistenceId) => Actor.Props.Create(() => new TestActor(persistenceId));
+            public long ToSequenceNr { get; }
+        }
 
         public TestActor(string persistenceId)
         {
@@ -24,24 +23,24 @@ namespace Akka.Persistence.TestKit.Query
         }
 
         public override string PersistenceId { get; }
-        protected override bool ReceiveRecover(object message) => true;
-        private IActorRef _parentTestActor;
 
-        protected override bool ReceiveCommand(object message) => message.Match()
-            .With<DeleteCommand>(delete =>
+        protected override void OnRecover(object message)
+        {
+        }
+
+        protected override void OnCommand(object message)
+        {
+            switch (message)
             {
-                _parentTestActor = Sender;
-                DeleteMessages(delete.ToSequenceNr);
-            })
-            .With<DeleteMessagesSuccess>(deleteSuccess =>
-            {
-                ActorRefImplicitSenderExtensions.Tell(_parentTestActor, deleteSuccess.ToSequenceNr.ToString() + "-deleted");
-            })
-            .With<string>(cmd =>
-            {
-                var sender = Sender;
-                Persist(cmd, e => ActorRefImplicitSenderExtensions.Tell(sender, e + "-done"));
-            })
-            .WasHandled;
+                case DeleteCommand delete:
+                    DeleteMessages(delete.ToSequenceNr);
+                    Sender.Tell($"{delete.ToSequenceNr}-deleted");
+                    break;
+                case string cmd:
+                    var sender = Sender;
+                    Persist(cmd, e => sender.Tell($"{e}-done"));
+                    break;
+            }
+        }
     }
 }
