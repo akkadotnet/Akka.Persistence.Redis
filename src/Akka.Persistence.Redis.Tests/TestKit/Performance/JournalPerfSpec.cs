@@ -9,7 +9,7 @@ using Akka.Util.Internal;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Tests.Performance
+namespace Akka.Persistence.TestKit.Performance
 {
     public abstract class JournalPerfSpec : Akka.TestKit.Xunit2.TestKit
     {

@@ -2,7 +2,6 @@
   <PropertyGroup>
     <AssemblyTitle>Akka.Persistence.Redis.Tests</AssemblyTitle>
     <TargetFrameworks>net452</TargetFrameworks>
-    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(PackageTargetFallback);portable-net45+win8</PackageTargetFallback>
   </PropertyGroup>
   
   <ItemGroup>

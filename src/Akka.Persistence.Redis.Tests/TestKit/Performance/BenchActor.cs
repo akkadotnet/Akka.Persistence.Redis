@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Akka.Actor;
 
-namespace Akka.Persistence.Redis.Tests.Performance
+namespace Akka.Persistence.TestKit.Performance
 {
     internal class ResetCounter
     {

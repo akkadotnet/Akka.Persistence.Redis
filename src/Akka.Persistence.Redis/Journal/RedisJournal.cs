@@ -97,7 +97,7 @@ namespace Akka.Persistence.Redis.Journal
                 // save the payload
                 transaction.SortedSetAddAsync(GetJournalKey(payload.PersistenceId), bytes, payload.SequenceNr);
 
-                // notify about new event being appended for this persistence id
+                // notify about a new event being appended for this persistence id
                 transaction.PublishAsync(GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
 
                 // save tags
@@ -112,22 +112,24 @@ namespace Akka.Persistence.Redis.Journal
             // set highest sequence number key
             transaction.StringSetAsync(GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
 
+            // add persistenceId
             transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
             {
                 if (task.Result)
                 {
+                    // notify about a new persistenceId
                     Database.Publish(GetIdentifiersChannel(), aw.PersistenceId);
                 }
             });
 
             if (!await transaction.ExecuteAsync())
             {
-                throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {typeof(JournalEntry).Name} to redis");
+                throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {typeof(IPersistentRepresentation).Name} to redis");
             }
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
-        private (byte[], IImmutableSet<String>) Extract(IPersistentRepresentation pr)
+        private (byte[], IImmutableSet<string>) Extract(IPersistentRepresentation pr)
         {
             if (pr.Payload is Tagged tag)
             {

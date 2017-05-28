@@ -16,7 +16,7 @@ using Xunit.Abstractions;
 namespace Akka.Persistence.Redis.Tests
 {
     [Collection("RedisSpec")]
-    public class RedisJournalSpec : JournalSpec
+    public class RedisSerializationSpec : SerializationSpec
     {
         public const int Database = 1;
 
@@ -29,21 +29,25 @@ namespace Akka.Persistence.Redis.Tests
                 configuration-string = ""127.0.0.1:6379""
                 database = {id}
             }}
+            akka.persistence.snapshot-store.plugin = ""akka.persistence.snapshot-store.redis""
+            akka.persistence.snapshot-store.redis {{
+                class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
+                configuration-string = ""127.0.0.1:6379""
+                plugin-dispatcher = ""akka.actor.default-dispatcher""
+                database = {id}
+                key-prefix = ""snapshots""
+            }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
-        public RedisJournalSpec(ITestOutputHelper output) : base(SpecConfig(Database), nameof(RedisJournalSpec), output)
+        public RedisSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), output)
         {
-            RedisPersistence.Get(Sys);
-            Initialize();
         }
-
-        protected override bool SupportsRejectingNonSerializableObjects { get; } = false;
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(Database);
+            //DbUtils.Clean(Database);
         }
     }
 }
