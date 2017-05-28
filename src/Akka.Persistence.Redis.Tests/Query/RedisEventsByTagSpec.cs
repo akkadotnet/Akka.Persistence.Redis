@@ -1,4 +1,7 @@
-﻿using Akka.Configuration;
+﻿using System.Collections.Immutable;
+using System.Linq;
+using Akka.Configuration;
+using Akka.Persistence.Journal;
 using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Query;
@@ -7,7 +10,7 @@ using Xunit;
 namespace Akka.Persistence.Redis.Tests.Query
 {
     [Collection("RedisSpec")]
-    public class RedisCurrentEventsByPersistenceIdSpec : CurrentEventsByPersistenceIdSpec
+    public sealed class RedisEventsByTagSpec : EventsByTagSource
     {
         public const int Database = 1;
 
@@ -15,6 +18,12 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.loglevel = INFO
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
+                event-adapters {{
+                  color-tagger  = ""Akka.Persistence.Redis.Tests.Query.ColorTagger, Akka.Persistence.Redis.Tests""
+                }}
+                event-adapter-bindings = {{
+                  ""System.String"" = color-tagger
+                }}
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""127.0.0.1:6379,allowAdmin:true""
@@ -23,7 +32,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
-        public RedisCurrentEventsByPersistenceIdSpec() : base(Config(Database))
+        public RedisEventsByTagSpec() : base(Config(Database))
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }

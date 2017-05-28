@@ -104,7 +104,7 @@ namespace Akka.Persistence.Redis.Journal
                 foreach (var tag in tags)
                 {
                     transaction.ListRightPushAsync(GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
-                    transaction.StringSetAsync(GetTagsKey(), tag);
+                    transaction.SetAddAsync(GetTagsKey(), tag);
                     transaction.PublishAsync(GetTagsChannel(), tag);
                 }
             }

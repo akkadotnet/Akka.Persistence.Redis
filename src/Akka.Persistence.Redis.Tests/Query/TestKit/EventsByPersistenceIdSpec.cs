@@ -29,7 +29,7 @@ namespace Akka.Persistence.TestKit.Query
         }
 
         [Fact]
-        public void Redis_live_query_EventsByPersistenceId_should_find_new_events()
+        public void ReadJournal_live_query_EventsByPersistenceId_should_find_new_events()
         {
             var queries = ReadJournal.AsInstanceOf<IEventsByPersistenceIdQuery>();
             var pref = Setup("c");
@@ -46,7 +46,7 @@ namespace Akka.Persistence.TestKit.Query
         }
 
         [Fact]
-        public void Redis_live_query_EventsByPersistenceId_should_find_new_events_up_to_SequenceNr()
+        public void ReadJournal_live_query_EventsByPersistenceId_should_find_new_events_up_to_SequenceNr()
         {
             var queries = ReadJournal.AsInstanceOf<IEventsByPersistenceIdQuery>();
             var pref = Setup("d");
@@ -63,7 +63,7 @@ namespace Akka.Persistence.TestKit.Query
         }
 
         [Fact]
-        public void Redis_live_query_EventsByPersistenceId_should_find_new_events_after_demand_request()
+        public void ReadJournal_live_query_EventsByPersistenceId_should_find_new_events_after_demand_request()
         {
             var queries = ReadJournal.AsInstanceOf<IEventsByPersistenceIdQuery>();
             var pref = Setup("e");

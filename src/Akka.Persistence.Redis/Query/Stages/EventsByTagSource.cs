@@ -1,44 +1,45 @@
-﻿using Akka.Persistence.Query;
-using StackExchange.Redis;
-using System;
-using System.Collections;
-using Akka.Streams;
-using Akka.Streams.Stage;
-using Akka.Actor;
-using Akka.Configuration;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Akka.Actor;
+using Akka.Configuration;
 using Akka.Pattern;
-using Akka.Util.Internal;
+using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Journal;
+using Akka.Streams;
+using Akka.Streams.Stage;
+using Akka.Util.Internal;
+using StackExchange.Redis;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
-    internal class EventsByPersistenceIdSource : GraphStage<SourceShape<EventEnvelope>>
+    internal class EventsByTagSource : GraphStage<SourceShape<EventEnvelope>>
     {
         private readonly ConnectionMultiplexer _redis;
         private readonly int _database;
         private readonly Config _config;
-        private readonly string _persistenceId;
-        private readonly long _fromSequenceNr;
-        private readonly long _toSequenceNr;
-        private readonly ActorSystem _system;
+        private readonly string _tag;
+        private readonly long _offset;
+        private readonly ExtendedActorSystem _system;
         private readonly bool _live;
 
-        public EventsByPersistenceIdSource(ConnectionMultiplexer redis, int database, Config config, string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
+        public EventsByTagSource(ConnectionMultiplexer redis, int database, Config config, string tag, long offset, ExtendedActorSystem system, bool live)
         {
             _redis = redis;
             _database = database;
             _config = config;
-            _persistenceId = persistenceId;
-            _fromSequenceNr = fromSequenceNr;
-            _toSequenceNr = toSequenceNr;
+            _tag = tag;
+            _offset = offset;
             _system = system;
             _live = live;
 
-            Outlet = live 
-                ? new Outlet<EventEnvelope>("EventsByPersistenceIdSource") 
-                : new Outlet<EventEnvelope>("CurrentEventsByPersistenceIdSource");
+            Outlet = live
+                ? new Outlet<EventEnvelope>("EventsByTagSource")
+                : new Outlet<EventEnvelope>("CurrentEventsByTagSource");
 
             Shape = new SourceShape<EventEnvelope>(Outlet);
         }
@@ -49,7 +50,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new EventsByPersistenceIdLogic(_redis, _database, _config, _system, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
+            return new EventsByTagLogic(_redis, _database, _config, _system, _tag, _offset, _live, Outlet, Shape);
         }
 
         private enum State
@@ -60,31 +61,31 @@ namespace Akka.Persistence.Redis.Query.Stages
             WaitingForNotification = 3
         }
 
-        private class EventsByPersistenceIdLogic : GraphStageLogic
+        private class EventsByTagLogic : GraphStageLogic
         {
             private State _state = State.Idle;
             private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
             private ISubscriber _subscription;
             private readonly int _max;
-            private long _currentSequenceNr;
-            private Action<IReadOnlyList<IPersistentRepresentation>> _callback;
+            private Action<(int, IReadOnlyList<(string, IPersistentRepresentation)>)> _callback;
 
             private readonly Outlet<EventEnvelope> _outlet;
             private readonly ConnectionMultiplexer _redis;
             private readonly int _database;
             private readonly ActorSystem _system;
-            private readonly string _persistenceId;
-            private readonly long _toSequenceNr;
+            private readonly long _offset;
+            private readonly string _tag;
             private readonly bool _live;
 
-            public EventsByPersistenceIdLogic(
+            private long _currentOffset;
+
+            public EventsByTagLogic(
                 ConnectionMultiplexer redis,
                 int database,
                 Config config,
                 ActorSystem system,
-                string persistenceId,
-                long fromSequenceNr,
-                long toSequenceNr,
+                string tag,
+                long offset,
                 bool live,
                 Outlet<EventEnvelope> outlet, Shape shape) : base(shape)
             {
@@ -92,20 +93,23 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _redis = redis;
                 _database = database;
                 _system = system;
-                _persistenceId = persistenceId;
-                _toSequenceNr = toSequenceNr;
+                _offset = offset;
+                _tag = tag;
                 _live = live;
 
                 _max = config.GetInt("max-buffer-size");
+                _currentOffset = offset;
 
-                _currentSequenceNr = fromSequenceNr;
                 SetHandler(outlet, Query);
             }
 
             public override void PreStart()
             {
-                _callback = GetAsyncCallback<IReadOnlyList<IPersistentRepresentation>>(events =>
+                _callback = GetAsyncCallback<(int, IReadOnlyList<(string, IPersistentRepresentation)>)>(raw =>
                 {
+                    var nb = raw.Item1;
+                    var events = raw.Item2;
+
                     if (events.Count == 0)
                     {
                         switch (_state)
@@ -134,25 +138,18 @@ namespace Akka.Persistence.Redis.Query.Stages
                     }
                     else
                     {
-                        var (evts, maxSequenceNr) = events.Aggregate((new List<EventEnvelope>(), _currentSequenceNr), (tuple, pr) =>
+                        var evts = events.ZipWithIndex().Select(c =>
                         {
-                            if (!pr.IsDeleted &&
-                                pr.SequenceNr >= _currentSequenceNr &&
-                                pr.SequenceNr <= _toSequenceNr)
+                            var repr = c.Key.Item2;
+                            if (repr != null && !repr.IsDeleted)
                             {
-                                tuple.Item1.Add(new EventEnvelope(pr.SequenceNr, pr.PersistenceId, pr.SequenceNr, pr.Payload));
-                                tuple.Item2 = pr.SequenceNr + 1;
-                            }
-                            else
-                            {
-                                tuple.Item2 = pr.SequenceNr + 1;
+                                return new EventEnvelope(_currentOffset + c.Value, repr.PersistenceId, repr.SequenceNr, repr.Payload);
                             }
 
-                            return tuple;
-                        });
+                            return null;
+                        }).ToList();
 
-                        _currentSequenceNr = maxSequenceNr;
-                        // TODO: log.debug(f"Max sequence number is now $maxSequenceNr")
+                        _currentOffset += nb;
                         if (evts.Count > 0)
                         {
                             evts.ForEach(_buffer.Enqueue);
@@ -172,7 +169,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(RedisUtils.GetJournalChannel(_persistenceId)))
+                        if (data.channel.Equals(RedisUtils.GetTagsChannel()) && data.bs == _tag)
                         {
                             // TODO: log.Debug("Message received")
 
@@ -193,6 +190,10 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     break;
                             }
                         }
+                        else if (data.channel.Equals(RedisUtils.GetTagsChannel()))
+                        {
+                            // ignore other tags
+                        }
                         else
                         {
                             // TODO: log.Debug($"Message from unexpected channel: {channel}")
@@ -200,7 +201,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(RedisUtils.GetJournalChannel(_persistenceId), (channel, value) =>
+                    _subscription.Subscribe(RedisUtils.GetTagsChannel(), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -222,22 +223,30 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
-                            var events = _redis.GetDatabase(_database).SortedSetRangeByScore(
-                                key: RedisUtils.GetJournalKey(_persistenceId),
-                                start: _currentSequenceNr,
-                                stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr),
-                                order: Order.Ascending);
+                            var refs = _redis.GetDatabase(_database).ListRange(
+                                RedisUtils.GetTagKey(_tag),
+                                _currentOffset,
+                                _currentOffset + _max - 1);
 
-                            try
+                            var trans = _redis.GetDatabase(_database).CreateTransaction();
+
+                            var events = refs.Select(bytes =>
                             {
-                                var deserializedEvents = events.Select(e => RedisUtils.PersistentFromBytes(e, _system.Serialization)).ToList();
-                                _callback(deserializedEvents);
-                            }
-                            catch (Exception e)
+                                var (sequenceNr, persistenceId) = bytes.Deserialize();
+                                return trans.SortedSetRangeByScoreAsync(RedisUtils.GetJournalKey(persistenceId), sequenceNr, sequenceNr);
+                            }).ToList();
+
+                            var f = trans.Execute();
+
+                            var callbackEvents = events.Select(bytes =>
                             {
-                                // TODO: log.Error(e, "Error while querying events by persistence identifier");
-                                FailStage(e);
-                            }
+                                var result = RedisUtils.PersistentFromBytes(bytes.Result.FirstOrDefault(), _system.Serialization);
+                                return (result.PersistenceId, result);
+                            }).ToList();
+
+                            _callback((refs.Length, callbackEvents));
+
+                            // TODO: FailStage on Error
                         }
                         else
                         {
@@ -246,7 +255,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                         break;
                     default:
-                        // TODO: log.error(f"Unexpected source state when querying: $state")
+                        // TODO: log.Error($"Unexpected source state when querying: {_state}");
                         FailStage(new IllegalStateException($"Unexpected source state when querying: {_state}"));
                         break;
                 }
@@ -258,12 +267,34 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _state = State.Idle;
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
-                if (_buffer.Count == 0 && _currentSequenceNr > _toSequenceNr)
-                {
-                    // we delivered last buffered event and the upper bound was reached, complete 
-                    CompleteStage();
-                }
             }
+        }
+    }
+
+    internal static class EventRefDeserializer
+    {
+        private static readonly Regex EventRef = new Regex("(\\d+):(.*)");
+
+        public static (long, string) Deserialize(this RedisValue value)
+        {
+            var match = EventRef.Match(value);
+
+            if (match.Success)
+                return (long.Parse(match.Groups[1].Value), match.Groups[2].Value);
+            else
+                throw new SerializationException($"Unable to deserializer {value}");
+        }
+
+        public static Dictionary<T, int> ZipWithIndex<T>(this IEnumerable<T> collection)
+        {
+            var i = 0;
+            var dict = new Dictionary<T, int>();
+            foreach (var item in collection)
+            {
+                dict.Add(item, i);
+                i++;
+            }
+            return dict;
         }
     }
 }

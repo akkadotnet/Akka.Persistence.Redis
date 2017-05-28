@@ -19,10 +19,8 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.persistence.journal.redis {{
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                auto-initialize = on
                 configuration-string = ""127.0.0.1:6379,allowAdmin:true""
                 database = {id}
-                key-prefix = ""akka:persistence:journal""
             }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
