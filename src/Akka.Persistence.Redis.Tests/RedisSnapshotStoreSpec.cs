@@ -18,10 +18,11 @@ namespace Akka.Persistence.Redis.Tests
         private static readonly Config SpecConfig;
         private static readonly string KeyPrefix;
 
+        public const int Database = 1;
+
         static RedisSnapshotStoreSpec()
         {
             var connectionString = "127.0.0.1:6379";
-            var database = 0;
 
             SpecConfig = ConfigurationFactory.ParseString(@"
                 akka.test.single-expect-default = 3s
@@ -34,7 +35,7 @@ namespace Akka.Persistence.Redis.Tests
                             configuration-string = """ + connectionString + @"""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
                             ttl = 1h
-                            database = """ + database + @"""
+                            database = """ + Database + @"""
                             key-prefix = ""akka:persistence:snapshots""
                         }
                     }
@@ -53,7 +54,7 @@ namespace Akka.Persistence.Redis.Tests
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(1);
+            DbUtils.Clean(Database);
         }
     }
 }

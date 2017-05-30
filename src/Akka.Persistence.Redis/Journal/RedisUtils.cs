@@ -11,12 +11,14 @@ namespace Akka.Persistence.Redis.Journal
     {
         public static byte[] PersistentToBytes(IPersistentRepresentation message, Akka.Serialization.Serialization serialization)
         {
-            return serialization.FindSerializerForType(typeof(object)).ToBinary(message);
+            var serializer = serialization.FindSerializerForType(typeof(object));
+            return serializer.ToBinary(message);
         }
 
         public static IPersistentRepresentation PersistentFromBytes(byte[] bytes, Akka.Serialization.Serialization serialization)
         {
-            return serialization.FindSerializerForType(typeof(object)).FromBinary<IPersistentRepresentation>(bytes);
+            var serializer = serialization.FindSerializerForType(typeof(object));
+            return serializer.FromBinary<IPersistentRepresentation>(bytes);
         }
 
         public static string GetIdentifiersKey() => "journal:persistenceIds";
