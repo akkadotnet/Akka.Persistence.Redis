@@ -19,7 +19,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
                 event-adapters {{
-                  color-tagger  = ""Akka.Persistence.Redis.Tests.Query.ColorTagger, Akka.Persistence.Redis.Tests""
+                  color-tagger  = ""Akka.Persistence.TestKit.Query.ColorFruitTagger, Akka.Persistence.Redis.Tests""
                 }}
                 event-adapter-bindings = {{
                   ""System.String"" = color-tagger
@@ -29,7 +29,7 @@ namespace Akka.Persistence.Redis.Tests.Query
                 configuration-string = ""127.0.0.1:6379,allowAdmin:true""
                 database = {id}
             }}
-            akka.test.single-expect-default = 3s")
+            akka.test.single-expect-default = 25s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
         public RedisCurrentEventsByTagSpec() : base(Config(Database))
@@ -41,25 +41,6 @@ namespace Akka.Persistence.Redis.Tests.Query
         {
             DbUtils.Clean(Database);
             base.Dispose(disposing);
-        }
-    }
-
-    public class ColorTagger : IWriteEventAdapter
-    {
-        public static readonly IImmutableSet<string> Colors = ImmutableHashSet.CreateRange(new[] { "green", "black", "blue" });
-        public string Manifest(object evt) => string.Empty;
-
-        public object ToJournal(object evt)
-        {
-            var s = evt as string;
-            if (s != null)
-            {
-                var tags = Colors.Aggregate(ImmutableHashSet<string>.Empty, (acc, color) => s.Contains(color) ? acc.Add(color) : acc);
-                return tags.IsEmpty
-                    ? evt
-                    : new Tagged(evt, tags);
-            }
-            else return evt;
         }
     }
 }

@@ -125,23 +125,24 @@ The persistence plugin will not store the Tagged class in the journal. It will s
 ```
 public class ColorTagger : IWriteEventAdapter
 {
-    public static readonly IImmutableSet<string> Colors = ImmutableHashSet.CreateRange(new[] { "green", "black", "blue" });
     public string Manifest(object evt) => string.Empty;
+    internal Tagged WithTag(object evt, string tag) => new Tagged(evt, ImmutableHashSet.Create(tag));
 
     public object ToJournal(object evt)
     {
-        var s = evt as string;
-        if (s != null)
+        switch (evt)
         {
-            var tags = Colors.Aggregate(ImmutableHashSet<string>.Empty, (acc, color) => s.Contains(color) ? acc.Add(color) : acc);
-            return tags.IsEmpty
-                ? evt
-                : new Tagged(evt, tags);
+            case string s when s.Contains("green"):
+                return WithTag(evt, "green");
+            case string s when s.Contains("black"):
+                return WithTag(evt, "black");
+            case string s when s.Contains("blue"):
+                return WithTag(evt, "blue");
+            default:
+                return evt;
         }
-        else return evt;
     }
 }
-
 ```
 The EventAdapter must be registered by adding the following to the root of `application.conf` Please see the demo-akka-persistence-jdbc project for more information.
 ```

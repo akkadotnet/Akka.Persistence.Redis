@@ -27,7 +27,7 @@ namespace Akka.Persistence.TestKit.Query
         }
 
         [Fact]
-        public void ReadJournal_query_EventsByTag_should_find_existing_events()
+        public void ReadJournal_query_CurrentEventsByTag_should_find_existing_events()
         {
             var queries = ReadJournal as ICurrentEventsByTagQuery;
             var a = Sys.ActorOf(Query.TestActor.Props("a"));
@@ -39,6 +39,8 @@ namespace Akka.Persistence.TestKit.Query
             ExpectMsg("a green apple-done");
             b.Tell("a black car");
             ExpectMsg("a black car-done");
+            a.Tell("something else");
+            ExpectMsg("something else-done");
             a.Tell("a green banana");
             ExpectMsg("a green banana-done");
             b.Tell("a green leaf");
@@ -48,7 +50,7 @@ namespace Akka.Persistence.TestKit.Query
             var probe = greenSrc.RunWith(this.SinkProbe<EventEnvelope>(), Materializer);
             probe.Request(2)
                 .ExpectNext(new EventEnvelope(0L, "a", 2L, "a green apple"))
-                .ExpectNext(new EventEnvelope(1L, "a", 3L, "a green banana"));
+                .ExpectNext(new EventEnvelope(1L, "a", 4L, "a green banana"));
             probe.ExpectNoMsg(TimeSpan.FromMilliseconds(500));
             probe.Request(2)
                 .ExpectNext(new EventEnvelope(2L, "b", 2L, "a green leaf"))
@@ -59,13 +61,36 @@ namespace Akka.Persistence.TestKit.Query
             probe.Request(5)
                 .ExpectNext(new EventEnvelope(0L, "b", 1L, "a black car"))
                 .ExpectComplete();
+
+            var appleSrc = queries.CurrentEventsByTag("apple", offset: 0L);
+            probe = appleSrc.RunWith(this.SinkProbe<EventEnvelope>(), Materializer);
+            probe.Request(5)
+                .ExpectNext(new EventEnvelope(0L, "a", 2L, "a green apple"))
+                .ExpectComplete();
         }
 
         [Fact]
-        public void ReadJournal_query_EventsByTag_should_not_see_new_events_after_complete()
+        public void ReadJournal_query_CurrentEventsByTag_should_complete_when_no_events()
         {
             var queries = ReadJournal as ICurrentEventsByTagQuery;
-            ReadJournal_query_EventsByTag_should_find_existing_events();
+            var a = Sys.ActorOf(Query.TestActor.Props("a"));
+            var b = Sys.ActorOf(Query.TestActor.Props("b"));
+
+            a.Tell("a green apple");
+            ExpectMsg("a green apple-done");
+            b.Tell("a black car");
+            ExpectMsg("a black car-done");
+
+            var greenSrc = queries.CurrentEventsByTag("pink", offset: 0L);
+            var probe = greenSrc.RunWith(this.SinkProbe<EventEnvelope>(), Materializer);
+            probe.Request(2).ExpectComplete();
+        }
+
+        [Fact(Skip = "Not implemented yet")]
+        public void ReadJournal_query_CurrentEventsByTag_should_not_see_new_events_after_complete()
+        {
+            var queries = ReadJournal as ICurrentEventsByTagQuery;
+            ReadJournal_query_CurrentEventsByTag_should_find_existing_events();
 
             var c = Sys.ActorOf(Query.TestActor.Props("c"));
 
@@ -73,26 +98,45 @@ namespace Akka.Persistence.TestKit.Query
             var probe = greenSrc.RunWith(this.SinkProbe<EventEnvelope>(), Materializer);
             probe.Request(2)
                 .ExpectNext(new EventEnvelope(0L, "a", 2L, "a green apple"))
-                .ExpectNext(new EventEnvelope(1L, "a", 3L, "a green banana"))
+                .ExpectNext(new EventEnvelope(1L, "a", 4L, "a green banana"))
                 .ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+
+            c.Tell("a green cucumber");
+            ExpectMsg("a green cucumber-done");
 
             probe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
             probe.Request(5)
                 .ExpectNext(new EventEnvelope(2L, "b", 2L, "a green leaf"))
                 .ExpectComplete(); // green cucumber not seen
-
-            c.Tell("a green cucumber");
-            ExpectMsg("a green cucumber-done");
         }
 
         [Fact]
-        public void ReadJournal_query_EventsByTag_should_find_events_from_offset_inclusive()
+        public void ReadJournal_query_CurrentEventsByTag_should_find_events_from_offset()
         {
             var queries = ReadJournal as ICurrentEventsByTagQuery;
-            ReadJournal_query_EventsByTag_should_not_see_new_events_after_complete();
+
+            var a = Sys.ActorOf(Query.TestActor.Props("a"));
+            var b = Sys.ActorOf(Query.TestActor.Props("b"));
+            var c = Sys.ActorOf(Query.TestActor.Props("c"));
+
+            a.Tell("hello");
+            ExpectMsg("hello-done");
+            a.Tell("a green apple");
+            ExpectMsg("a green apple-done");
+            b.Tell("a black car");
+            ExpectMsg("a black car-done");
+            a.Tell("something else");
+            ExpectMsg("something else-done");
+            a.Tell("a green banana");
+            ExpectMsg("a green banana-done");
+            b.Tell("a green leaf");
+            ExpectMsg("a green leaf-done");
+            c.Tell("a green cucumber");
+            ExpectMsg("a green cucumber-done");
 
             var greenSrc = queries.CurrentEventsByTag("green", offset: 2L);
             var probe = greenSrc.RunWith(this.SinkProbe<EventEnvelope>(), Materializer);
+
             probe.Request(10)
                 .ExpectNext(new EventEnvelope(2L, "b", 2L, "a green leaf"))
                 .ExpectNext(new EventEnvelope(3L, "c", 1L, "a green cucumber"))

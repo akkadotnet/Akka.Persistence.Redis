@@ -19,7 +19,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
                 event-adapters {{
-                  color-tagger  = ""Akka.Persistence.Redis.Tests.Query.ColorTagger, Akka.Persistence.Redis.Tests""
+                  color-tagger  = ""Akka.Persistence.TestKit.Query.ColorFruitTagger, Akka.Persistence.Redis.Tests""
                 }}
                 event-adapter-bindings = {{
                   ""System.String"" = color-tagger
