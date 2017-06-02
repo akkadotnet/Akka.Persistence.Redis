@@ -86,7 +86,7 @@ namespace Akka.Persistence.TestKit.Query
             probe.Request(2).ExpectComplete();
         }
 
-        [Fact(Skip = "Not implemented yet")]
+        [Fact(Skip = "Not done in original implementation")]
         public void ReadJournal_query_CurrentEventsByTag_should_not_see_new_events_after_complete()
         {
             var queries = ReadJournal as ICurrentEventsByTagQuery;

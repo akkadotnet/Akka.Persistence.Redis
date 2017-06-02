@@ -56,8 +56,8 @@ namespace Akka.Persistence.TestKit.Query
                 .ExpectComplete();
         }
 
-        [Fact]
-        public void ReadJournal_CurrentEventsByPersistenceId_should_not_see_new_events_after_demand_request()
+        [Fact(Skip = "Not done in original implementation")]
+        public void ReadJournal_CurrentEventsByPersistenceId_should_not_see_new_events_after_completion()
         {
             var queries = ReadJournal.AsInstanceOf<ICurrentEventsByPersistenceIdQuery>();
             var pref = Setup("f");
@@ -102,7 +102,7 @@ namespace Akka.Persistence.TestKit.Query
             src.Select(x => x.Event).RunWith(this.SinkProbe<object>(), Materializer).Request(1).ExpectComplete();
         }
 
-        [Fact]
+        [Fact(Skip = "Not done in original implementation")]
         public void ReadJournal_CurrentEventsByPersistenceId_should_return_remaining_values_after_partial_journal_cleanup()
         {
             var queries = ReadJournal.AsInstanceOf<ICurrentEventsByPersistenceIdQuery>();
@@ -111,8 +111,11 @@ namespace Akka.Persistence.TestKit.Query
             pref.Tell(new TestActor.DeleteCommand(2));
             AwaitAssert(() => ExpectMsg("2-deleted"));
 
-            var src = queries.CurrentEventsByPersistenceId("h", 0, long.MaxValue);
-            src.Select(x => x.Event).RunWith(this.SinkProbe<object>(), Materializer).Request(1).ExpectNext("h-3").ExpectComplete();
+            var src = queries.CurrentEventsByPersistenceId("h", 0L, long.MaxValue);
+            src.Select(x => x.Event).RunWith(this.SinkProbe<object>(), Materializer)
+                .Request(1)
+                .ExpectNext("h-3")
+                .ExpectComplete();
         }
 
         [Fact]

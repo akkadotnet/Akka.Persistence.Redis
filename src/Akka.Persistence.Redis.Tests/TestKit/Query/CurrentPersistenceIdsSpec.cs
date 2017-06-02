@@ -59,6 +59,30 @@ namespace Akka.Persistence.TestKit.Query
                     .ExpectComplete());
         }
 
+        [Fact]
+        public void ReadJournal_query_CurrentPersistenceIds_should_not_see_new_events_after_complete()
+        {
+            var queries = ReadJournal.AsInstanceOf<ICurrentPersistenceIdsQuery>();
+
+            Setup("a", 1);
+            Setup("b", 1);
+            Setup("c", 1);
+
+            var greenSrc = queries.CurrentPersistenceIds();
+            var probe = greenSrc.RunWith(this.SinkProbe<string>(), Materializer);
+            probe.Request(2)
+                .ExpectNext("a")
+                .ExpectNext("c")
+                .ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+
+            Setup("d", 1);
+
+            probe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+            probe.Request(5)
+                .ExpectNext("b")
+                .ExpectComplete();
+        }
+
         protected IActorRef Setup(string persistenceId, int n)
         {
             var pref = Sys.ActorOf(Query.TestActor.Props(persistenceId));

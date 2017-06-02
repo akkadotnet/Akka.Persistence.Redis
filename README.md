@@ -1,7 +1,11 @@
 # Akka.Persistence.Redis [![Build status](https://ci.appveyor.com/api/projects/status/ihgbe6g07hdvxaya/branch/dev?svg=true)](https://ci.appveyor.com/project/ravengerUA/akka-persistence-redis/branch/dev)
 
-Akka Persistence journal and snapshot store backed by Redis database.
-Based on https://github.com/StackExchange/StackExchange.Redis library.
+Akka Persistence Redis Plugin is a plugin for `Akka persistence` that provides several components:
+ - a journal store ;
+ - a snapshot store ;
+ - a journal query interface implementation.
+
+This plugin stores data in a [redis](https://redis.io) database and based on [Stackexchange.Redis](https://github.com/StackExchange/StackExchange.Redis) library.
 
 ## Installation
 From `Nuget Package Manager`
@@ -13,49 +17,27 @@ From `.NET CLI`
 dotnet add package Akka.Persistence.Redis
 ```
 
-## Configuration
-
-Both journal and snapshot store share the same configuration keys (however they resides in separate scopes, so they are defined distinctly for either journal or snapshot store):
-
-Remember that connection string must be provided separately to Journal and Snapshot Store.
-
-```hocon
-akka.persistence {
-    journal {
-        plugin = "akka.persistence.journal.redis"
-        redis {
-            # qualified type name of the Redis persistence journal actor
-            class = "Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis"
-
-            # connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
-            configuration-string = ""
-
-            # dispatcher used to drive journal actor
-            plugin-dispatcher = "akka.actor.default-dispatcher"
-
-            #Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
-            key-prefix = "akka:persistence:journal"
-        }
-    }    
-
-    snapshot-store {
-        plugin = "akka.persistence.snapshot-store.redis"
-        redis {
-            # qualified type name of the Redis persistence snapshot storage actor
-            class = "Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis"
-
-            # connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
-            configuration-string = ""
-
-            # dispatcher used to drive snapshot storage actor
-            plugin-dispatcher = "akka.actor.default-dispatcher"
-
-            #Redis storage key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
-            key-prefix = "akka:persistence:snapshots"
-        }
-    }
-}
+## Journal plugin
+To activate the journal plugin, add the following line to your HOCON config:
 ```
+akka.persistence.journal.plugin = "akka.persistence.journal.redis"
+```
+This will run the journal with its default settings. The default settings can be changed with the configuration properties defined in your HOCON config:
+
+### Configuration
+- `configuration-string` - connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
+- `key-prefix` - Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
+
+## Snapshot config
+To activate the snapshot plugin, add the following line to your HOCON config:
+```
+akka.persistence.snapshot-store.plugin = "akka.persistence.snapshot-store.redis"
+```
+This will run the snapshot-store with its default settings. The default settings can be changed with the configuration properties defined in your HOCON config:
+
+### Configuration
+- `configuration-string` - connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
+- `key-prefix` - Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
 
 ## Persistence Query
 
@@ -160,8 +142,6 @@ You can retrieve a subset of all events by specifying `offset`, or use `0L` to r
 In addition to the `offset` the `EventEnvelope` also provides `persistenceId` and `sequenceNr` for each event. The `sequenceNr` is the sequence number for the persistent actor with the `persistenceId` that persisted the event. The `persistenceId` + `sequenceNr` is an unique identifier for the event.
 
 The returned event stream contains only events that correspond to the given tag, and is ordered by the creation time of the events. The same stream elements (in same order) are returned for multiple executions of the same query. Deleted events are not deleted from the tagged event stream.
-
-
 
 ## Serialization
 The events and snapshots are stored as Json documents via default NewtonsoftJsonSerializer. If you want to change the serialization format, you should change HOCON settings
