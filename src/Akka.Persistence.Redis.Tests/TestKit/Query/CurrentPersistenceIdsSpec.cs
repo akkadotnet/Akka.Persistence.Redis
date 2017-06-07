@@ -70,16 +70,14 @@ namespace Akka.Persistence.TestKit.Query
 
             var greenSrc = queries.CurrentPersistenceIds();
             var probe = greenSrc.RunWith(this.SinkProbe<string>(), Materializer);
-            probe.Request(2)
-                .ExpectNext("a")
-                .ExpectNext("c")
+            probe.Request(3)
+                .ExpectNextUnordered("a", "b", "c")
                 .ExpectNoMsg(TimeSpan.FromMilliseconds(100));
 
             Setup("d", 1);
 
             probe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
             probe.Request(5)
-                .ExpectNext("b")
                 .ExpectComplete();
         }
 

@@ -1,9 +1,15 @@
+//-----------------------------------------------------------------------
+// <copyright file="JsonSerializer.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// </copyright>
+//-----------------------------------------------------------------------
+
 using System;
 using Akka.Actor;
 using System.Text;
 using Newtonsoft.Json;
 using Akka.Serialization;
-using Akka.Util;
 
 namespace Akka.Persistence.Redis.Serialization
 {
@@ -13,62 +19,44 @@ namespace Akka.Persistence.Redis.Serialization
 
         public JsonSerializer(ExtendedActorSystem system) : base(system)
         {
-            Settings = new JsonSerializerSettings()
+            Settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto
+                TypeNameHandling = TypeNameHandling.Auto,
+                DefaultValueHandling = DefaultValueHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Ignore
             };
         }
 
         public override byte[] ToBinary(object obj)
         {
-            if (obj is IPersistentRepresentation) return PersistenceMessageSerializer((IPersistentRepresentation)obj);
-            if (obj is IActorRef) return IActorRefSerializer((IActorRef)obj);
-            if (obj is ActorPath) return ActorPathSerializer((ActorPath)obj);
-
-            return ObjectSerializer(obj);
+            switch (obj)
+            {
+                case IPersistentRepresentation _:
+                case AtLeastOnceDeliverySnapshot _:
+                case Akka.Persistence.Serialization.Snapshot _:
+                    return ObjectSerializer(obj);
+                default:
+                    return ObjectSerializer(obj);
+            }
         }
+
         public override object FromBinary(byte[] bytes, Type type)
         {
-            if (type == typeof(IPersistentRepresentation)) return PersistenceMessageDeserializer(bytes);
-            if (type == typeof(IActorRef)) return IActorRefDeserializer(bytes);
-            if (type == typeof(ActorPath)) return ActorPathDeserializer(bytes);
+            if (type == typeof(Persistent) || type == typeof(IPersistentRepresentation))
+            {
+                return ObjectDeserializer(bytes, typeof(Persistent));
+            }
+            else if (type == typeof(Akka.Persistence.Serialization.Snapshot))
+            {
+                return ObjectDeserializer(bytes, type);
+            }
 
             return ObjectDeserializer(bytes, type);
         }
 
-        public override int Identifier => 34;
+        public override int Identifier => 41;
 
-        public override bool IncludeManifest => false;
-
-        
-        private byte[] PersistenceMessageSerializer(IPersistentRepresentation obj)
-        {
-            var persistenceMessage = new PersistenceMessage();
-            persistenceMessage.PersistenceId = obj.PersistenceId;
-            persistenceMessage.SequenceNr = obj.SequenceNr;
-            persistenceMessage.WriterGuid = obj.WriterGuid;
-            persistenceMessage.Payload = PayloadToBytes(obj.Payload);
-            return ObjectSerializer(persistenceMessage);
-        }
-
-        private IPersistentRepresentation PersistenceMessageDeserializer(byte[] bytes)
-        {
-            var persistenceMessage = ObjectDeserializer(bytes, typeof(PersistenceMessage)) as PersistenceMessage;
-
-            var payload = system.Serialization.Deserialize(
-                persistenceMessage.Payload.Payload,
-                persistenceMessage.Payload.SerializerId,
-                persistenceMessage.Payload.Manifest);
-
-            return new Persistent(
-                payload,
-                persistenceMessage.SequenceNr,
-                persistenceMessage.PersistenceId,
-                persistenceMessage.Payload.Manifest,
-                false,
-                null,
-                persistenceMessage.WriterGuid);
-        }
+        public override bool IncludeManifest => true;
 
         private byte[] ObjectSerializer(object obj)
         {
@@ -80,65 +68,6 @@ namespace Akka.Persistence.Redis.Serialization
         {
             string data = Encoding.UTF8.GetString(bytes);
             return JsonConvert.DeserializeObject(data, type, Settings);
-        }
-
-        private byte[] IActorRefSerializer(IActorRef actorRef)
-        {
-            var str = Akka.Serialization.Serialization.SerializedActorPath(actorRef);
-            return ObjectSerializer(str);
-        }
-
-        private object IActorRefDeserializer(byte[] bytes)
-        {
-            var path = (string)ObjectDeserializer(bytes, typeof(string));
-            return system.Provider.ResolveActorRef(path);
-        }
-
-        private byte[] ActorPathSerializer(ActorPath obj)
-        {
-            var str = obj.ToSerializationFormat();
-            return ObjectSerializer(str);
-        }
-
-        private object ActorPathDeserializer(byte[] bytes)
-        {
-            var path = (string)ObjectDeserializer(bytes, typeof(string));
-            ActorPath actorPath;
-            if (ActorPath.TryParse(path, out actorPath))
-            {
-                return actorPath;
-            }
-
-            return null;
-        }
-
-        public PersistencePayload PayloadToBytes(object payload)
-        {
-            if (payload == null)
-                return null;
-
-            var persistencePayload = new PersistencePayload();
-            var serializer = this.system.Serialization.FindSerializerFor(payload);
-
-            persistencePayload.SerializerId = serializer.Identifier;
-            persistencePayload.Payload = serializer.ToBinary(payload);
-
-            // get manifest
-            var manifestSerializer = serializer as SerializerWithStringManifest;
-
-            if (manifestSerializer != null)
-            {
-                var manifest = manifestSerializer.Manifest(payload);
-                if (!string.IsNullOrEmpty(manifest))
-                    persistencePayload.Manifest = manifest;
-            }
-            else
-            {
-                if (serializer.IncludeManifest)
-                    persistencePayload.Manifest = payload.GetType().TypeQualifiedName();
-            }
-
-            return persistencePayload;
         }
     }
 }

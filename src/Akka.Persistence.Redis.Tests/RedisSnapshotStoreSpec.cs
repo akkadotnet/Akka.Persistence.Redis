@@ -34,7 +34,6 @@ namespace Akka.Persistence.Redis.Tests
                             class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
                             configuration-string = """ + connectionString + @"""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
-                            ttl = 1h
                             database = """ + Database + @"""
                             key-prefix = ""akka:persistence:snapshots""
                         }

@@ -5,10 +5,8 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.Redis.Tests.TestKit;
 using Akka.Persistence.TestKit.Journal;
 using Xunit;
 using Xunit.Abstractions;

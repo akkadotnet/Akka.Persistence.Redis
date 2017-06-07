@@ -1,7 +1,7 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="RedisSnapshotStore.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -44,15 +44,15 @@ namespace Akka.Persistence.Redis.Snapshot
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
             var snapshots = await _database.Value.SortedSetRangeByScoreAsync(
-                SnapshotKey(persistenceId),
-                criteria.MaxSequenceNr,
-                -1,
-                Exclude.None,
-                Order.Descending);
+              SnapshotKey(persistenceId),
+              criteria.MaxSequenceNr,
+              -1,
+              Exclude.None,
+              Order.Descending);
 
             var found = snapshots
-                .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
-                .FirstOrDefault(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr);
+              .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
+              .FirstOrDefault(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr);
 
             return found;
         }
@@ -60,9 +60,9 @@ namespace Akka.Persistence.Redis.Snapshot
         protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot)
         {
             return _database.Value.SortedSetAddAsync(
-                SnapshotKey(metadata.PersistenceId),
-                _serializer.Value.ToBinary(ToSnapshotEntry(metadata, snapshot)),
-                metadata.SequenceNr);
+              SnapshotKey(metadata.PersistenceId),
+              _serializer.Value.ToBinary(ToSnapshotEntry(metadata, snapshot)),
+              metadata.SequenceNr);
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata)
@@ -73,17 +73,17 @@ namespace Akka.Persistence.Redis.Snapshot
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
             var snapshots = await _database.Value.SortedSetRangeByScoreAsync(
-                SnapshotKey(persistenceId),
-                criteria.MaxSequenceNr,
-                0L,
-                Exclude.None,
-                Order.Descending);
+              SnapshotKey(persistenceId),
+              criteria.MaxSequenceNr,
+              0L,
+              Exclude.None,
+              Order.Descending);
 
             var found = snapshots
-                .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
-                .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
-                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(SnapshotKey(persistenceId), s.Metadata.SequenceNr, s.Metadata.SequenceNr))
-                .ToArray();
+              .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
+              .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
+              .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(SnapshotKey(persistenceId), s.Metadata.SequenceNr, s.Metadata.SequenceNr))
+              .ToArray();
 
             await Task.WhenAll(found);
         }

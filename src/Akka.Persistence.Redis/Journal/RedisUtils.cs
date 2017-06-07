@@ -1,9 +1,9 @@
-﻿using Akka.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿//-----------------------------------------------------------------------
+// <copyright file="RedisUtils.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// </copyright>
+//-----------------------------------------------------------------------
 
 namespace Akka.Persistence.Redis.Journal
 {
@@ -11,13 +11,13 @@ namespace Akka.Persistence.Redis.Journal
     {
         public static byte[] PersistentToBytes(IPersistentRepresentation message, Akka.Serialization.Serialization serialization)
         {
-            var serializer = serialization.FindSerializerForType(typeof(object));
+            var serializer = serialization.FindSerializerForType(typeof(IPersistentRepresentation));
             return serializer.ToBinary(message);
         }
 
         public static IPersistentRepresentation PersistentFromBytes(byte[] bytes, Akka.Serialization.Serialization serialization)
         {
-            var serializer = serialization.FindSerializerForType(typeof(object));
+            var serializer = serialization.FindSerializerForType(typeof(IPersistentRepresentation));
             return serializer.FromBinary<IPersistentRepresentation>(bytes);
         }
 

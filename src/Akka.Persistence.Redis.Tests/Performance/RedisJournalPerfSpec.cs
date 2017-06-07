@@ -19,7 +19,8 @@ namespace Akka.Persistence.Redis.Tests.Performance
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration());
+            .WithFallback(RedisReadJournal.DefaultConfiguration())
+            .WithFallback(Persistence.DefaultConfig());
 
 
         public RedisJournalPerfSpec(ITestOutputHelper output) : base(Config(Database), output)

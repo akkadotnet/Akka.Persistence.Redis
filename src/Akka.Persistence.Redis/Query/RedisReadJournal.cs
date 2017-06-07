@@ -1,4 +1,11 @@
-﻿using Akka.Actor;
+﻿//-----------------------------------------------------------------------
+// <copyright file="RedisReadJournal.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// </copyright>
+//-----------------------------------------------------------------------
+
+using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Query;
 using Akka.Streams.Dsl;
@@ -20,9 +27,6 @@ namespace Akka.Persistence.Redis.Query
     {
         private readonly ExtendedActorSystem _system;
         private readonly Config _config;
-        private readonly TimeSpan _refreshInterval;
-        private readonly string _writeJournalPluginId;
-        private readonly int _maxBufferSize;
 
         private ConnectionMultiplexer _redis;
         private int _database;
@@ -41,10 +45,6 @@ namespace Akka.Persistence.Redis.Query
         {
             _system = system;
             _config = config;
-            _refreshInterval = config.GetTimeSpan("refresh-interval");
-            _writeJournalPluginId = config.GetString("write-plugin");
-            _maxBufferSize = config.GetInt("max-buffer-size");
-
             var address = system.Settings.Config.GetString("akka.persistence.journal.redis.configuration-string");
 
             _database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");

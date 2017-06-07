@@ -1,0 +1,20 @@
+
+syntax = "proto3";
+package CustomSerialization.Protobuf.Msg;
+
+message PersistentMessage {
+  string persistenceId = 1;
+  int64 sequenceNr = 2;
+  string writerGuid = 3;
+  PersistentPayload payload = 4;
+}
+
+message PersistentPayload {
+  bytes message = 1;
+  int32 serializerId = 2;
+  bytes messageManifest = 3;
+}
+
+message Stored {
+  int32 value = 1;
+}

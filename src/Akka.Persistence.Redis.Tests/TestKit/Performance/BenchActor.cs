@@ -10,7 +10,7 @@ namespace Akka.Persistence.TestKit.Performance
         private ResetCounter() { }
     }
 
-    internal class Cmd
+    public class Cmd
     {
         public Cmd(string mode, int payload)
         {
