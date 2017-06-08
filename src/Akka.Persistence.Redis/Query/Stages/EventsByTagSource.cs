@@ -74,6 +74,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
             private ISubscriber _subscription;
             private readonly int _max;
+            private readonly string _keyPrefix;
             private Action<(int, IReadOnlyList<(string, IPersistentRepresentation)>)> _callback;
 
             private readonly Outlet<EventEnvelope> _outlet;
@@ -105,6 +106,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _live = live;
 
                 _max = config.GetInt("max-buffer-size");
+                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
+
                 _currentOffset = offset;
 
                 SetHandler(outlet, Query);
@@ -176,7 +179,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(RedisUtils.GetTagsChannel()) && data.bs == _tag)
+                        if (data.channel.Equals(GetTagsChannel()) && data.bs == _tag)
                         {
                             // TODO: log.Debug("Message received")
 
@@ -197,7 +200,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     break;
                             }
                         }
-                        else if (data.channel.Equals(RedisUtils.GetTagsChannel()))
+                        else if (data.channel.Equals(GetTagsChannel()))
                         {
                             // ignore other tags
                         }
@@ -208,7 +211,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(RedisUtils.GetTagsChannel(), (channel, value) =>
+                    _subscription.Subscribe(GetTagsChannel(), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -231,7 +234,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _state = State.Querying;
 
                             var refs = _redis.GetDatabase(_database).ListRange(
-                                RedisUtils.GetTagKey(_tag),
+                                GetTagKey(_tag),
                                 _currentOffset,
                                 _currentOffset + _max - 1);
 
@@ -240,14 +243,14 @@ namespace Akka.Persistence.Redis.Query.Stages
                             var events = refs.Select(bytes =>
                             {
                                 var (sequenceNr, persistenceId) = bytes.Deserialize();
-                                return trans.SortedSetRangeByScoreAsync(RedisUtils.GetJournalKey(persistenceId), sequenceNr, sequenceNr);
+                                return trans.SortedSetRangeByScoreAsync(GetJournalKey(persistenceId), sequenceNr, sequenceNr);
                             }).ToList();
 
                             var f = trans.Execute();
 
                             var callbackEvents = events.Select(bytes =>
                             {
-                                var result = RedisUtils.PersistentFromBytes(bytes.Result.FirstOrDefault(), _system.Serialization);
+                                var result = PersistentFromBytes(bytes.Result.FirstOrDefault());
                                 return (result.PersistenceId, result);
                             }).ToList();
 
@@ -275,6 +278,16 @@ namespace Akka.Persistence.Redis.Query.Stages
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
             }
+
+            private IPersistentRepresentation PersistentFromBytes(byte[] bytes)
+            {
+                var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
+                return serializer.FromBinary<IPersistentRepresentation>(bytes);
+            }
+
+            private string GetJournalKey(string persistenceId) => $"{_keyPrefix}journal:persisted:{persistenceId}";
+            private string GetTagKey(string tag) => $"{_keyPrefix}journal:tag:{tag}";
+            private string GetTagsChannel() => $"{_keyPrefix}journal:channel:tags";
         }
     }
 

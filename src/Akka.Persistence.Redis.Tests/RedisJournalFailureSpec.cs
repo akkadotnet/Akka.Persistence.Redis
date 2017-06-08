@@ -5,14 +5,11 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.Redis.Tests.TestKit;
 using Akka.Persistence.TestKit;
-using Akka.Persistence.TestKit.Journal;
 using StackExchange.Redis;
 using Xunit;
 using Xunit.Abstractions;
@@ -43,7 +40,7 @@ namespace Akka.Persistence.Redis.Tests
 
         protected IActorRef Journal => Extension.JournalFor(null);
 
-        [Fact]
+        [Fact(Skip = "Not implemented yet")]
         public void WriteMessages_should_return_WriteMessagesFailed_on_wrong_connection()
         {
             var probe = CreateTestProbe();
@@ -57,7 +54,7 @@ namespace Akka.Persistence.Redis.Tests
             probe.ExpectMsg<WriteMessagesFailed>();
         }
 
-        [Fact]
+        [Fact(Skip = "Not implemented yet")]
         public void WriteMessages_should_return_ReplayMessagesFailure_on_wrong_connection()
         {
             var probe = CreateTestProbe();
@@ -71,7 +68,7 @@ namespace Akka.Persistence.Redis.Tests
             probe.ExpectMsg<ReplayMessagesFailure>(x => x.Cause.GetType() == typeof(RedisCommandException));
         }
 
-        [Fact]
+        [Fact(Skip = "Not implemented yet")]
         public void DeleteMessages_should_return_DeleteMessagesFailure_on_wrong_connection()
         {
             var probe = CreateTestProbe();

@@ -8,6 +8,7 @@
 using System;
 using Akka.Streams.Stage;
 using System.Collections.Generic;
+using Akka.Actor;
 using Akka.Persistence.Redis.Journal;
 using Akka.Streams;
 using Akka.Util.Internal;
@@ -19,11 +20,13 @@ namespace Akka.Persistence.Redis.Query.Stages
     {
         private readonly ConnectionMultiplexer _redis;
         private readonly int _database;
+        private readonly ExtendedActorSystem _system;
 
-        public PersistenceIdsSource(ConnectionMultiplexer redis, int database)
+        public PersistenceIdsSource(ConnectionMultiplexer redis, int database, ExtendedActorSystem system)
         {
             _redis = redis;
             _database = database;
+            _system = system;
         }
 
         public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(PersistenceIdsSource));
@@ -32,7 +35,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new PersistenceIdsLogic(_redis, _database, Outlet, Shape);
+            return new PersistenceIdsLogic(_redis, _database, _system, Outlet, Shape);
         }
 
         private class PersistenceIdsLogic : GraphStageLogic
@@ -46,12 +49,13 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Outlet<string> _outlet;
             private readonly ConnectionMultiplexer _redis;
             private readonly int _database;
+            private readonly string _keyPrefix;
 
-            public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, Outlet<string> outlet, Shape shape) : base(shape)
+            public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
             {
                 _redis = redis;
                 _database = database;
-
+                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
                 _outlet = outlet;
 
                 SetHandler(outlet, onPull: () =>
@@ -85,7 +89,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(_redis.GetDatabase(_database).SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index));
+                        callback(_redis.GetDatabase(_database).SetScan(GetIdentifiersKey(), cursor: _index));
                     }
                     else if (_buffer.Count == 0)
                     {
@@ -103,7 +107,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             {
                 var callback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                 {
-                    if (data.channel.Equals(RedisUtils.GetIdentifiersChannel()))
+                    if (data.channel.Equals(GetIdentifiersChannel()))
                     {
                         // TODO: log.Debug("Message received")
 
@@ -120,7 +124,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 });
 
                 _subscription = _redis.GetSubscriber();
-                _subscription.Subscribe(RedisUtils.GetIdentifiersChannel(), (channel, value) =>
+                _subscription.Subscribe(GetIdentifiersChannel(), (channel, value) =>
                 {
                     callback.Invoke((channel, value));
                 });
@@ -140,6 +144,9 @@ namespace Akka.Persistence.Redis.Query.Stages
                     Push(_outlet, elem);
                 }
             }
+
+            private string GetIdentifiersKey() => $"{_keyPrefix}journal:persistenceIds";
+            private string GetIdentifiersChannel() => $"{_keyPrefix}journal:channel:ids";
         }
     }
 }

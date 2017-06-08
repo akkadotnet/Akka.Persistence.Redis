@@ -6,10 +6,14 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Reflection;
 using Akka.Actor;
 using System.Text;
+using Akka.Persistence.Redis.Snapshot;
 using Newtonsoft.Json;
 using Akka.Serialization;
+using Akka.Util.Internal;
+using Newtonsoft.Json.Linq;
 
 namespace Akka.Persistence.Redis.Serialization
 {
@@ -25,19 +29,13 @@ namespace Akka.Persistence.Redis.Serialization
                 DefaultValueHandling = DefaultValueHandling.Ignore,
                 MissingMemberHandling = MissingMemberHandling.Ignore
             };
+            
+            Settings.Converters.Add(new ActorPathConverter());
         }
 
         public override byte[] ToBinary(object obj)
         {
-            switch (obj)
-            {
-                case IPersistentRepresentation _:
-                case AtLeastOnceDeliverySnapshot _:
-                case Akka.Persistence.Serialization.Snapshot _:
-                    return ObjectSerializer(obj);
-                default:
-                    return ObjectSerializer(obj);
-            }
+            return ObjectSerializer(obj);
         }
 
         public override object FromBinary(byte[] bytes, Type type)
@@ -45,10 +43,6 @@ namespace Akka.Persistence.Redis.Serialization
             if (type == typeof(Persistent) || type == typeof(IPersistentRepresentation))
             {
                 return ObjectDeserializer(bytes, typeof(Persistent));
-            }
-            else if (type == typeof(Akka.Persistence.Serialization.Snapshot))
-            {
-                return ObjectDeserializer(bytes, type);
             }
 
             return ObjectDeserializer(bytes, type);
@@ -68,6 +62,33 @@ namespace Akka.Persistence.Redis.Serialization
         {
             string data = Encoding.UTF8.GetString(bytes);
             return JsonConvert.DeserializeObject(data, type, Settings);
+        }
+    }
+
+    internal class ActorPathConverter : JsonConverter
+    {
+        public override void WriteJson(JsonWriter writer, object value, Newtonsoft.Json.JsonSerializer serializer)
+        {
+            var actorPath = value.AsInstanceOf<ActorPath>();
+            var serializeed = actorPath.ToSerializationFormat();
+
+            writer.WriteStartObject();
+            writer.WritePropertyName("$path");
+            writer.WriteValue(serializeed);
+            writer.WriteEndObject();
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+        {
+            var jObject = JObject.Load(reader);
+            var deserialized = jObject.Value<string>("$path");
+            var actorPath = ActorPath.Parse(deserialized);
+            return actorPath;
+        }
+
+        public override bool CanConvert(Type objectType)
+        {
+            return typeof(ActorPath).GetTypeInfo().IsAssignableFrom(objectType);
         }
     }
 }

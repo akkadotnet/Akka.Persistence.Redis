@@ -73,6 +73,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
             private ISubscriber _subscription;
             private readonly int _max;
+            private readonly string _keyPrefix;
             private long _currentSequenceNr;
             private Action<IReadOnlyList<IPersistentRepresentation>> _callback;
 
@@ -104,6 +105,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _live = live;
 
                 _max = config.GetInt("max-buffer-size");
+                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
 
                 _currentSequenceNr = fromSequenceNr;
                 SetHandler(outlet, Query);
@@ -179,7 +181,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(RedisUtils.GetJournalChannel(_persistenceId)))
+                        if (data.channel.Equals(GetJournalChannel(_persistenceId)))
                         {
                             // TODO: log.Debug("Message received")
 
@@ -207,7 +209,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(RedisUtils.GetJournalChannel(_persistenceId), (channel, value) =>
+                    _subscription.Subscribe(GetJournalChannel(_persistenceId), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -230,14 +232,14 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _state = State.Querying;
 
                             var events = _redis.GetDatabase(_database).SortedSetRangeByScore(
-                                key: RedisUtils.GetJournalKey(_persistenceId),
+                                key: GetJournalKey(_persistenceId),
                                 start: _currentSequenceNr,
                                 stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr),
                                 order: Order.Ascending);
 
                             try
                             {
-                                var deserializedEvents = events.Select(e => RedisUtils.PersistentFromBytes(e, _system.Serialization)).ToList();
+                                var deserializedEvents = events.Select(e => PersistentFromBytes(e)).ToList();
                                 _callback(deserializedEvents);
                             }
                             catch (Exception e)
@@ -271,6 +273,15 @@ namespace Akka.Persistence.Redis.Query.Stages
                     CompleteStage();
                 }
             }
+
+            private IPersistentRepresentation PersistentFromBytes(byte[] bytes)
+            {
+                var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
+                return serializer.FromBinary<IPersistentRepresentation>(bytes);
+            }
+
+            private string GetJournalKey(string persistenceId) => $"{_keyPrefix}journal:persisted:{persistenceId}";
+            private string GetJournalChannel(string persistenceId) => $"{_keyPrefix}journal:channel:persisted:{persistenceId}";
         }
     }
 }

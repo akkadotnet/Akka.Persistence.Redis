@@ -10,8 +10,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Persistence.Snapshot;
-using Akka.Serialization;
-using Akka.Util.Internal;
 using StackExchange.Redis;
 
 namespace Akka.Persistence.Redis.Snapshot
@@ -19,9 +17,9 @@ namespace Akka.Persistence.Redis.Snapshot
     public class RedisSnapshotStore : SnapshotStore
     {
         private readonly RedisSettings _settings;
-        private Lazy<Serializer> _serializer;
         private Lazy<IDatabase> _database;
         private ActorSystem _system;
+        public IDatabase Database => _database.Value;
 
         public RedisSnapshotStore()
         {
@@ -38,20 +36,19 @@ namespace Akka.Persistence.Redis.Snapshot
                 var redisConnection = ConnectionMultiplexer.Connect(_settings.ConfigurationString);
                 return redisConnection.GetDatabase(_settings.Database);
             });
-            _serializer = new Lazy<Serializer>(() => _system.Serialization.FindSerializerForType(typeof(SnapshotEntry)));
         }
 
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
-            var snapshots = await _database.Value.SortedSetRangeByScoreAsync(
-              SnapshotKey(persistenceId),
+            var snapshots = await Database.SortedSetRangeByScoreAsync(
+              GetSnapshotKey(persistenceId),
               criteria.MaxSequenceNr,
               -1,
               Exclude.None,
               Order.Descending);
 
             var found = snapshots
-              .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
+              .Select(c => PersistentFromBytes(c))
               .FirstOrDefault(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr);
 
             return found;
@@ -59,51 +56,48 @@ namespace Akka.Persistence.Redis.Snapshot
 
         protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot)
         {
-            return _database.Value.SortedSetAddAsync(
-              SnapshotKey(metadata.PersistenceId),
-              _serializer.Value.ToBinary(ToSnapshotEntry(metadata, snapshot)),
+            return Database.SortedSetAddAsync(
+              GetSnapshotKey(metadata.PersistenceId),
+              PersistentToBytes(metadata, snapshot),
               metadata.SequenceNr);
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata)
         {
-            await _database.Value.SortedSetRemoveRangeByScoreAsync(SnapshotKey(metadata.PersistenceId), metadata.SequenceNr, metadata.SequenceNr);
+            await Database.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(metadata.PersistenceId), metadata.SequenceNr, metadata.SequenceNr);
         }
 
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
-            var snapshots = await _database.Value.SortedSetRangeByScoreAsync(
-              SnapshotKey(persistenceId),
+            var snapshots = await Database.SortedSetRangeByScoreAsync(
+              GetSnapshotKey(persistenceId),
               criteria.MaxSequenceNr,
               0L,
               Exclude.None,
               Order.Descending);
 
             var found = snapshots
-              .Select(c => ToSelectedSnapshot(_serializer.Value.FromBinary<SnapshotEntry>(c)))
+              .Select(c => PersistentFromBytes(c))
               .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
-              .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(SnapshotKey(persistenceId), s.Metadata.SequenceNr, s.Metadata.SequenceNr))
+              .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(persistenceId), s.Metadata.SequenceNr, s.Metadata.SequenceNr))
               .ToArray();
 
             await Task.WhenAll(found);
         }
 
-        private string SnapshotKey(string persistenceId) => $"{_settings.KeyPrefix}:{persistenceId}";
-
-        private static SnapshotEntry ToSnapshotEntry(SnapshotMetadata metadata, object snapshot)
+        private byte[] PersistentToBytes(SnapshotMetadata metadata, object snapshot)
         {
-            return new SnapshotEntry
-            {
-                PersistenceId = metadata.PersistenceId,
-                SequenceNr = metadata.SequenceNr,
-                Snapshot = snapshot,
-                Timestamp = metadata.Timestamp.Ticks
-            };
+            var message = new SelectedSnapshot(metadata, snapshot);
+            var serializer = _system.Serialization.FindSerializerForType(typeof(SelectedSnapshot));
+            return serializer.ToBinary(message);
         }
 
-        private static SelectedSnapshot ToSelectedSnapshot(SnapshotEntry entry)
+        private SelectedSnapshot PersistentFromBytes(byte[] bytes)
         {
-            return new SelectedSnapshot(new SnapshotMetadata(entry.PersistenceId, entry.SequenceNr, new DateTime(entry.Timestamp)), entry.Snapshot);
+            var serializer = _system.Serialization.FindSerializerForType(typeof(SelectedSnapshot));
+            return serializer.FromBinary<SelectedSnapshot>(bytes);
         }
+
+        private string GetSnapshotKey(string persistenceId) => $"{_settings.KeyPrefix}snapshot:{persistenceId}";
     }
 }

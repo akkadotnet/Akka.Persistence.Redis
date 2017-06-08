@@ -19,6 +19,8 @@ namespace Akka.Persistence.Redis.Tests
             var redisPersistence = RedisPersistence.Get(Sys);
 
             redisPersistence.JournalSettings.ConfigurationString.Should().Be(string.Empty);
+            redisPersistence.JournalSettings.Database.Should().Be(0);
+            redisPersistence.JournalSettings.KeyPrefix.Should().Be(string.Empty);
         }
 
         [Fact]
@@ -27,6 +29,8 @@ namespace Akka.Persistence.Redis.Tests
             var redisPersistence = RedisPersistence.Get(Sys);
 
             redisPersistence.SnapshotStoreSettings.ConfigurationString.Should().Be(string.Empty);
+            redisPersistence.SnapshotStoreSettings.Database.Should().Be(0);
+            redisPersistence.SnapshotStoreSettings.KeyPrefix.Should().Be(string.Empty);
         }
     }
 }

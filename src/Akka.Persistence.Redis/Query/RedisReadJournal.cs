@@ -55,13 +55,13 @@ namespace Akka.Persistence.Redis.Query
         /// Returns the live stream of persisted identifiers. Identifiers may appear several times in the stream.
         /// </summary>
         public Source<string, NotUsed> AllPersistenceIds() =>
-            Source.FromGraph(new PersistenceIdsSource(_redis, _database));
+            Source.FromGraph(new PersistenceIdsSource(_redis, _database, _system));
 
         /// <summary>
         /// Returns the stream of current persisted identifiers. This stream is not live, once the identifiers were all returned, it is closed.
         /// </summary>
         public Source<string, NotUsed> CurrentPersistenceIds() =>
-            Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database));
+            Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database, _system));
 
         /// <summary>
         /// Returns the live stream of events for the given <paramref name="persistenceId"/>.

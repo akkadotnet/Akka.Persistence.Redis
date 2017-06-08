@@ -56,7 +56,7 @@ namespace Akka.Persistence.Redis.Tests.Query
 
         protected override void Dispose(bool disposing)
         {
-            //DbUtils.Clean(Database);
+            DbUtils.Clean(Database);
             base.Dispose(disposing);
         }
     }

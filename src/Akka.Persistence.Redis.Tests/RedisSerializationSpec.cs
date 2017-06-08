@@ -35,9 +35,8 @@ namespace Akka.Persistence.Redis.Tests
                 configuration-string = ""127.0.0.1:6379""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 database = {id}
-                key-prefix = ""snapshots""
             }}
-            akka.test.single-expect-default = 3s")
+            akka.test.single-expect-default = 25s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
         public RedisSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), output)
@@ -47,7 +46,7 @@ namespace Akka.Persistence.Redis.Tests
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(Database);
+            //DbUtils.Clean(Database);
         }
     }
 }

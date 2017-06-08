@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using Akka.Configuration;
+using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Snapshot;
 using Xunit;
 using Xunit.Abstractions;
@@ -16,8 +17,6 @@ namespace Akka.Persistence.Redis.Tests
     public class RedisSnapshotStoreSpec : SnapshotStoreSpec
     {
         private static readonly Config SpecConfig;
-        private static readonly string KeyPrefix;
-
         public const int Database = 1;
 
         static RedisSnapshotStoreSpec()
@@ -35,12 +34,9 @@ namespace Akka.Persistence.Redis.Tests
                             configuration-string = """ + connectionString + @"""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
                             database = """ + Database + @"""
-                            key-prefix = ""akka:persistence:snapshots""
                         }
                     }
-                }");
-
-            KeyPrefix = SpecConfig.GetString("akka.persistence.snapshot-store.redis.key-prefix");
+                }").WithFallback(RedisReadJournal.DefaultConfiguration());
         }
 
         public RedisSnapshotStoreSpec(ITestOutputHelper output)

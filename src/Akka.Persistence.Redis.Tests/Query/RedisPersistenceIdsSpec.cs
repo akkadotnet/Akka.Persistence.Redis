@@ -21,7 +21,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.persistence.journal.redis {{
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                configuration-string = ""127.0.0.1:6379,allowAdmin:true""
+                configuration-string = ""127.0.0.1:6379""
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")

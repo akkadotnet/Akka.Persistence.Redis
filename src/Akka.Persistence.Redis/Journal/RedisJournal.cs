@@ -12,10 +12,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Persistence.Journal;
-using Akka.Serialization;
 using Akka.Util.Internal;
 using StackExchange.Redis;
-using static Akka.Persistence.Redis.Journal.RedisUtils;
 
 namespace Akka.Persistence.Redis.Journal
 {
@@ -61,7 +59,7 @@ namespace Akka.Persistence.Redis.Journal
 
             foreach (var journal in journals)
             {
-                recoveryCallback(PersistentFromBytes(journal, _system.Serialization));
+                recoveryCallback(PersistentFromBytes(journal));
             }
         }
 
@@ -104,7 +102,6 @@ namespace Akka.Persistence.Redis.Journal
                 foreach (var tag in tags)
                 {
                     transaction.ListRightPushAsync(GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
-                    transaction.SetAddAsync(GetTagsKey(), tag);
                     transaction.PublishAsync(GetTagsChannel(), tag);
                 }
             }
@@ -133,12 +130,32 @@ namespace Akka.Persistence.Redis.Journal
         {
             if (pr.Payload is Tagged tag)
             {
-                return (PersistentToBytes(pr.WithPayload(tag.Payload), _system.Serialization), tag.Tags);
+                return (PersistentToBytes(pr.WithPayload(tag.Payload)), tag.Tags);
             }
             else
             {
-                return (PersistentToBytes(pr, _system.Serialization), ImmutableHashSet<string>.Empty);
+                return (PersistentToBytes(pr), ImmutableHashSet<string>.Empty);
             }
         }
+
+        private byte[] PersistentToBytes(IPersistentRepresentation message)
+        {
+            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
+            return serializer.ToBinary(message);
+        }
+
+        private IPersistentRepresentation PersistentFromBytes(byte[] bytes)
+        {
+            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
+            return serializer.FromBinary<IPersistentRepresentation>(bytes);
+        }
+
+        private string GetIdentifiersKey() => $"{_settings.KeyPrefix}journal:persistenceIds";
+        private string GetHighestSequenceNrKey(string persistenceId) => $"{_settings.KeyPrefix}journal:persisted:{persistenceId}:highestSequenceNr";
+        private string GetJournalKey(string persistenceId) => $"{_settings.KeyPrefix}journal:persisted:{persistenceId}";
+        private string GetJournalChannel(string persistenceId) => $"{_settings.KeyPrefix}journal:channel:persisted:{persistenceId}";
+        private string GetTagKey(string tag) => $"{_settings.KeyPrefix}journal:tag:{tag}";
+        private string GetTagsChannel() => $"{_settings.KeyPrefix}journal:channel:tags";
+        private string GetIdentifiersChannel() => $"{_settings.KeyPrefix}journal:channel:ids";
     }
 }
