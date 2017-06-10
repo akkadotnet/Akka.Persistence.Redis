@@ -8,6 +8,7 @@
 using System;
 using Akka.Streams.Stage;
 using System.Collections.Generic;
+using Akka.Actor;
 using Akka.Persistence.Redis.Journal;
 using Akka.Streams;
 using Akka.Util.Internal;
@@ -19,11 +20,13 @@ namespace Akka.Persistence.Redis.Query.Stages
     {
         private readonly ConnectionMultiplexer _redis;
         private readonly int _database;
+        private readonly ExtendedActorSystem _system;
 
-        public CurrentPersistenceIdsSource(ConnectionMultiplexer redis, int database)
+        public CurrentPersistenceIdsSource(ConnectionMultiplexer redis, int database, ExtendedActorSystem system)
         {
             _redis = redis;
             _database = database;
+            _system = system;
         }
 
         public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(CurrentPersistenceIdsSource));
@@ -32,7 +35,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new CurrentPersistenceIdsLogic(_redis.GetDatabase(_database), Outlet, Shape);
+            return new CurrentPersistenceIdsLogic(_redis.GetDatabase(_database), _system, Outlet, Shape);
         }
 
         private sealed class CurrentPersistenceIdsLogic : GraphStageLogic
@@ -41,10 +44,12 @@ namespace Akka.Persistence.Redis.Query.Stages
             private long _index = 0L;
             private readonly Queue<string> _buffer = new Queue<string>();
             private readonly Outlet<string> _outlet;
+            private readonly string _keyPrefix;
 
-            public CurrentPersistenceIdsLogic(IDatabase redisDatabase, Outlet<string> outlet, Shape shape) : base(shape)
+            public CurrentPersistenceIdsLogic(IDatabase redisDatabase, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
             {
                 _outlet = outlet;
+                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
 
                 SetHandler(outlet, onPull: () =>
                 {
@@ -76,7 +81,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(redisDatabase.SetScan(RedisUtils.GetIdentifiersKey(), cursor: _index));
+                        callback(redisDatabase.SetScan(GetIdentifiersKey(), cursor: _index));
                     }
                     else
                     {
@@ -98,6 +103,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                     CompleteStage();
                 }
             }
+
+            private string GetIdentifiersKey() => $"{_keyPrefix}journal:persistenceIds";
         }
     }
 }

@@ -9,11 +9,9 @@ using System;
 using System.Reflection;
 using Akka.Actor;
 using System.Text;
-using Akka.Persistence.Redis.Snapshot;
 using Newtonsoft.Json;
 using Akka.Serialization;
 using Akka.Util.Internal;
-using Newtonsoft.Json.Linq;
 
 namespace Akka.Persistence.Redis.Serialization
 {
@@ -25,9 +23,7 @@ namespace Akka.Persistence.Redis.Serialization
         {
             Settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
-                DefaultValueHandling = DefaultValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Ignore
+                TypeNameHandling = TypeNameHandling.Auto
             };
             
             Settings.Converters.Add(new ActorPathConverter());
@@ -54,7 +50,7 @@ namespace Akka.Persistence.Redis.Serialization
 
         private byte[] ObjectSerializer(object obj)
         {
-            string data = JsonConvert.SerializeObject(obj, Formatting.None, Settings);
+            string data = JsonConvert.SerializeObject(obj, Settings);
             return Encoding.UTF8.GetBytes(data);
         }
 
@@ -70,20 +66,13 @@ namespace Akka.Persistence.Redis.Serialization
         public override void WriteJson(JsonWriter writer, object value, Newtonsoft.Json.JsonSerializer serializer)
         {
             var actorPath = value.AsInstanceOf<ActorPath>();
-            var serializeed = actorPath.ToSerializationFormat();
-
-            writer.WriteStartObject();
-            writer.WritePropertyName("$path");
-            writer.WriteValue(serializeed);
-            writer.WriteEndObject();
+            writer.WriteValue(actorPath.ToSerializationFormat());
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, Newtonsoft.Json.JsonSerializer serializer)
         {
-            var jObject = JObject.Load(reader);
-            var deserialized = jObject.Value<string>("$path");
-            var actorPath = ActorPath.Parse(deserialized);
-            return actorPath;
+            var deserialized = reader.Value.ToString();
+            return ActorPath.TryParse(deserialized, out var path) ? path : null;
         }
 
         public override bool CanConvert(Type objectType)
