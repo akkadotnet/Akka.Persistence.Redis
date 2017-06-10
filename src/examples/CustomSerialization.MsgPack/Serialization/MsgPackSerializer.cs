@@ -5,15 +5,15 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System;
 using Akka.Actor;
+using Akka.Persistence;
 using Akka.Serialization;
+using Akka.Util;
 using MessagePack;
 using MessagePack.Resolvers;
-using System;
-using Akka.Util;
-using Akka.Persistence;
 
-namespace CustomSerialization.MsgPack
+namespace CustomSerialization.MsgPack.Serialization
 {
     public class MsgPackSerializer : Serializer
     {
@@ -55,7 +55,8 @@ namespace CustomSerialization.MsgPack
         static MsgPackSerializer()
         {
             CompositeResolver.RegisterAndSetAsDefault(
-                PrimitiveObjectResolver.Instance,
+                ActorPathResolver.Instance,
+                OldSpecResolver.Instance, // Redis compatible MsgPack spec
                 ContractlessStandardResolver.Instance);
         }
 
@@ -65,16 +66,18 @@ namespace CustomSerialization.MsgPack
 
         public override byte[] ToBinary(object obj)
         {
-            if (obj is IPersistentRepresentation repr) return PersistenceMessageSerializer(repr);
+            if (obj is IPersistentRepresentation repr)
+                return PersistenceMessageSerializer(repr);
 
-            return ObjectSerializer(obj);
+            return MessagePackSerializer.NonGeneric.Serialize(obj.GetType(), obj);
         }
 
         public override object FromBinary(byte[] bytes, Type type)
         {
-            if (type == typeof(IPersistentRepresentation)) return PersistenceMessageDeserializer(bytes);
+            if (typeof(IPersistentRepresentation).IsAssignableFrom(type))
+                return PersistenceMessageDeserializer(bytes);
 
-            return ObjectDeserializer(bytes, type);
+            return MessagePackSerializer.NonGeneric.Deserialize(type, bytes);
         }
 
         public override int Identifier => 30;
@@ -108,12 +111,13 @@ namespace CustomSerialization.MsgPack
                 serializer.Identifier,
                 payloadManifest,
                 serializer.ToBinary(obj.Payload));
-            return ObjectSerializer(persistenceMessage);
+
+            return MessagePackSerializer.Serialize(persistenceMessage);
         }
 
         private IPersistentRepresentation PersistenceMessageDeserializer(byte[] bytes)
         {
-            var persistenceMessage = ObjectDeserializer(bytes, typeof(PersistenceMessage)) as PersistenceMessage;
+            var persistenceMessage = MessagePackSerializer.Deserialize<PersistenceMessage>(bytes);
 
             var payload = system.Serialization.Deserialize(
                 persistenceMessage.Payload,
@@ -128,16 +132,6 @@ namespace CustomSerialization.MsgPack
                 false,
                 null,
                 persistenceMessage.WriterGuid);
-        }
-
-        private byte[] ObjectSerializer(object obj)
-        {
-            return MessagePackSerializer.NonGeneric.Serialize(obj.GetType(), obj);
-        }
-
-        private object ObjectDeserializer(byte[] bytes, Type type)
-        {
-            return MessagePackSerializer.NonGeneric.Deserialize(type, bytes);
         }
     }
 }

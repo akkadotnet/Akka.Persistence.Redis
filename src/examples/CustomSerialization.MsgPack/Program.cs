@@ -32,7 +32,7 @@ namespace CustomSerialization.MsgPack
                     }
                 }
 			}
-            akka.actor.serializers.redis-msgpack = ""CustomSerialization.MsgPack.MsgPackSerializer, CustomSerialization.MsgPack""
+            akka.actor.serializers.redis-msgpack = ""CustomSerialization.MsgPack.Serialization.MsgPackSerializer, CustomSerialization.MsgPack""
             akka.actor.serialization-bindings.""Akka.Persistence.IPersistentRepresentation, Akka.Persistence"" = redis-msgpack
             akka.actor.serialization-bindings.""CustomSerialization.MsgPack.Stored, CustomSerialization.MsgPack"" = redis-msgpack");
 
