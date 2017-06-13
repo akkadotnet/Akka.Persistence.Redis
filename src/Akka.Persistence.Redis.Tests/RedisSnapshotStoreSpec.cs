@@ -1,13 +1,13 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="RedisSnapshotStoreSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
 // </copyright>
 //-----------------------------------------------------------------------
 
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.TestKit.Snapshot;
+using Akka.Persistence.TCK.Snapshot;
 using Xunit;
 using Xunit.Abstractions;
 

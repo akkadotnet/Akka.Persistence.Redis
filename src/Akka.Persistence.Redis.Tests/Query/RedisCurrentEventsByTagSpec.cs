@@ -1,16 +1,21 @@
-﻿using System.Collections.Immutable;
-using System.Linq;
+﻿//-----------------------------------------------------------------------
+// <copyright file="RedisCurrentEventsByTagSpec.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// </copyright>
+//-----------------------------------------------------------------------
+
 using Akka.Configuration;
-using Akka.Persistence.Journal;
 using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.TestKit.Query;
+using Akka.Persistence.TCK.Query;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests.Query
 {
     [Collection("RedisSpec")]
-    public sealed class RedisCurrentEventsByTagSpec : CurrentEventsByTagSource
+    public sealed class RedisCurrentEventsByTagSpec : CurrentEventsByTagSpec
     {
         public const int Database = 1;
 
@@ -19,7 +24,7 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
                 event-adapters {{
-                  color-tagger  = ""Akka.Persistence.TestKit.Query.ColorFruitTagger, Akka.Persistence.Redis.Tests""
+                  color-tagger  = ""Akka.Persistence.TCK.Query.ColorFruitTagger, Akka.Persistence.TCK""
                 }}
                 event-adapter-bindings = {{
                   ""System.String"" = color-tagger
@@ -33,9 +38,19 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
-        public RedisCurrentEventsByTagSpec() : base(Config(Database))
+        public RedisCurrentEventsByTagSpec(ITestOutputHelper output) : base(Config(Database), nameof(RedisCurrentEventsByTagSpec), output)
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
+        }
+
+        [Fact(Skip = "Not implemented yet")]
+        public override void ReadJournal_query_CurrentEventsByTag_should_find_events_from_offset()
+        {
+        }
+
+        [Fact(Skip = "Not implemented yet")]
+        public override void ReadJournal_query_CurrentEventsByTag_should_not_see_new_events_after_complete()
+        {
         }
 
         protected override void Dispose(bool disposing)

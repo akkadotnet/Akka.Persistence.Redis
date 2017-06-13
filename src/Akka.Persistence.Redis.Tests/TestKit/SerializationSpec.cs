@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Configuration;
+using Akka.Persistence.TCK;
 using Akka.Persistence.TestKit;
 using Akka.TestKit;
 using Xunit;

@@ -1,4 +1,11 @@
-﻿using Akka.Configuration;
+﻿//-----------------------------------------------------------------------
+// <copyright file="RedisJournalPerfSpec.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// </copyright>
+//-----------------------------------------------------------------------
+
+using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Performance;
 using Xunit.Abstractions;
@@ -23,7 +30,7 @@ namespace Akka.Persistence.Redis.Tests.Performance
             .WithFallback(Persistence.DefaultConfig());
 
 
-        public RedisJournalPerfSpec(ITestOutputHelper output) : base(Config(Database), output)
+        public RedisJournalPerfSpec(ITestOutputHelper output) : base(Config(Database), nameof(RedisJournalPerfSpec), output)
         {
         }
 

@@ -1,7 +1,7 @@
 ﻿//-----------------------------------------------------------------------
-// <copyright file="RedisJournalSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// <copyright file="RedisJournalFailureSpec.cs" company="Akka.NET Project">
+//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
+//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.TestKit;
+using Akka.Persistence.TCK;
 using StackExchange.Redis;
 using Xunit;
 using Xunit.Abstractions;
