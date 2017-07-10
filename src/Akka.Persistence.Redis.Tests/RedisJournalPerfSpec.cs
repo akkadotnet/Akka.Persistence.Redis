@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="RedisJournalPerfSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -10,7 +9,7 @@ using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Performance;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Tests.Performance
+namespace Akka.Persistence.Redis.Tests
 {
     public class RedisJournalPerfSpec : JournalPerfSpec
     {

@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="PersistenceIdsSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -49,13 +48,13 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Outlet<string> _outlet;
             private readonly ConnectionMultiplexer _redis;
             private readonly int _database;
-            private readonly string _keyPrefix;
+            private readonly JournalHelper _journalHelper;
 
             public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
             {
                 _redis = redis;
                 _database = database;
-                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
+                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
                 _outlet = outlet;
 
                 SetHandler(outlet, onPull: () =>
@@ -89,7 +88,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(_redis.GetDatabase(_database).SetScan(GetIdentifiersKey(), cursor: _index));
+                        callback(_redis.GetDatabase(_database).SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
                     }
                     else if (_buffer.Count == 0)
                     {
@@ -107,7 +106,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             {
                 var callback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                 {
-                    if (data.channel.Equals(GetIdentifiersChannel()))
+                    if (data.channel.Equals(_journalHelper.GetIdentifiersChannel()))
                     {
                         // TODO: log.Debug("Message received")
 
@@ -124,7 +123,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 });
 
                 _subscription = _redis.GetSubscriber();
-                _subscription.Subscribe(GetIdentifiersChannel(), (channel, value) =>
+                _subscription.Subscribe(_journalHelper.GetIdentifiersChannel(), (channel, value) =>
                 {
                     callback.Invoke((channel, value));
                 });
@@ -144,9 +143,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                     Push(_outlet, elem);
                 }
             }
-
-            private string GetIdentifiersKey() => $"{_keyPrefix}journal:persistenceIds";
-            private string GetIdentifiersChannel() => $"{_keyPrefix}journal:channel:ids";
         }
     }
 }

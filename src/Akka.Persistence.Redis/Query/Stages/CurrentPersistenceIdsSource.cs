@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="CurrentPersistenceIdsSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -44,12 +43,12 @@ namespace Akka.Persistence.Redis.Query.Stages
             private long _index = 0L;
             private readonly Queue<string> _buffer = new Queue<string>();
             private readonly Outlet<string> _outlet;
-            private readonly string _keyPrefix;
+            private readonly JournalHelper _journalHelper;
 
             public CurrentPersistenceIdsLogic(IDatabase redisDatabase, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
             {
                 _outlet = outlet;
-                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
+                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
                 SetHandler(outlet, onPull: () =>
                 {
@@ -81,7 +80,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(redisDatabase.SetScan(GetIdentifiersKey(), cursor: _index));
+                        callback(redisDatabase.SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
                     }
                     else
                     {
@@ -103,8 +102,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                     CompleteStage();
                 }
             }
-
-            private string GetIdentifiersKey() => $"{_keyPrefix}journal:persistenceIds";
         }
     }
 }

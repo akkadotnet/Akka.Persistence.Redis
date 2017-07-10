@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="EventsByTagSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -74,7 +73,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
             private ISubscriber _subscription;
             private readonly int _max;
-            private readonly string _keyPrefix;
+            private readonly JournalHelper _journalHelper;
             private Action<(int, IReadOnlyList<(string, IPersistentRepresentation)>)> _callback;
 
             private readonly Outlet<EventEnvelope> _outlet;
@@ -106,7 +105,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _live = live;
 
                 _max = config.GetInt("max-buffer-size");
-                _keyPrefix = system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix");
+                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
                 _currentOffset = offset;
 
@@ -179,7 +178,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(GetTagsChannel()) && data.bs == _tag)
+                        if (data.channel.Equals(_journalHelper.GetTagsChannel()) && data.bs == _tag)
                         {
                             // TODO: log.Debug("Message received")
 
@@ -200,7 +199,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     break;
                             }
                         }
-                        else if (data.channel.Equals(GetTagsChannel()))
+                        else if (data.channel.Equals(_journalHelper.GetTagsChannel()))
                         {
                             // ignore other tags
                         }
@@ -211,7 +210,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(GetTagsChannel(), (channel, value) =>
+                    _subscription.Subscribe(_journalHelper.GetTagsChannel(), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -234,7 +233,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _state = State.Querying;
 
                             var refs = _redis.GetDatabase(_database).ListRange(
-                                GetTagKey(_tag),
+                                _journalHelper.GetTagKey(_tag),
                                 _currentOffset,
                                 _currentOffset + _max - 1);
 
@@ -243,14 +242,14 @@ namespace Akka.Persistence.Redis.Query.Stages
                             var events = refs.Select(bytes =>
                             {
                                 var (sequenceNr, persistenceId) = bytes.Deserialize();
-                                return trans.SortedSetRangeByScoreAsync(GetJournalKey(persistenceId), sequenceNr, sequenceNr);
+                                return trans.SortedSetRangeByScoreAsync(_journalHelper.GetJournalKey(persistenceId), sequenceNr, sequenceNr);
                             }).ToList();
 
                             var f = trans.Execute();
 
                             var callbackEvents = events.Select(bytes =>
                             {
-                                var result = PersistentFromBytes(bytes.Result.FirstOrDefault());
+                                var result = _journalHelper.PersistentFromBytes(bytes.Result.FirstOrDefault());
                                 return (result.PersistenceId, result);
                             }).ToList();
 
@@ -278,16 +277,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
             }
-
-            private IPersistentRepresentation PersistentFromBytes(byte[] bytes)
-            {
-                var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
-                return serializer.FromBinary<IPersistentRepresentation>(bytes);
-            }
-
-            private string GetJournalKey(string persistenceId) => $"{_keyPrefix}journal:persisted:{persistenceId}";
-            private string GetTagKey(string tag) => $"{_keyPrefix}journal:tag:{tag}";
-            private string GetTagsChannel() => $"{_keyPrefix}journal:channel:tags";
         }
     }
 

@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="RedisReadJournal.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -18,7 +17,7 @@ namespace Akka.Persistence.Redis.Query
 {
     public class RedisReadJournal :
         IReadJournal,
-        IAllPersistenceIdsQuery,
+        IPersistenceIdsQuery,
         ICurrentPersistenceIdsQuery,
         IEventsByPersistenceIdQuery,
         ICurrentEventsByPersistenceIdQuery,
@@ -54,7 +53,7 @@ namespace Akka.Persistence.Redis.Query
         /// <summary>
         /// Returns the live stream of persisted identifiers. Identifiers may appear several times in the stream.
         /// </summary>
-        public Source<string, NotUsed> AllPersistenceIds() =>
+        public Source<string, NotUsed> PersistenceIds() =>
             Source.FromGraph(new PersistenceIdsSource(_redis, _database, _system));
 
         /// <summary>

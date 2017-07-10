@@ -1,21 +1,19 @@
 ﻿//-----------------------------------------------------------------------
-// <copyright file="RedisJournalSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+// <copyright file="RedisSerializationSpec.cs" company="Akka.NET Project">
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
-using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
-using Akka.Persistence.Redis.Tests.TestKit;
+using Akka.Persistence.TCK.Serialization;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests
 {
     [Collection("RedisSpec")]
-    public class RedisSerializationSpec : SerializationSpec
+    public class RedisSerializationSpec : JournalSerializationSpec
     {
         public const int Database = 1;
 
@@ -38,7 +36,7 @@ namespace Akka.Persistence.Redis.Tests
             akka.test.single-expect-default = 25s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
-        public RedisSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), output)
+        public RedisSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), nameof(RedisSerializationSpec), output)
         {
         }
 

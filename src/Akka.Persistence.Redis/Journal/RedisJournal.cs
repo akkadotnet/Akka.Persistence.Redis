@@ -1,7 +1,6 @@
 ﻿//-----------------------------------------------------------------------
 // <copyright file="RedisJournal.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -20,6 +19,7 @@ namespace Akka.Persistence.Redis.Journal
     public class RedisJournal : AsyncWriteJournal
     {
         private readonly RedisSettings _settings;
+        private readonly JournalHelper _journalHelper;
         private Lazy<IDatabase> _database;
         private ActorSystem _system;
 
@@ -28,6 +28,7 @@ namespace Akka.Persistence.Redis.Journal
         public RedisJournal()
         {
             _settings = RedisPersistence.Get(Context.System).JournalSettings;
+            _journalHelper = new JournalHelper(Context.System, _settings.KeyPrefix);
         }
 
         protected override void PreStart()
@@ -43,7 +44,7 @@ namespace Akka.Persistence.Redis.Journal
 
         public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNr)
         {
-            var highestSequenceNr = await Database.StringGetAsync(GetHighestSequenceNrKey(persistenceId));
+            var highestSequenceNr = await Database.StringGetAsync(_journalHelper.GetHighestSequenceNrKey(persistenceId));
             return highestSequenceNr.IsNull ? 0L : (long)highestSequenceNr;
         }
 
@@ -55,17 +56,17 @@ namespace Akka.Persistence.Redis.Journal
             long max,
             Action<IPersistentRepresentation> recoveryCallback)
         {
-            RedisValue[] journals = await Database.SortedSetRangeByScoreAsync(GetJournalKey(persistenceId), fromSequenceNr, toSequenceNr, skip: 0L, take: max);
+            RedisValue[] journals = await Database.SortedSetRangeByScoreAsync(_journalHelper.GetJournalKey(persistenceId), fromSequenceNr, toSequenceNr, skip: 0L, take: max);
 
             foreach (var journal in journals)
             {
-                recoveryCallback(PersistentFromBytes(journal));
+                recoveryCallback(_journalHelper.PersistentFromBytes(journal));
             }
         }
 
         protected override async Task DeleteMessagesToAsync(string persistenceId, long toSequenceNr)
         {
-            await Database.SortedSetRemoveRangeByScoreAsync(GetJournalKey(persistenceId), -1, toSequenceNr);
+            await Database.SortedSetRemoveRangeByScoreAsync(_journalHelper.GetJournalKey(persistenceId), -1, toSequenceNr);
         }
 
         protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
@@ -93,29 +94,29 @@ namespace Akka.Persistence.Redis.Journal
                 var (bytes, tags) = Extract(payload);
 
                 // save the payload
-                transaction.SortedSetAddAsync(GetJournalKey(payload.PersistenceId), bytes, payload.SequenceNr);
+                transaction.SortedSetAddAsync(_journalHelper.GetJournalKey(payload.PersistenceId), bytes, payload.SequenceNr);
 
                 // notify about a new event being appended for this persistence id
-                transaction.PublishAsync(GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
+                transaction.PublishAsync(_journalHelper.GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
 
                 // save tags
                 foreach (var tag in tags)
                 {
-                    transaction.ListRightPushAsync(GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
-                    transaction.PublishAsync(GetTagsChannel(), tag);
+                    transaction.ListRightPushAsync(_journalHelper.GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
+                    transaction.PublishAsync(_journalHelper.GetTagsChannel(), tag);
                 }
             }
 
             // set highest sequence number key
-            transaction.StringSetAsync(GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
+            transaction.StringSetAsync(_journalHelper.GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
 
             // add persistenceId
-            transaction.SetAddAsync(GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
+            transaction.SetAddAsync(_journalHelper.GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
             {
                 if (task.Result)
                 {
                     // notify about a new persistenceId
-                    Database.Publish(GetIdentifiersChannel(), aw.PersistenceId);
+                    Database.Publish(_journalHelper.GetIdentifiersChannel(), aw.PersistenceId);
                 }
             });
 
@@ -130,32 +131,12 @@ namespace Akka.Persistence.Redis.Journal
         {
             if (pr.Payload is Tagged tag)
             {
-                return (PersistentToBytes(pr.WithPayload(tag.Payload)), tag.Tags);
+                return (_journalHelper.PersistentToBytes(pr.WithPayload(tag.Payload)), tag.Tags);
             }
             else
             {
-                return (PersistentToBytes(pr), ImmutableHashSet<string>.Empty);
+                return (_journalHelper.PersistentToBytes(pr), ImmutableHashSet<string>.Empty);
             }
         }
-
-        private byte[] PersistentToBytes(IPersistentRepresentation message)
-        {
-            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
-            return serializer.ToBinary(message);
-        }
-
-        private IPersistentRepresentation PersistentFromBytes(byte[] bytes)
-        {
-            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
-            return serializer.FromBinary<IPersistentRepresentation>(bytes);
-        }
-
-        private string GetIdentifiersKey() => $"{_settings.KeyPrefix}journal:persistenceIds";
-        private string GetHighestSequenceNrKey(string persistenceId) => $"{_settings.KeyPrefix}journal:persisted:{persistenceId}:highestSequenceNr";
-        private string GetJournalKey(string persistenceId) => $"{_settings.KeyPrefix}journal:persisted:{persistenceId}";
-        private string GetJournalChannel(string persistenceId) => $"{_settings.KeyPrefix}journal:channel:persisted:{persistenceId}";
-        private string GetTagKey(string tag) => $"{_settings.KeyPrefix}journal:tag:{tag}";
-        private string GetTagsChannel() => $"{_settings.KeyPrefix}journal:channel:tags";
-        private string GetIdentifiersChannel() => $"{_settings.KeyPrefix}journal:channel:ids";
     }
 }
