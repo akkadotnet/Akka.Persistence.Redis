@@ -156,3 +156,6 @@ akka.actor {
   }
 }
 ```
+
+## Maintainer
+- [alexvaluyskiy](https://github.com/alexvaluyskiy)

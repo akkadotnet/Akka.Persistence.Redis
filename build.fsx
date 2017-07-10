@@ -72,9 +72,11 @@ Target "RunTests" (fun _ ->
 //--------------------------------------------------------------------------------
 
 Target "CreateNuget" (fun _ ->
-    let versionSuffix = getBuildParamOrDefault "versionsuffix" ""
+    let envBuildNumber = environVarOrDefault "APPVEYOR_BUILD_NUMBER" "0"
+    let branch =  environVarOrDefault "APPVEYOR_REPO_BRANCH" ""
+    let versionSuffix = if branch.Equals("dev") then (sprintf "beta-%s" envBuildNumber) else ""
 
-    let projects = !! "src/**/Akka.Persistence.Redis.csproj"
+    let projects = !! "src/**/Akka.Persistence.RocksDb.csproj"
 
     let runSingleProject project =
         DotNetCli.Pack
@@ -85,22 +87,6 @@ Target "CreateNuget" (fun _ ->
                     AdditionalArgs = ["--include-symbols"]
                     VersionSuffix = versionSuffix
                     OutputPath = outputNuGet })
-
-    projects |> Seq.iter (runSingleProject)
-)
-
-Target "PublishNuget" (fun _ ->
-    let projects = !! "./build/nuget/*.nupkg" -- "./build/nuget/*.symbols.nupkg"
-    let apiKey = getBuildParamOrDefault "nugetkey" ""
-    let source = getBuildParamOrDefault "nugetpublishurl" ""
-    let symbolSource = getBuildParamOrDefault "symbolspublishurl" ""
-
-    let runSingleProject project =
-        DotNetCli.RunCommand
-            (fun p -> 
-                { p with 
-                    TimeOut = TimeSpan.FromMinutes 10. })
-            (sprintf "nuget push %s --api-key %s --source %s --symbol-source %s" project apiKey source symbolSource)
 
     projects |> Seq.iter (runSingleProject)
 )
@@ -121,8 +107,6 @@ Target "Nuget" DoNothing
 
 // nuget dependencies
 "Clean" ==> "RestorePackages" ==> "Build" ==> "CreateNuget"
-"CreateNuget" ==> "PublishNuget"
-"PublishNuget" ==> "Nuget"
 
 // all
 "BuildRelease" ==> "All"
