@@ -67,30 +67,56 @@ namespace Akka.Persistence.Redis.Query
         /// Events are ordered by <paramref name="fromSequenceNr"/>.
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr, toSequenceNr, _system, true));
+        public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L,
+            long toSequenceNr = long.MaxValue) =>
+            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
+                toSequenceNr, _system, true));
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
         /// Events are ordered by <paramref name="fromSequenceNr"/>.
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr, toSequenceNr, _system, false));
+        public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId,
+            long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
+            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
+                toSequenceNr, _system, false));
 
         /// <summary>
         /// Returns the live stream of events with a given tag.
         /// The events are sorted in the order they occurred, you can rely on it.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> CurrentEventsByTag(string tag, long offset) =>
-            Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, offset, _system, false));
+        public Source<EventEnvelope, NotUsed> CurrentEventsByTag(string tag, Offset offset)
+        {
+            offset = offset ?? new Sequence(0L);
+            switch (offset)
+            {
+                case Sequence seq:
+                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, false));
+                case NoOffset _:
+                    return CurrentEventsByTag(tag, new Sequence(0L));
+                default:
+                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
+            }
+        }
 
         /// <summary>
         /// Returns the stream of current events with a given tag.
         /// The events are sorted in the order they occurred, you can rely on it.
         /// Once there are no more events in the store, the stream is closed, not waiting for new ones.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> EventsByTag(string tag, long offset) =>
-            Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, offset, _system, true));
+        public Source<EventEnvelope, NotUsed> EventsByTag(string tag, Offset offset)
+        {
+            offset = offset ?? new Sequence(0L);
+            switch (offset)
+            {
+                case Sequence seq:
+                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, true));
+                case NoOffset _:
+                    return EventsByTag(tag, new Sequence(0L));
+                default:
+                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
+            }
+        }
     }
 }

@@ -42,7 +42,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact(Skip = "Not implemented yet")]
-        public override void ReadJournal_live_query_EventsByTag_should_find_events_from_offset()
+        public override void ReadJournal_live_query_EventsByTag_should_find_events_from_offset_exclusive()
         {
         }
 

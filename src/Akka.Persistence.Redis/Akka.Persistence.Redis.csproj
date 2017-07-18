@@ -3,16 +3,15 @@
   <PropertyGroup>
     <AssemblyTitle>Akka.Persistence.Redis</AssemblyTitle>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
-    <Copyright>Copyright © 2013-2017 Akka.NET Team</Copyright>
-    <VersionPrefix>0.3.0</VersionPrefix>
-    <Authors>Akka.NET Team</Authors>
+    <Copyright>Copyright © 2016-2017 Akka.NET Contrib Team</Copyright>
+    <VersionPrefix>0.3.5</VersionPrefix>
+    <Authors>Akka.NET Contrib Team</Authors>
     <TargetFrameworks>net461;netstandard1.6</TargetFrameworks>
     <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
     <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
-    <PackageProjectUrl>https://github.com/akkadotnet/akka.net</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/akkadotnet/akka.net/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.6' ">$(PackageTargetFallback);portable-net45+win8</PackageTargetFallback>
   </PropertyGroup>
 
   <ItemGroup>

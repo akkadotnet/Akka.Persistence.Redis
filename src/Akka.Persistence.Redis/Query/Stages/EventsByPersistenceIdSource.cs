@@ -148,7 +148,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 pr.SequenceNr >= _currentSequenceNr &&
                                 pr.SequenceNr <= _toSequenceNr)
                             {
-                                tuple.Item1.Add(new EventEnvelope(pr.SequenceNr, pr.PersistenceId, pr.SequenceNr, pr.Payload));
+                                tuple.Item1.Add(new EventEnvelope(new Sequence(pr.SequenceNr), pr.PersistenceId, pr.SequenceNr, pr.Payload));
                                 tuple.Item2 = pr.SequenceNr + 1;
                             }
                             else

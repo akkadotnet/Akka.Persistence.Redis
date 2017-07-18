@@ -152,7 +152,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             var repr = c.Key.Item2;
                             if (repr != null && !repr.IsDeleted)
                             {
-                                return new EventEnvelope(_currentOffset + c.Value, repr.PersistenceId, repr.SequenceNr, repr.Payload);
+                                return new EventEnvelope(new Sequence(_currentOffset + c.Value), repr.PersistenceId, repr.SequenceNr, repr.Payload);
                             }
 
                             return null;
