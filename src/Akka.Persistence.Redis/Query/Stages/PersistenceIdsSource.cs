@@ -80,7 +80,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             }
                             catch (Exception e)
                             {
-                                // TODO: log.Error(e, "Error while querying persistence identifiers")
+                                Log.Error(e, "Error while querying persistence identifiers");
                                 FailStage(e);
                             }
 
@@ -108,7 +108,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 {
                     if (data.channel.Equals(_journalHelper.GetIdentifiersChannel()))
                     {
-                        // TODO: log.Debug("Message received")
+                        Log.Debug("Message received");
 
                         // enqueue the element
                         _buffer.Enqueue(data.bs);
@@ -118,7 +118,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     }
                     else
                     {
-                        // TODO: if (log.IsDebugEnabled) log.Debug($"Message from unexpected channel: {channel}")
+                        Log.Debug($"Message from unexpected channel: {data.channel}");
                     }
                 });
 

@@ -135,7 +135,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 }
                                 break;
                             default:
-                                // TODO: log.Error($"Unexpected source state: {_state}")
+                                Log.Error($"Unexpected source state: {_state}");
                                 FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
                                 break;
                         }
@@ -160,7 +160,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         });
 
                         _currentSequenceNr = maxSequenceNr;
-                        // TODO: log.debug(f"Max sequence number is now $maxSequenceNr")
+                        Log.Debug($"Max sequence number is now {maxSequenceNr}");
                         if (evts.Count > 0)
                         {
                             evts.ForEach(_buffer.Enqueue);
@@ -182,7 +182,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     {
                         if (data.channel.Equals(_journalHelper.GetJournalChannel(_persistenceId)))
                         {
-                            // TODO: log.Debug("Message received")
+                            Log.Debug("Message received");
 
                             switch (_state)
                             {
@@ -203,7 +203,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                         else
                         {
-                            // TODO: log.Debug($"Message from unexpected channel: {channel}")
+                            Log.Debug($"Message from unexpected channel: {data.channel}");
                         }
                     });
 
@@ -243,7 +243,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             }
                             catch (Exception e)
                             {
-                                // TODO: log.Error(e, "Error while querying events by persistence identifier");
+                                Log.Error(e, "Error while querying events by persistence identifier");
                                 FailStage(e);
                             }
                         }
@@ -254,7 +254,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                         break;
                     default:
-                        // TODO: log.error(f"Unexpected source state when querying: $state")
+                        Log.Error($"Unexpected source state when querying: {_state}");
                         FailStage(new IllegalStateException($"Unexpected source state when querying: {_state}"));
                         break;
                 }

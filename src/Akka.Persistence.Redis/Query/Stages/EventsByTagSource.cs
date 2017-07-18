@@ -140,7 +140,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 }
                                 break;
                             default:
-                                // TODO: log.Error($"Unexpected source state: {_state}")
+                                Log.Error($"Unexpected source state: {_state}");
                                 FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
                                 break;
                         }
@@ -180,7 +180,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     {
                         if (data.channel.Equals(_journalHelper.GetTagsChannel()) && data.bs == _tag)
                         {
-                            // TODO: log.Debug("Message received")
+                            Log.Debug("Message received");
 
                             switch (_state)
                             {
@@ -205,7 +205,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                         else
                         {
-                            // TODO: log.Debug($"Message from unexpected channel: {channel}")
+                            Log.Debug($"Message from unexpected channel: {data.channel}");
                         }
                     });
 
@@ -264,7 +264,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                         break;
                     default:
-                        // TODO: log.Error($"Unexpected source state when querying: {_state}");
+                        Log.Error($"Unexpected source state when querying: {_state}");
                         FailStage(new IllegalStateException($"Unexpected source state when querying: {_state}"));
                         break;
                 }

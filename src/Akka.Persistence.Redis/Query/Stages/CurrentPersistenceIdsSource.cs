@@ -72,7 +72,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             }
                             catch (Exception e)
                             {
-                                // TODO: log.Error(e, "Error while querying persistence identifiers")
+                                Log.Error(e, "Error while querying persistence identifiers");
                                 FailStage(e);
                             }
 
