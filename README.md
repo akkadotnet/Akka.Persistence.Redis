@@ -45,18 +45,18 @@ This will run the snapshot-store with its default settings. The default settings
 
 The plugin supports the following queries:
 
-### AllPersistenceIdsQuery and CurrentPersistenceIdsQuery
+### PersistenceIdsQuery and CurrentPersistenceIdsQuery
 
-`AllPersistenceIds` and `CurrentPersistenceIds` are used for retrieving all persistenceIds of all persistent actors.
+`PersistenceIds` and `CurrentPersistenceIds` are used for retrieving all persistenceIds of all persistent actors.
 ```C#
 var readJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
 
-Source<string, NotUsed> willNotCompleteTheStream = readJournal.AllPersistenceIds();
+Source<string, NotUsed> willNotCompleteTheStream = readJournal.PersistenceIds();
 Source<string, NotUsed> willCompleteTheStream = readJournal.CurrentPersistenceIds();
 ```
 The returned event stream is unordered and you can expect different order for multiple executions of the query.
 
-When using the `AllPersistenceIds` query, the stream is not completed when it reaches the end of the currently used `persistenceIds`, but it continues to push new `persistenceIds` when new persistent actors are created.
+When using the `PersistenceIds` query, the stream is not completed when it reaches the end of the currently used `persistenceIds`, but it continues to push new `persistenceIds` when new persistent actors are created.
 
 When using the `CurrentPersistenceIds` query, the stream is completed when the end of the current list of `persistenceIds` is reached, thus it is not a live query.
 

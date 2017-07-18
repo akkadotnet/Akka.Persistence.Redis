@@ -64,7 +64,9 @@ namespace Akka.Persistence.Redis.Query.Stages
             Idle = 0,
             Querying = 1,
             NotifiedWhenQuerying = 2,
-            WaitingForNotification = 3
+            WaitingForNotification = 3,
+            Initializing = 4,
+            QueryWhenInitializing = 5
         }
 
         private class EventsByTagLogic : GraphStageLogic
@@ -85,6 +87,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly bool _live;
 
             private long _currentOffset;
+            private long _maxOffset = long.MaxValue;
 
             public EventsByTagLogic(
                 ConnectionMultiplexer redis,
@@ -109,7 +112,18 @@ namespace Akka.Persistence.Redis.Query.Stages
 
                 _currentOffset = offset > 0 ? offset + 1 : 0;
 
-                SetHandler(outlet, Query);
+                SetHandler(outlet, onPull: () =>
+                {
+                    switch (_state)
+                    {
+                        case State.Initializing:
+                            _state = State.QueryWhenInitializing;
+                            break;
+                        default:
+                            Query();
+                            break;
+                    }
+                });
             }
 
             public override void PreStart()
@@ -121,28 +135,37 @@ namespace Akka.Persistence.Redis.Query.Stages
 
                     if (events.Count == 0)
                     {
-                        switch (_state)
+                        if (_currentOffset >= _maxOffset)
                         {
-                            case State.NotifiedWhenQuerying:
-                                // maybe we missed some new event when querying, retry
-                                Query();
-                                break;
-                            case State.Querying:
-                                if (_live)
-                                {
-                                    // nothing new, wait for notification
-                                    _state = State.WaitingForNotification;
-                                }
-                                else
-                                {
-                                    // not a live stream, nothing else currently in the database, close the stream
-                                    CompleteStage();
-                                }
-                                break;
-                            default:
-                                Log.Error($"Unexpected source state: {_state}");
-                                FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
-                                break;
+                            // end has been reached
+                            CompleteStage();
+                        }
+                        else
+                        {
+                            switch (_state)
+                            {
+                                case State.NotifiedWhenQuerying:
+                                    // maybe we missed some new event when querying, retry
+                                    _state = State.Idle;
+                                    Query();
+                                    break;
+                                case State.Querying:
+                                    if (_live)
+                                    {
+                                        // nothing new, wait for notification
+                                        _state = State.WaitingForNotification;
+                                    }
+                                    else
+                                    {
+                                        // not a live stream, nothing else currently in the database, close the stream
+                                        CompleteStage();
+                                    }
+                                    break;
+                                default:
+                                    Log.Error($"Unexpected source state: {_state}");
+                                    FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
+                                    break;
+                            }
                         }
                     }
                     else
@@ -215,6 +238,49 @@ namespace Akka.Persistence.Redis.Query.Stages
                         messageCallback.Invoke((channel, value));
                     });
                 }
+                else
+                {
+                    // start by first querying the current length of tag events
+                    // for the given tag
+                    // stream will stop once this has been delivered
+                    _state = State.Initializing;
+
+                    var initCallback = GetAsyncCallback<long>(len =>
+                    {
+                        _maxOffset = len;
+                        switch (_state)
+                        {
+                            case State.QueryWhenInitializing:
+                                // during initialization, downstream asked for an element,
+                                // let’s query elements
+                                _state = State.Idle;
+                                Query();
+                                break;
+                            case State.Initializing:
+                                // no request from downstream, just go idle
+                                _state = State.Idle;
+                                break;
+                            default:
+                                Log.Error($"Unexpected source state when initializing: {_state}");
+                                FailStage(new IllegalStateException($"Unexpected source state when initializing: {_state}"));
+                                break;
+                        }
+                    });
+
+                    var f = _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag));
+                    f.ContinueWith(task =>
+                    {
+                        if (!task.IsCanceled || task.IsFaulted)
+                        {
+                            initCallback(task.Result - 1);
+                        }
+                        else
+                        {
+                            Log.Error(task.Exception, "Error while initializing current events by tag");
+                            FailStage(task.Exception);
+                        }
+                    });
+                }
             }
 
             public override void PostStop()
@@ -235,7 +301,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             var refs = _redis.GetDatabase(_database).ListRange(
                                 _journalHelper.GetTagKey(_tag),
                                 _currentOffset,
-                                _currentOffset + _max - 1);
+                                Math.Min(_maxOffset, _currentOffset + _max - 1));
 
                             var trans = _redis.GetDatabase(_database).CreateTransaction();
 
@@ -276,6 +342,11 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _state = State.Idle;
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
+                if (_buffer.Count == 0 && _currentOffset >= _maxOffset)
+                {
+                    // max offset has been reached and delivered, complete
+                    CompleteStage();
+                }
             }
         }
     }
