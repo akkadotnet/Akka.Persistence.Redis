@@ -107,7 +107,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _max = config.GetInt("max-buffer-size");
                 _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
-                _currentOffset = offset;
+                _currentOffset = offset > 0 ? offset + 1 : 0;
 
                 SetHandler(outlet, Query);
             }

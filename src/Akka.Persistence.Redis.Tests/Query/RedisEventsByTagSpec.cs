@@ -41,11 +41,6 @@ namespace Akka.Persistence.Redis.Tests.Query
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
-        [Fact(Skip = "Not implemented yet")]
-        public override void ReadJournal_live_query_EventsByTag_should_find_events_from_offset_exclusive()
-        {
-        }
-
         protected override void Dispose(bool disposing)
         {
             DbUtils.Clean(Database);
