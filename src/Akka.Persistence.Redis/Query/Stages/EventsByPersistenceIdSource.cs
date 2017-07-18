@@ -7,7 +7,6 @@
 using Akka.Persistence.Query;
 using StackExchange.Redis;
 using System;
-using System.Collections;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Akka.Actor;
@@ -15,8 +14,6 @@ using Akka.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using Akka.Pattern;
-using Akka.Util.Internal;
-using Akka.Persistence.Redis.Journal;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
@@ -230,22 +227,23 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
-                            var events = _redis.GetDatabase(_database).SortedSetRangeByScore(
+                            _redis.GetDatabase(_database).SortedSetRangeByScoreAsync(
                                 key: _journalHelper.GetJournalKey(_persistenceId),
                                 start: _currentSequenceNr,
                                 stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr),
-                                order: Order.Ascending);
-
-                            try
+                                order: Order.Ascending).ContinueWith(task =>
                             {
-                                var deserializedEvents = events.Select(e => _journalHelper.PersistentFromBytes(e)).ToList();
-                                _callback(deserializedEvents);
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Error(e, "Error while querying events by persistence identifier");
-                                FailStage(e);
-                            }
+                                if (!task.IsCanceled || task.IsFaulted)
+                                {
+                                    var deserializedEvents = task.Result.Select(e => _journalHelper.PersistentFromBytes(e)).ToList();
+                                    _callback(deserializedEvents);
+                                }
+                                else
+                                {
+                                    Log.Error(task.Exception, "Error while querying events by persistence identifier");
+                                    FailStage(task.Exception);
+                                }
+                            });
                         }
                         else
                         {

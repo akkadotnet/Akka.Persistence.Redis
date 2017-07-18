@@ -267,8 +267,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                     });
 
-                    var f = _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag));
-                    f.ContinueWith(task =>
+                    _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag)).ContinueWith(task =>
                     {
                         if (!task.IsCanceled || task.IsFaulted)
                         {
@@ -298,6 +297,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
+                            // request next batch of events for this tag (potentially limiting to the max offset in the case of non live stream)
                             var refs = _redis.GetDatabase(_database).ListRange(
                                 _journalHelper.GetTagKey(_tag),
                                 _currentOffset,
@@ -311,17 +311,23 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 return trans.SortedSetRangeByScoreAsync(_journalHelper.GetJournalKey(persistenceId), sequenceNr, sequenceNr);
                             }).ToList();
 
-                            var f = trans.Execute();
-
-                            var callbackEvents = events.Select(bytes =>
+                            trans.ExecuteAsync().ContinueWith(task =>
                             {
-                                var result = _journalHelper.PersistentFromBytes(bytes.Result.FirstOrDefault());
-                                return (result.PersistenceId, result);
-                            }).ToList();
-
-                            _callback((refs.Length, callbackEvents));
-
-                            // TODO: FailStage on Error
+                                if (!task.IsCanceled || task.IsFaulted)
+                                {
+                                    var callbackEvents = events.Select(bytes =>
+                                    {
+                                        var result = _journalHelper.PersistentFromBytes(bytes.Result.FirstOrDefault());
+                                        return (result.PersistenceId, result);
+                                    }).ToList();
+                                    _callback((refs.Length, callbackEvents));
+                                }
+                                else
+                                {
+                                    Log.Error(task.Exception, "Error while querying events by persistence identifier");
+                                    FailStage(task.Exception);
+                                }
+                            });
                         }
                         else
                         {
