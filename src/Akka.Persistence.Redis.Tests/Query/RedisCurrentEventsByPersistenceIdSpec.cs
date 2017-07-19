@@ -36,11 +36,6 @@ namespace Akka.Persistence.Redis.Tests.Query
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
-        [Fact(Skip = "Not implemented yet")]
-        public override void ReadJournal_CurrentEventsByPersistenceId_should_return_empty_stream_for_journal_from_SequenceNr_greater_than_HighestSequenceNr()
-        {
-        }
-
         protected override void Dispose(bool disposing)
         {
             DbUtils.Clean(Database);

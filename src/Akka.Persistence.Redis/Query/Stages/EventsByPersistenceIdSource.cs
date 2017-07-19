@@ -305,6 +305,12 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // so, we need to fill this buffer
                             _state = State.Querying;
 
+                            // Complete stage if fromSequenceNr is higher than toSequenceNr
+                            if (_toSequenceNr < _currentSequenceNr)
+                            {
+                                CompleteStage();
+                            }
+
                             _redis.GetDatabase(_database).SortedSetRangeByScoreAsync(
                                 key: _journalHelper.GetJournalKey(_persistenceId),
                                 start: _currentSequenceNr,
