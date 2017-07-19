@@ -60,7 +60,9 @@ namespace Akka.Persistence.Redis.Query.Stages
             Idle = 0,
             Querying = 1,
             NotifiedWhenQuerying = 2,
-            WaitingForNotification = 3
+            WaitingForNotification = 3,
+            Initializing = 4,
+            QueryWhenInitializing = 5
         }
 
         private class EventsByPersistenceIdLogic : GraphStageLogic
@@ -78,7 +80,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly int _database;
             private readonly ActorSystem _system;
             private readonly string _persistenceId;
-            private readonly long _toSequenceNr;
+            private long _toSequenceNr;
             private readonly bool _live;
 
             public EventsByPersistenceIdLogic(
@@ -104,7 +106,18 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
                 _currentSequenceNr = fromSequenceNr;
-                SetHandler(outlet, Query);
+                SetHandler(outlet, onPull: () =>
+                {
+                    switch (_state)
+                    {
+                        case State.Initializing:
+                            _state = State.QueryWhenInitializing;
+                            break;
+                        default:
+                            Query();
+                            break;
+                    }
+                });
             }
 
             public override void PreStart()
@@ -113,28 +126,37 @@ namespace Akka.Persistence.Redis.Query.Stages
                 {
                     if (events.Count == 0)
                     {
-                        switch (_state)
+                        if (_currentSequenceNr > _toSequenceNr)
                         {
-                            case State.NotifiedWhenQuerying:
-                                // maybe we missed some new event when querying, retry
-                                Query();
-                                break;
-                            case State.Querying:
-                                if (_live)
-                                {
-                                    // nothing new, wait for notification
-                                    _state = State.WaitingForNotification;
-                                }
-                                else
-                                {
-                                    // not a live stream, nothing else currently in the database, close the stream
-                                    CompleteStage();
-                                }
-                                break;
-                            default:
-                                Log.Error($"Unexpected source state: {_state}");
-                                FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
-                                break;
+                            // end has been reached
+                            CompleteStage();
+                        }
+                        else
+                        {
+                            switch (_state)
+                            {
+                                case State.NotifiedWhenQuerying:
+                                    // maybe we missed some new event when querying, retry
+                                    _state = State.Idle;
+                                    Query();
+                                    break;
+                                case State.Querying:
+                                    if (_live)
+                                    {
+                                        // nothing new, wait for notification
+                                        _state = State.WaitingForNotification;
+                                    }
+                                    else
+                                    {
+                                        // not a live stream, nothing else currently in the database, close the stream
+                                        CompleteStage();
+                                    }
+                                    break;
+                                default:
+                                    Log.Error($"Unexpected source state: {_state}");
+                                    FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
+                                    break;
+                            }
                         }
                     }
                     else
@@ -210,6 +232,62 @@ namespace Akka.Persistence.Redis.Query.Stages
                         messageCallback.Invoke((channel, value));
                     });
                 }
+                else
+                {
+                    // start by first querying the current highest sequenceNr
+                    // for the given persistent id
+                    // stream will stop once this has been delivered
+                    _state = State.Initializing;
+
+                    var initCallback = GetAsyncCallback<long>(sn =>
+                    {
+                        if (_toSequenceNr > sn)
+                        {
+                            // the initially requested max sequence number is higher than the current
+                            // one, restrict it to the current one
+                            _toSequenceNr = sn;
+                        }
+
+                        switch (_state)
+                        {
+                            case State.QueryWhenInitializing:
+                                // during initialization, downstream asked for an element,
+                                // let’s query elements
+                                _state = State.Idle;
+                                Query();
+                                break;
+                            case State.Initializing:
+                                // no request from downstream, just go idle
+                                _state = State.Idle;
+                                break;
+                            default:
+                                Log.Error($"Unexpected source state when initializing: {_state}");
+                                FailStage(new IllegalStateException($"Unexpected source state when initializing: {_state}"));
+                                break;
+                        }
+                    });
+
+                    _redis.GetDatabase(_database).StringGetAsync(_journalHelper.GetHighestSequenceNrKey(_persistenceId)).ContinueWith(task =>
+                    {
+                        if (!task.IsCanceled || task.IsFaulted)
+                        {
+                            if (task.Result.IsNull == true)
+                            {
+                                // not found, close
+                                CompleteStage();
+                            }
+                            else
+                            {
+                                initCallback(long.Parse(task.Result));
+                            }
+                        }
+                        else
+                        {
+                            Log.Error(task.Exception, "Error while initializing current events by persistent id");
+                            FailStage(task.Exception);
+                        }
+                    });
+                }
             }
 
             public override void PostStop()
@@ -266,7 +344,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 Push(_outlet, elem);
                 if (_buffer.Count == 0 && _currentSequenceNr > _toSequenceNr)
                 {
-                    // we delivered last buffered event and the upper bound was reached, complete 
+                    // we delivered last buffered event and the upper bound was reached, complete
                     CompleteStage();
                 }
             }

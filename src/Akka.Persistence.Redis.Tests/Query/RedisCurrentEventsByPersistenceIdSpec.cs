@@ -37,17 +37,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         }
 
         [Fact(Skip = "Not implemented yet")]
-        public override void ReadJournal_CurrentEventsByPersistenceId_should_return_remaining_values_after_partial_journal_cleanup()
-        {
-        }
-
-        [Fact(Skip = "Not implemented yet")]
         public override void ReadJournal_CurrentEventsByPersistenceId_should_return_empty_stream_for_journal_from_SequenceNr_greater_than_HighestSequenceNr()
-        {
-        }
-
-        [Fact(Skip = "Not implemented yet")]
-        public override void ReadJournal_CurrentEventsByPersistenceId_should_not_see_new_events_after_completion()
         {
         }
 
