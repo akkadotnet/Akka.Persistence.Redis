@@ -35,6 +35,17 @@ namespace Akka.Persistence.Redis.Tests
                             database = """ + Database + @"""
                         }
                     }
+                }
+                akka.actor {
+                    serializers {
+                        persistence-snapshot = ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis""
+                    }
+                    serialization-bindings {
+                        ""Akka.Persistence.SelectedSnapshot, Akka.Persistence"" = persistence-snapshot
+                    }
+                    serialization-identifiers {
+                        ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis"" = 48
+                    }
                 }").WithFallback(RedisReadJournal.DefaultConfiguration());
         }
 

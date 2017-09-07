@@ -26,6 +26,17 @@ namespace Akka.Persistence.Redis.Tests.Serialization
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 database = {id}
             }}
+            akka.actor {{
+                serializers {{
+                    persistence-snapshot = ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis""
+                }}
+                serialization-bindings {{
+                    ""Akka.Persistence.SelectedSnapshot, Akka.Persistence"" = persistence-snapshot
+                }}
+                serialization-identifiers {{
+                    ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis"" = 48
+                }}
+            }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisReadJournal.DefaultConfiguration());
 
@@ -33,20 +44,20 @@ namespace Akka.Persistence.Redis.Tests.Serialization
         {
         }
 
-        [Fact(Skip = "Json.NET can't determine if a type is Int32 or Int64")]
-        public override void SnapshotStore_should_serialize_AtLeastOnceDeliverySnapshot()
-        {
-        }
+        //[Fact(Skip = "Json.NET can't determine if a type is Int32 or Int64")]
+        //public override void SnapshotStore_should_serialize_AtLeastOnceDeliverySnapshot()
+        //{
+        //}
 
-        [Fact(Skip = "JsonSerializer does not support it at the moment")]
-        public override void SnapshotStore_should_serialize_Payload()
-        {
-        }
+        //[Fact(Skip = "JsonSerializer does not support it at the moment")]
+        //public override void SnapshotStore_should_serialize_Payload()
+        //{
+        //}
 
-        [Fact(Skip = "JsonSerializer does not support it at the moment")]
-        public override void SnapshotStore_should_serialize_Payload_with_string_manifest()
-        {
-        }
+        //[Fact(Skip = "JsonSerializer does not support it at the moment")]
+        //public override void SnapshotStore_should_serialize_Payload_with_string_manifest()
+        //{
+        //}
 
         protected override void Dispose(bool disposing)
         {

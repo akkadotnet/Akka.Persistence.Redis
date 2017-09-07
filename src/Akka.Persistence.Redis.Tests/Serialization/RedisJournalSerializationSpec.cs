@@ -33,21 +33,6 @@ namespace Akka.Persistence.Redis.Tests.Serialization
         {
         }
 
-        [Fact(Skip = "JsonSerializer does not support it at the moment")]
-        public override void Journal_should_serialize_Persistent()
-        {
-        }
-
-        [Fact(Skip = "JsonSerializer does not support it at the moment")]
-        public override void Journal_should_serialize_Persistent_with_EventAdapter_manifest()
-        {
-        }
-
-        [Fact(Skip = "JsonSerializer does not support it at the moment")]
-        public override void Journal_should_serialize_Persistent_with_string_manifest()
-        {
-        }
-
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
