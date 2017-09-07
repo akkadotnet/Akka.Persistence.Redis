@@ -35,28 +35,6 @@ namespace Akka.Persistence.Redis.Tests.Query
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
-        [Fact]
-        public void ReadJournal_CurrentPersistenceIds_should_fail_the_stage_on_connection_error()
-        {
-            // setup redis
-            //var address = Sys.Settings.Config.GetString("akka.persistence.journal.redis.configuration-string");
-            //var database = Sys.Settings.Config.GetInt("akka.persistence.journal.redis.database");
-
-            //var redis = ConnectionMultiplexer.Connect(address).GetDatabase(database);
-
-            //var queries = ReadJournal.AsInstanceOf<ICurrentPersistenceIdsQuery>();
-
-            //Setup("a", 1);
-
-            //var source = queries.CurrentPersistenceIds();
-            //var probe = source.RunWith(this.SinkProbe<string>(), Materializer);
-
-            //// change type of value
-            //redis.StringSet("journal:persistenceIds", "1");
-
-            //probe.Within(TimeSpan.FromSeconds(10), () => probe.Request(1).ExpectError());
-        }
-
         [Fact(Skip = "Not implemented yet")]
         public override void ReadJournal_query_CurrentPersistenceIds_should_not_see_new_events_after_complete()
         {

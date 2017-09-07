@@ -23,7 +23,7 @@ namespace Akka.Persistence.Redis.Tests
             var connectionString = "127.0.0.1:6379";
 
             SpecConfig = ConfigurationFactory.ParseString(@"
-                akka.test.single-expect-default = 3s
+                akka.test.single-expect-default = 50s
                 akka.persistence {
                     publish-plugin-commands = on
                     snapshot-store {
