@@ -44,21 +44,6 @@ namespace Akka.Persistence.Redis.Tests.Serialization
         {
         }
 
-        //[Fact(Skip = "Json.NET can't determine if a type is Int32 or Int64")]
-        //public override void SnapshotStore_should_serialize_AtLeastOnceDeliverySnapshot()
-        //{
-        //}
-
-        //[Fact(Skip = "JsonSerializer does not support it at the moment")]
-        //public override void SnapshotStore_should_serialize_Payload()
-        //{
-        //}
-
-        //[Fact(Skip = "JsonSerializer does not support it at the moment")]
-        //public override void SnapshotStore_should_serialize_Payload_with_string_manifest()
-        //{
-        //}
-
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
