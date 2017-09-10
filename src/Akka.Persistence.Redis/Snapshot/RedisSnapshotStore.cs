@@ -47,8 +47,11 @@ namespace Akka.Persistence.Redis.Snapshot
               Order.Descending);
 
             var found = snapshots
-              .Select(c => PersistentFromBytes(c))
-              .FirstOrDefault(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp && snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr);
+                .Select(c => PersistentFromBytes(c))
+                .Where(c => criteria.Matches(c.Metadata))
+                .OrderByDescending(x => x.Metadata.SequenceNr)
+                .ThenByDescending(x => x.Metadata.Timestamp)
+                .FirstOrDefault();
 
             return found;
         }
@@ -98,5 +101,14 @@ namespace Akka.Persistence.Redis.Snapshot
         }
 
         private string GetSnapshotKey(string persistenceId) => $"{_settings.KeyPrefix}snapshot:{persistenceId}";
+    }
+
+    internal static class SnapshotMetadataExtensions
+    {
+        public static bool Matches(this SnapshotSelectionCriteria criteria, SnapshotMetadata metadata)
+        {
+            return metadata.SequenceNr <= criteria.MaxSequenceNr && metadata.Timestamp <= criteria.MaxTimeStamp 
+                && metadata.SequenceNr >= criteria.MinSequenceNr && metadata.Timestamp >= criteria.MinTimestamp;
+        }
     }
 }
