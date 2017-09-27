@@ -37,16 +37,11 @@ Target "RestorePackages" (fun _ ->
 )
 
 Target "Build" (fun _ ->
-    let projects = !! "./**/*.csproj"
-
-    let runSingleProject project =
-        DotNetCli.Build
-            (fun p -> 
-                { p with
-                    Project = project
-                    Configuration = configuration })
-
-    projects |> Seq.iter (runSingleProject)
+    DotNetCli.Build
+        (fun p -> 
+            { p with
+                Project = "./src/Akka.Persistence.Redis.sln"
+                Configuration = configuration })
 )
 
 //--------------------------------------------------------------------------------
