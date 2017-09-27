@@ -5,9 +5,8 @@
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <Copyright>Copyright © 2016-2017 Akka.NET Contrib Team</Copyright>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>beta1</VersionSuffix>
     <Authors>Akka.NET Contrib Team</Authors>
-    <TargetFrameworks>net461;netstandard1.6</TargetFrameworks>
+    <TargetFrameworks>netstandard1.6</TargetFrameworks>
     <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
     <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
     <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
