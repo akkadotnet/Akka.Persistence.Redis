@@ -3,25 +3,25 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis", "Akka.Persistence.Redis\Akka.Persistence.Redis.csproj", "{516115B9-891F-4D5D-AE08-0F128C2FD1C0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis", "src\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj", "{516115B9-891F-4D5D-AE08-0F128C2FD1C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Tests", "Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{754408BF-773C-46C9-9BC6-8820D77E95CA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Tests", "src\Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{754408BF-773C-46C9-9BC6-8820D77E95CA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution items", "Solution items", "{EB67BFB9-7589-469F-B0E0-6DDFC0032E67}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		..\build.cmd = ..\build.cmd
-		..\build.fsx = ..\build.fsx
-		..\build.ps1 = ..\build.ps1
-		..\build.sh = ..\build.sh
-		..\README.md = ..\README.md
+		build.cmd = build.cmd
+		build.fsx = build.fsx
+		build.ps1 = build.ps1
+		build.sh = build.sh
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{1F453772-CA5E-4F41-A50E-75F3F59F72D6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.MsgPack", "examples\CustomSerialization.MsgPack\CustomSerialization.MsgPack.csproj", "{6EEB8234-FAB9-4645-86EF-297240B3798A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.MsgPack", "src\examples\CustomSerialization.MsgPack\CustomSerialization.MsgPack.csproj", "{6EEB8234-FAB9-4645-86EF-297240B3798A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.Protobuf", "examples\CustomSerialization.Protobuf\CustomSerialization.Protobuf.csproj", "{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.Protobuf", "src\examples\CustomSerialization.Protobuf\CustomSerialization.Protobuf.csproj", "{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
