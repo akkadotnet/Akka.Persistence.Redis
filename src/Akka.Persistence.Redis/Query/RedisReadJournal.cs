@@ -12,6 +12,7 @@ using StackExchange.Redis;
 using System;
 using Akka.Persistence.Redis.Query.Stages;
 using Akka.Streams;
+using Hocon;
 
 namespace Akka.Persistence.Redis.Query
 {
@@ -37,7 +38,7 @@ namespace Akka.Persistence.Redis.Query
 
         internal static Config DefaultConfiguration()
         {
-            return ConfigurationFactory.FromResource<RedisReadJournal>("Akka.Persistence.Redis.reference.conf");
+            return HoconConfigurationFactory.FromResource<RedisReadJournal>("Akka.Persistence.Redis.reference.conf");
         }
 
         public RedisReadJournal(ExtendedActorSystem system, Config config)

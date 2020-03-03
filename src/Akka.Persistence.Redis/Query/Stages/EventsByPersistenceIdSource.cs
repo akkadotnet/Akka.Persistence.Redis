@@ -14,6 +14,7 @@ using Akka.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using Akka.Pattern;
+using Hocon;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {

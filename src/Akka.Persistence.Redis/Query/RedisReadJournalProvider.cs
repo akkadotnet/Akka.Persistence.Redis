@@ -7,6 +7,7 @@
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Query;
+using Hocon;
 
 namespace Akka.Persistence.Redis.Query
 {

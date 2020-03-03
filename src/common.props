@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
+    <Copyright>Copyright © 2016-2017 Akka.NET Contrib Team</Copyright>
+    <Authors>Akka.NET Contrib Team</Authors>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <PackageReleaseNotes>Initial release of Akka.HealthCheck and Akka.HealthCheck.Cluster. These packages are designed to make it possible to automatically and simply pass on information about the health of your Akka.NET applications to external application management and monitoring systems such as K8s, AWS, Azure, and so forth.</PackageReleaseNotes>
+    <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
+    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AkkaVersion>1.4.1-rc1</AkkaVersion>
+    <NBenchVersion>1.2.2</NBenchVersion>
+    <XunitVersion>2.4.1</XunitVersion>
+    <TestSdkVersion>16.5.0</TestSdkVersion>
+    <FluentAssertionsVersion>4.14.0</FluentAssertionsVersion>
+    <NetCoreTestVersion>netcoreapp2.0</NetCoreTestVersion>
+    <NetFrameworkTestVersion>net461</NetFrameworkTestVersion>
+    <NetStandardLibVersion>netstandard2.0</NetStandardLibVersion>
+    <NetFrameworkLibVersion>net461</NetFrameworkLibVersion>
+  </PropertyGroup>
+</Project>

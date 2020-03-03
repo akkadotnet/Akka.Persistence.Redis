@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Pattern;
+using Hocon;
 
 namespace CustomSerialization.Protobuf
 {

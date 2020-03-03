@@ -1,3 +1,7 @@
+#### 1.0.0-beta2 March 2nd 2020 ####
+- Update Akka to version 1.4.1-RC1
+- Update build system
+
 #### 1.0.0-beta1 Sep 10 2017 ####
 - Support for .NET Standard 1.6
 - Support for Persistence Query
