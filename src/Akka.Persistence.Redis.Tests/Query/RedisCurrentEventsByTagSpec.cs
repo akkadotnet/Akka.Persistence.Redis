@@ -36,7 +36,7 @@ namespace Akka.Persistence.Redis.Tests.Query
                 key-prefix = ""sbtech:""
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration());
+            .WithFallback(RedisPersistence.DefaultConfig());
 
         public RedisCurrentEventsByTagSpec(ITestOutputHelper output) : base(Config(Database), nameof(RedisCurrentEventsByTagSpec), output)
         {

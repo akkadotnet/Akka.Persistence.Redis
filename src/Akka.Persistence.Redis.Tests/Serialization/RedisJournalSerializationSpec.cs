@@ -34,7 +34,7 @@ namespace Akka.Persistence.Redis.Tests.Serialization
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration());
+            .WithFallback(RedisPersistence.DefaultConfig());
 
         public RedisJournalSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), nameof(RedisJournalSerializationSpec), output)
         {
@@ -45,5 +45,7 @@ namespace Akka.Persistence.Redis.Tests.Serialization
             base.Dispose(disposing);
             DbUtils.Clean(Database);
         }
+
+        protected override bool SupportsSerialization => false;
     }
 }

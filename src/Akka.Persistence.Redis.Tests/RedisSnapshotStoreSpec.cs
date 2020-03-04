@@ -47,7 +47,7 @@ namespace Akka.Persistence.Redis.Tests
                     serialization-identifiers {
                         ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis"" = 48
                     }
-                }").WithFallback(RedisReadJournal.DefaultConfiguration());
+                }").WithFallback(RedisPersistence.DefaultConfig());
         }
 
         public RedisSnapshotStoreSpec(ITestOutputHelper output)

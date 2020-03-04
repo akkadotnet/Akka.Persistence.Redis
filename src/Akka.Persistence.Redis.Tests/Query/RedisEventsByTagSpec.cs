@@ -35,7 +35,7 @@ namespace Akka.Persistence.Redis.Tests.Query
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration());
+            .WithFallback(RedisPersistence.DefaultConfig());
 
         public RedisEventsByTagSpec(ITestOutputHelper output) : base(Config(Database), nameof(RedisEventsByTagSpec), output)
         {

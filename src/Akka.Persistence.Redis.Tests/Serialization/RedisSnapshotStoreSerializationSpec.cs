@@ -39,7 +39,7 @@ namespace Akka.Persistence.Redis.Tests.Serialization
                 }}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration());
+            .WithFallback(RedisPersistence.DefaultConfig());
 
         public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), nameof(RedisSnapshotStoreSerializationSpec), output)
         {

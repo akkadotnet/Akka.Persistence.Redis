@@ -26,7 +26,7 @@ namespace Akka.Persistence.Redis.Tests
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisReadJournal.DefaultConfiguration())
+            .WithFallback(RedisPersistence.DefaultConfig())
             .WithFallback(Persistence.DefaultConfig());
 
 

@@ -36,11 +36,6 @@ namespace Akka.Persistence.Redis.Query
         /// </summary>
         public static string Identifier = "akka.persistence.query.journal.redis";
 
-        internal static Config DefaultConfiguration()
-        {
-            return HoconConfigurationFactory.FromResource<RedisReadJournal>("Akka.Persistence.Redis.reference.conf");
-        }
-
         public RedisReadJournal(ExtendedActorSystem system, Config config)
         {
             _system = system;
