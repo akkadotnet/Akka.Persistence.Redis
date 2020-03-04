@@ -91,7 +91,9 @@ namespace Akka.Persistence.Redis.Snapshot
         {
             var message = new SelectedSnapshot(metadata, snapshot);
             var serializer = _system.Serialization.FindSerializerForType(typeof(SelectedSnapshot));
-            return serializer.ToBinary(message);
+            return Akka.Serialization.Serialization.WithTransport(_system as ExtendedActorSystem, 
+                () => serializer.ToBinary(message));
+            //return serializer.ToBinary(message);
         }
 
         private SelectedSnapshot PersistentFromBytes(byte[] bytes)
