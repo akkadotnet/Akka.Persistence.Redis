@@ -3,25 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis", "src\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj", "{516115B9-891F-4D5D-AE08-0F128C2FD1C0}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Tests", "src\Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{754408BF-773C-46C9-9BC6-8820D77E95CA}"
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis", "src\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj", "{516115B9-891F-4D5D-AE08-0F128C2FD1C0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Tests", "src\Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{754408BF-773C-46C9-9BC6-8820D77E95CA}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution items", "Solution items", "{EB67BFB9-7589-469F-B0E0-6DDFC0032E67}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		build.cmd = build.cmd
-		build.ps1 = build.ps1
-		src\common.props = src\common.props
-		..\README.md = ..\README.md
-		RELEASE_NOTES.md = RELEASE_NOTES.md
 		build.fsx = build.fsx
 		build.ps1 = build.ps1
 		build.sh = build.sh
+		src\common.props = src\common.props
+		..\README.md = ..\README.md
 		README.md = README.md
+		RELEASE_NOTES.md = RELEASE_NOTES.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{1F453772-CA5E-4F41-A50E-75F3F59F72D6}"
@@ -30,20 +22,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.MsgPack
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomSerialization.Protobuf", "src\examples\CustomSerialization.Protobuf\CustomSerialization.Protobuf.csproj", "{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis", "src\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj", "{32493D11-8BE0-4F62-9707-1B48BC427667}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Tests", "src\Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{59871C63-8D5D-4221-B504-203BB3500DBF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{516115B9-891F-4D5D-AE08-0F128C2FD1C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{516115B9-891F-4D5D-AE08-0F128C2FD1C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{516115B9-891F-4D5D-AE08-0F128C2FD1C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{516115B9-891F-4D5D-AE08-0F128C2FD1C0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{754408BF-773C-46C9-9BC6-8820D77E95CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{754408BF-773C-46C9-9BC6-8820D77E95CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{754408BF-773C-46C9-9BC6-8820D77E95CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{754408BF-773C-46C9-9BC6-8820D77E95CA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6EEB8234-FAB9-4645-86EF-297240B3798A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6EEB8234-FAB9-4645-86EF-297240B3798A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6EEB8234-FAB9-4645-86EF-297240B3798A}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -52,6 +40,14 @@ Global
 		{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32493D11-8BE0-4F62-9707-1B48BC427667}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32493D11-8BE0-4F62-9707-1B48BC427667}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32493D11-8BE0-4F62-9707-1B48BC427667}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32493D11-8BE0-4F62-9707-1B48BC427667}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59871C63-8D5D-4221-B504-203BB3500DBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59871C63-8D5D-4221-B504-203BB3500DBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59871C63-8D5D-4221-B504-203BB3500DBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59871C63-8D5D-4221-B504-203BB3500DBF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

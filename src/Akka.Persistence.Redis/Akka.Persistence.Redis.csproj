@@ -5,7 +5,6 @@
     <AssemblyTitle>Akka.Persistence.Redis</AssemblyTitle>
     <TargetFrameworks>$(NetStandardLibVersion);$(NetFrameworkLibVersion)</TargetFrameworks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-  <PropertyGroup>
     <TargetFrameworks>$(NetStandardVersion)</TargetFrameworks>
     <LangVersion>7.1</LangVersion>   
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
