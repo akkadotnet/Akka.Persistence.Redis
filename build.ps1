@@ -37,6 +37,7 @@ $NugetVersion = "4.1.0";
 $NugetUrl = "https://dist.nuget.org/win-x86-commandline/v$NugetVersion/nuget.exe"
 $ProtobufVersion = "3.4.0"
 $DocfxVersion = "2.49.0"
+$RedisVersion = "3.0.503"
 
 # Make sure tools folder exists
 $PSScriptRoot = Split-Path $MyInvocation.MyCommand.Path -Parent
@@ -112,6 +113,18 @@ if (!(Test-Path $FakeExePath)) {
     Invoke-Expression "&`"$NugetPath`" install Fake -ExcludeVersion -Version $FakeVersion -OutputDirectory `"$ToolPath`"" | Out-Null;
     if ($LASTEXITCODE -ne 0) {
         Throw "An error occured while restoring Fake from NuGet."
+    }
+}
+
+###########################################################################
+# INSTALL REDIS
+###########################################################################
+$RedisExePath = Join-Path $ToolPath "redis-64/tools/redis-server.exe"
+if (!(Test-Path $RedisExePath)) {
+    Write-Host "Installing Redis-64..."
+    Invoke-Expression "&`"$NugetPath`" install redis-64 -ExcludeVersion -Version $RedisVersion -OutputDirectory `"$ToolPath`"" | Out-Null;
+    if ($LASTEXITCODE -ne 0) {
+        Throw "An error occured while restoring Redis-64 from NuGet."
     }
 }
 

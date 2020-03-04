@@ -10,13 +10,13 @@ open Fake.DotNetCli
 open Fake.DocFxHelper
 
 // Information about the project for Nuget and Assembly info files
-let product = "Akka.Persistence.MongoDB"
+let product = "Akka.Persistence.Redis"
 let configuration = "Release"
 
 // Metadata used when signing packages and DLLs
-let signingName = "Akka.Persistence.MongoDB"
-let signingDescription = "Akka.Persistence support for SQL Server"
-let signingUrl = "https://github.com/akkadotnet/Akka.Persistence.MongoDB"
+let signingName = "Akka.Persistence.Redis"
+let signingDescription = "Akka.Persistence support for Redis"
+let signingUrl = "https://github.com/akkadotnet/Akka.Persistence.Redis"
 
 // Read release notes and version
 let solutionFile = FindFirstMatchingFile "*.sln" __SOURCE_DIRECTORY__  // dynamically look up the solution
@@ -40,6 +40,7 @@ let versionSuffix =
 
 // Directories
 let toolsDir = __SOURCE_DIRECTORY__ @@ "tools"
+let redisToolsDir = toolsDir @@ "redis-64/tools"
 let output = __SOURCE_DIRECTORY__  @@ "bin"
 let outputTests = __SOURCE_DIRECTORY__ @@ "TestResults"
 let outputPerfTests = __SOURCE_DIRECTORY__ @@ "PerfResults"
@@ -90,7 +91,7 @@ module internal ResultHandling =
         buildErrorMessage
         >> Option.iter (failBuildWithMessage errorLevel)
 
-Target "RunTests" (fun _ ->
+Target "RunUnitTests" (fun _ ->
     let projects = 
         match (isWindows) with 
         | true -> !! "./src/**/*.Tests.csproj"
@@ -253,6 +254,44 @@ Target "DocFx" (fun _ ->
 )
 
 //--------------------------------------------------------------------------------
+// Redis
+//--------------------------------------------------------------------------------
+Target "StartRedis" (fun _ ->
+    ActivateFinalTarget "StopRedis"
+
+    log "Setting up Redis server service"
+    log redisToolsDir
+    let result = ExecProcess(fun info ->
+        info.FileName <- redisToolsDir @@ "redis-server"
+        info.WorkingDirectory <- redisToolsDir
+        info.Arguments <- "--service-install") (System.TimeSpan.FromMinutes 2.0)
+    if result <> 0 then failwithf "Redis server service setup failed"
+
+    log "Starting Redis server service"
+    let result = ExecProcess(fun info ->
+        info.FileName <- redisToolsDir @@ "redis-server"
+        info.WorkingDirectory <- redisToolsDir
+        info.Arguments <- "--service-start") (System.TimeSpan.FromMinutes 2.0)
+    if result <> 0 then failwithf "Redis server service start failed"
+)
+
+FinalTarget "StopRedis" (fun _ ->
+    log "Shutting down Redis server service"
+    let result = ExecProcess(fun info ->
+        info.FileName <- redisToolsDir @@ "redis-server"
+        info.WorkingDirectory <- redisToolsDir
+        info.Arguments <- "--service-stop") (System.TimeSpan.FromMinutes 2.0)
+    if result <> 0 then failwithf "Redis server service shutdown failed"
+
+    log "Remove Redis server service"
+    let result = ExecProcess(fun info ->
+        info.FileName <- redisToolsDir @@ "redis-server"
+        info.WorkingDirectory <- redisToolsDir
+        info.Arguments <- "--service-uninstall") (System.TimeSpan.FromMinutes 2.0)
+    if result <> 0 then failwithf "Redis server service removal failed"
+)
+
+//--------------------------------------------------------------------------------
 // Cleanup
 //--------------------------------------------------------------------------------
 
@@ -293,12 +332,13 @@ Target "Help" <| fun _ ->
 Target "BuildRelease" DoNothing
 Target "All" DoNothing
 Target "Nuget" DoNothing
+Target "RunTests" DoNothing
 
 // build dependencies
 "Clean" ==> "AssemblyInfo" ==> "Build" ==> "BuildRelease"
 
 // tests dependencies
-"Build" ==> "RunTests"
+"Build" ==> "StartRedis" ==> "RunUnitTests" ==> "StopRedis" ==> "RunTests"
 
 // nuget dependencies
 "Clean" ==> "Build" ==> "CreateNuget"
