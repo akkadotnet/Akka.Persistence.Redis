@@ -5,14 +5,20 @@
     <AssemblyTitle>Akka.Persistence.Redis.Tests</AssemblyTitle>
     <TargetFrameworks>$(NetFrameworkTestVersion);$(NetCoreTestVersion)</TargetFrameworks>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+      <TargetFrameworks>$(NetFrameworkTestVersion);$(NetCoreTestVersion)</TargetFrameworks>
+    </PropertyGroup>
+
+    <!-- disable .NET Framework (Mono) on Linux-->
+    <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+      <TargetFrameworks>$(NetCoreTestVersion)</TargetFrameworks>
+    </PropertyGroup>
+
   
   <ItemGroup>
     <ProjectReference Include="..\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="App.config" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(TestSdkVersion)" />
@@ -31,4 +37,11 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
   </PropertyGroup>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="4.19.4" />
+    <PackageReference Include="Akka.Persistence.TCK" Version="$(AkkaVersion)" />
+    <PackageReference Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />
+  </ItemGroup>
 </Project>

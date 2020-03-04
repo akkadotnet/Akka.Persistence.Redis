@@ -5,6 +5,10 @@
     <AssemblyTitle>Akka.Persistence.Redis</AssemblyTitle>
     <TargetFrameworks>$(NetStandardLibVersion);$(NetFrameworkLibVersion)</TargetFrameworks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  <PropertyGroup>
+    <TargetFrameworks>$(NetStandardVersion)</TargetFrameworks>
+    <LangVersion>7.1</LangVersion>   
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,10 +21,9 @@
     <PackageReference Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.Streams" Version="$(AkkaVersion)" />
     <PackageReference Include="StackExchange.Redis" Version="$(RedisVersion)" />
+    <PackageReference Include="Akka.Persistence" Version="$(AkkaVersion)" />
+    <PackageReference Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
+    <PackageReference Include="StackExchange.Redis" Version="1.2.6" />
+    <PackageReference Include="System.ValueTuple" Version="4.4.0" />
   </ItemGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
-  </PropertyGroup>
-
 </Project>

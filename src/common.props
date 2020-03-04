@@ -1,26 +1,39 @@
 <Project>
   <PropertyGroup>
-    <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
-    <Copyright>Copyright © 2016-2017 Akka.NET Contrib Team</Copyright>
-    <Authors>Akka.NET Contrib Team</Authors>
+    <Copyright>Copyright © 2013-2020 Akka.NET Project</Copyright>
+    <Authors>Akka.NET</Authors>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <PackageReleaseNotes>Initial release of Akka.HealthCheck and Akka.HealthCheck.Cluster. These packages are designed to make it possible to automatically and simply pass on information about the health of your Akka.NET applications to external application management and monitoring systems such as K8s, AWS, Azure, and so forth.</PackageReleaseNotes>
+    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
     <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
     <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
-    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
+    <PackageReleaseNotes>- Support for .NET Standard 1.6
+- Support for Persistence Query
+- Use Google.Protobuf serialization both for journal and snapshots
+- Updated Akka.Persistence to 1.3.1
+- StackExchange.Redis to 1.2.6</PackageReleaseNotes>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
-    <AkkaVersion>1.4.1-rc1</AkkaVersion>
-    <NBenchVersion>1.2.2</NBenchVersion>
     <XunitVersion>2.4.1</XunitVersion>
     <TestSdkVersion>16.5.0</TestSdkVersion>
-    <FluentAssertionsVersion>4.14.0</FluentAssertionsVersion>
-    <RedisVersion>2.0.601</RedisVersion>
-    <NetCoreTestVersion>netcoreapp2.0</NetCoreTestVersion>
+    <AkkaVersion>1.3.17</AkkaVersion>
+    <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
+    <NetStandardVersion>netstandard2.0</NetStandardVersion>
     <NetFrameworkTestVersion>net461</NetFrameworkTestVersion>
-    <NetStandardLibVersion>netstandard2.0</NetStandardLibVersion>
-    <NetFrameworkLibVersion>net461</NetFrameworkLibVersion>
+  </PropertyGroup>
+  <!-- SourceLink support for all Akka.NET projects -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <!-- Optional: Embed source files that are not tracked by the source control manager in the PDB -->
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 </Project>
