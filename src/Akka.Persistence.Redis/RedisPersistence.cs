@@ -32,9 +32,9 @@ namespace Akka.Persistence.Redis
                 throw new ArgumentNullException(nameof(config));
 
             return new RedisSettings(
-              configurationString: config.GetString("configuration-string"),
-              keyPrefix: config.GetString("key-prefix"),
-              database: config.GetInt("database"));
+              configurationString: config.GetString("configuration-string", string.Empty),
+              keyPrefix: config.GetString("key-prefix", string.Empty),
+              database: config.GetInt("database", 0));
         }
     }
 
