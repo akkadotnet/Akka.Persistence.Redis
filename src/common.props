@@ -17,6 +17,7 @@
     <XunitVersion>2.4.1</XunitVersion>
     <TestSdkVersion>16.5.0</TestSdkVersion>
     <FluentAssertionsVersion>4.14.0</FluentAssertionsVersion>
+    <RedisVersion>2.0.601</RedisVersion>
     <NetCoreTestVersion>netcoreapp2.0</NetCoreTestVersion>
     <NetFrameworkTestVersion>net461</NetFrameworkTestVersion>
     <NetStandardLibVersion>netstandard2.0</NetStandardLibVersion>
