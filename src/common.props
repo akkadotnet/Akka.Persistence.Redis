@@ -19,7 +19,7 @@
   <PropertyGroup>
     <XunitVersion>2.4.1</XunitVersion>
     <TestSdkVersion>16.5.0</TestSdkVersion>
-    <AkkaVersion>1.3.17</AkkaVersion>
+    <AkkaVersion>1.4.1</AkkaVersion>
     <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
     <NetStandardVersion>netstandard2.0</NetStandardVersion>
     <NetFrameworkTestVersion>net461</NetFrameworkTestVersion>
