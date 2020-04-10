@@ -1,12 +1,14 @@
 parameters:
   name: ''
   vmImage: ''
+  displayName: ''
   scriptFileName: ''
   scriptArgs: 'all'
   timeoutInMinutes: 120
 
 jobs:
   - job: ${{ parameters.name }}
+    displayName: ${{ parameters.displayName }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool:
       vmImage: ${{ parameters.vmImage }}
