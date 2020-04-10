@@ -1,3 +1,7 @@
+#### 1.4.4 April 11th 2020 ####
+- Bump Akka to version 1.4.4
+- Update build system to use Docker.DotNet
+
 #### 1.0.0-beta2 March 2nd 2020 ####
 - Update Akka to version 1.4.1-RC1
 - Update build system
