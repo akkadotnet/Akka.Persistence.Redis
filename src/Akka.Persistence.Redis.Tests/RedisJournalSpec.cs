@@ -9,7 +9,6 @@ using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Journal;
 using Xunit;
 using Xunit.Abstractions;
-using Hocon;
 
 namespace Akka.Persistence.Redis.Tests
 {
