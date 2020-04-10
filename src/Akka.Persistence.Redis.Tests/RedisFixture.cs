@@ -94,8 +94,13 @@ namespace Akka.Persistence.Redis.Tests
         {
             if (Client != null)
             {
+                // Delay to make sure that all tests has completed cleanup.
+                await Task.Delay(TimeSpan.FromSeconds(5));
+
+                // Kill the container, we can't simply stop the container because Redis can hung indefinetly
+                // if we simply stop the container.
                 await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
-                // await Client.Containers.StopContainerAsync(RedisContainerName, new ContainerStopParameters { WaitBeforeKillSeconds = 5 });
+
                 await Client.Containers.RemoveContainerAsync(RedisContainerName,
                     new ContainerRemoveParameters { Force = true });
                 Client.Dispose();
