@@ -14,13 +14,14 @@ pr:
 name: $(Year:yyyy).$(Month).$(DayOfMonth)$(Rev:.r)
 
 jobs:
-  - template: azure-pipeline.template.yaml
-    parameters:
-      name: 'windows_pr'
-      displayName: 'Windows PR Validation'
-      vmImage: 'windows-2019'
-      scriptFileName: build.cmd
-      scriptArgs: all
+  # Windows testing is disabled, Redis linux container can not run in windows docker.
+#  - template: azure-pipeline.template.yaml
+#    parameters:
+#      name: 'windows_pr'
+#      displayName: 'Windows PR Validation'
+#      vmImage: 'windows-2019'
+#      scriptFileName: build.cmd
+#      scriptArgs: all
 
   - template: azure-pipeline.template.yaml
     parameters:

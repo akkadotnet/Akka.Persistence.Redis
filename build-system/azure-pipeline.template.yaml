@@ -12,8 +12,6 @@ jobs:
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool:
       vmImage: ${{ parameters.vmImage }}
-    variables:
-      DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
       - checkout: self  # self represents the repo where the initial Pipelines YAML file was found
         clean: false  # whether to fetch clean each time
@@ -27,23 +25,14 @@ jobs:
           arguments: ${{ parameters.scriptArgs }}
         continueOnError: true
         condition: in( variables['Agent.OS'], 'Linux', 'Darwin' )
-      # Windows
-      - task: DockerInstaller@0
-        displayName: Docker Installer
-        inputs:
-          dockerVersion: 17.09.0-ce
-          releaseType: stable
-        condition: eq( variables['Agent.OS'], 'Windows_NT' )
-      - powershell: restart-service *docker*
-        displayName: Restart Docker
-        condition: eq( variables['Agent.OS'], 'Windows_NT' )
-      - task: BatchScript@1
-        displayName: Windows Build
-        inputs:
-          filename: ${{ parameters.scriptFileName }}
-          arguments: ${{ parameters.scriptArgs }}
-        continueOnError: true
-        condition: eq( variables['Agent.OS'], 'Windows_NT' )
+      # Windows test is disabled, could not use redis container in Azure Pipelines
+#      - task: BatchScript@1
+#        displayName: Windows Build
+#        inputs:
+#          filename: ${{ parameters.scriptFileName }}
+#          arguments: ${{ parameters.scriptArgs }}
+#        continueOnError: true
+#        condition: eq( variables['Agent.OS'], 'Windows_NT' )
       - task: PublishTestResults@2
         inputs:
           testRunner: VSTest
