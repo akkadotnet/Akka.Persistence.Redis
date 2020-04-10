@@ -40,7 +40,6 @@ let versionSuffix =
 
 // Directories
 let toolsDir = __SOURCE_DIRECTORY__ @@ "tools"
-let redisToolsDir = toolsDir @@ "redis-64/tools"
 let output = __SOURCE_DIRECTORY__  @@ "bin"
 let outputTests = __SOURCE_DIRECTORY__ @@ "TestResults"
 let outputPerfTests = __SOURCE_DIRECTORY__ @@ "PerfResults"
@@ -91,7 +90,7 @@ module internal ResultHandling =
         buildErrorMessage
         >> Option.iter (failBuildWithMessage errorLevel)
 
-Target "RunUnitTests" (fun _ ->
+Target "RunTests" (fun _ ->
     let projects = 
         match (isWindows) with 
         | true -> !! "./src/**/*.Tests.csproj"
@@ -254,44 +253,6 @@ Target "DocFx" (fun _ ->
 )
 
 //--------------------------------------------------------------------------------
-// Redis
-//--------------------------------------------------------------------------------
-Target "StartRedis" (fun _ ->
-    ActivateFinalTarget "StopRedis"
-
-    log "Setting up Redis server service"
-    log redisToolsDir
-    let result = ExecProcess(fun info ->
-        info.FileName <- redisToolsDir @@ "redis-server"
-        info.WorkingDirectory <- redisToolsDir
-        info.Arguments <- "--service-install") (System.TimeSpan.FromMinutes 2.0)
-    if result <> 0 then failwithf "Redis server service setup failed"
-
-    log "Starting Redis server service"
-    let result = ExecProcess(fun info ->
-        info.FileName <- redisToolsDir @@ "redis-server"
-        info.WorkingDirectory <- redisToolsDir
-        info.Arguments <- "--service-start") (System.TimeSpan.FromMinutes 2.0)
-    if result <> 0 then failwithf "Redis server service start failed"
-)
-
-FinalTarget "StopRedis" (fun _ ->
-    log "Shutting down Redis server service"
-    let result = ExecProcess(fun info ->
-        info.FileName <- redisToolsDir @@ "redis-server"
-        info.WorkingDirectory <- redisToolsDir
-        info.Arguments <- "--service-stop") (System.TimeSpan.FromMinutes 2.0)
-    if result <> 0 then failwithf "Redis server service shutdown failed"
-
-    log "Remove Redis server service"
-    let result = ExecProcess(fun info ->
-        info.FileName <- redisToolsDir @@ "redis-server"
-        info.WorkingDirectory <- redisToolsDir
-        info.Arguments <- "--service-uninstall") (System.TimeSpan.FromMinutes 2.0)
-    if result <> 0 then failwithf "Redis server service removal failed"
-)
-
-//--------------------------------------------------------------------------------
 // Cleanup
 //--------------------------------------------------------------------------------
 
@@ -332,13 +293,12 @@ Target "Help" <| fun _ ->
 Target "BuildRelease" DoNothing
 Target "All" DoNothing
 Target "Nuget" DoNothing
-Target "RunTests" DoNothing
 
 // build dependencies
 "Clean" ==> "AssemblyInfo" ==> "Build" ==> "BuildRelease"
 
 // tests dependencies
-"Build" ==> "StartRedis" ==> "RunUnitTests" ==> "StopRedis" ==> "RunTests"
+"Build" ==> "RunTests"
 
 // nuget dependencies
 "Clean" ==> "Build" ==> "CreateNuget"
