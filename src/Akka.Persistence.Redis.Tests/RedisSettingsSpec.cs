@@ -9,7 +9,6 @@ using Xunit;
 
 namespace Akka.Persistence.Redis.Tests
 {
-    [Collection("RedisSpec")]
     public class RedisSettingsSpec : Akka.TestKit.Xunit2.TestKit
     {
         [Fact]

@@ -17,12 +17,16 @@ namespace Akka.Persistence.Redis.Tests.Serialization
     {
         public const int Database = 1;
 
-        public static Config SpecConfig(int id) => ConfigurationFactory.ParseString($@"
+        public static Config Config(RedisFixture fixture, int id)
+        {
+            DbUtils.Initialize(fixture);
+
+            return ConfigurationFactory.ParseString($@"
             akka.loglevel = INFO
             akka.persistence.snapshot-store.plugin = ""akka.persistence.snapshot-store.redis""
             akka.persistence.snapshot-store.redis {{
                 class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
-                configuration-string = ""127.0.0.1:6379""
+                configuration-string = ""{fixture.ConnectionString}""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 database = {id}
             }}
@@ -39,8 +43,9 @@ namespace Akka.Persistence.Redis.Tests.Serialization
             }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisPersistence.DefaultConfig());
+        }
 
-        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output) : base(SpecConfig(Database), nameof(RedisSnapshotStoreSerializationSpec), output)
+        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisSnapshotStoreSerializationSpec), output)
         {
         }
 

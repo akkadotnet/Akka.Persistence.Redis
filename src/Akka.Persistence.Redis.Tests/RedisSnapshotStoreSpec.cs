@@ -15,42 +15,41 @@ namespace Akka.Persistence.Redis.Tests
     [Collection("RedisSpec")]
     public class RedisSnapshotStoreSpec : SnapshotStoreSpec
     {
-        private static readonly Config SpecConfig;
         public const int Database = 1;
 
-        static RedisSnapshotStoreSpec()
+        public static Config Config(RedisFixture fixture, int id)
         {
-            var connectionString = "127.0.0.1:6379";
+            DbUtils.Initialize(fixture);
 
-            SpecConfig = ConfigurationFactory.ParseString(@"
+            return ConfigurationFactory.ParseString($@"
                 akka.test.single-expect-default = 3s
-                akka.persistence {
+                akka.persistence {{
                     publish-plugin-commands = on
-                    snapshot-store {
+                    snapshot-store {{
                         plugin = ""akka.persistence.snapshot-store.redis""
-                        redis {
+                        redis {{
                             class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
-                            configuration-string = """ + connectionString + @"""
+                            configuration-string = ""{fixture.ConnectionString}""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
-                            database = """ + Database + @"""
-                        }
-                    }
-                }
-                akka.actor {
-                    serializers {
+                            database = ""{id}""
+                        }}
+                    }}
+                }}
+                akka.actor {{
+                    serializers {{
                         persistence-snapshot = ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis""
-                    }
-                    serialization-bindings {
+                    }}
+                    serialization-bindings {{
                         ""Akka.Persistence.SelectedSnapshot, Akka.Persistence"" = persistence-snapshot
-                    }
-                    serialization-identifiers {
+                    }}
+                    serialization-identifiers {{
                         ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis"" = 48
-                    }
-                }").WithFallback(RedisPersistence.DefaultConfig());
+                    }}
+                }}").WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisSnapshotStoreSpec(ITestOutputHelper output)
-            : base(SpecConfig, typeof(RedisSnapshotStoreSpec).Name, output)
+        public RedisSnapshotStoreSpec(ITestOutputHelper output, RedisFixture fixture)
+            : base(Config(fixture, Database), typeof(RedisSnapshotStoreSpec).Name, output)
         {
             RedisPersistence.Get(Sys);
             Initialize();

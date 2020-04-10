@@ -18,7 +18,11 @@ namespace Akka.Persistence.Redis.Tests.Query
     {
         public const int Database = 1;
 
-        public static Config Config(int id) => ConfigurationFactory.ParseString($@"
+        public static Config Config(RedisFixture fixture, int id)
+        {
+            DbUtils.Initialize(fixture);
+
+            return ConfigurationFactory.ParseString($@"
             akka.loglevel = INFO
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
@@ -30,13 +34,14 @@ namespace Akka.Persistence.Redis.Tests.Query
                 }}
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                configuration-string = ""127.0.0.1:6379""
+                configuration-string = ""{fixture.ConnectionString}""
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisPersistence.DefaultConfig());
+        }
 
-        public RedisEventsByTagSpec(ITestOutputHelper output) : base(Config(Database), nameof(RedisEventsByTagSpec), output)
+        public RedisEventsByTagSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisEventsByTagSpec), output)
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }

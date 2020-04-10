@@ -18,6 +18,7 @@
     <TestSdkVersion>16.5.0</TestSdkVersion>
     <AkkaVersion>1.4.4</AkkaVersion>
     <RedisVersion>2.0.601</RedisVersion>
+    <DockerVersion>3.125.2</DockerVersion>
     <FluentAssertionsVersion>4.14.0</FluentAssertionsVersion>
     <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
     <NetStandardVersion>netstandard2.0</NetStandardVersion>
