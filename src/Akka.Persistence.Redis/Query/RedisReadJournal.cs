@@ -12,7 +12,6 @@ using StackExchange.Redis;
 using System;
 using Akka.Persistence.Redis.Query.Stages;
 using Akka.Streams;
-using Hocon;
 
 namespace Akka.Persistence.Redis.Query
 {

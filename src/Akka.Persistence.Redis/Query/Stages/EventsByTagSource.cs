@@ -20,7 +20,6 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Akka.Util.Internal;
 using StackExchange.Redis;
-using Hocon;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
