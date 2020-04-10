@@ -1,6 +1,6 @@
 # Akka.Persistence.Redis 
 
-[![Build status](https://ci.appveyor.com/api/projects/status/uxdr5352akbdi605/branch/dev?svg=true)](https://ci.appveyor.com/project/akkadotnet-contrib/akka-persistence-redis/branch/dev) [![NuGet Version](http://img.shields.io/nuget/v/Akka.Persistence.Redis.svg?style=flat)](https://www.nuget.org/packages/Akka.Persistence.Redis)
+[![NuGet Version](http://img.shields.io/nuget/v/Akka.Persistence.Redis.svg?style=flat)](https://www.nuget.org/packages/Akka.Persistence.Redis)
 
 Akka Persistence Redis Plugin is a plugin for `Akka persistence` that provides several components:
  - a journal store ;
