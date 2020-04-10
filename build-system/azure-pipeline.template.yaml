@@ -12,6 +12,8 @@ jobs:
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool:
       vmImage: ${{ parameters.vmImage }}
+    variables:
+      DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
       - checkout: self  # self represents the repo where the initial Pipelines YAML file was found
         clean: false  # whether to fetch clean each time
@@ -29,13 +31,11 @@ jobs:
       - task: DockerInstaller@0
         displayName: Docker Installer
         inputs:
-          dockerVersion: 19.03.8
+          dockerVersion: 17.09.0-ce
           releaseType: stable
         condition: eq( variables['Agent.OS'], 'Windows_NT' )
       - powershell: restart-service *docker*
         displayName: Restart Docker
-        env:
-          DOCKER_CLI_EXPERIMENTAL: enabled
         condition: eq( variables['Agent.OS'], 'Windows_NT' )
       - task: BatchScript@1
         displayName: Windows Build
