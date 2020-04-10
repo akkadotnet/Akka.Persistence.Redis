@@ -6,15 +6,14 @@ parameters:
   scriptArgs: 'all'
   timeoutInMinutes: 120
 
-variables:
-  DOCKER_CLI_EXPERIMENTAL: enabled
-
 jobs:
   - job: ${{ parameters.name }}
     displayName: ${{ parameters.displayName }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     pool:
       vmImage: ${{ parameters.vmImage }}
+    variables:
+      DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
       - checkout: self  # self represents the repo where the initial Pipelines YAML file was found
         clean: false  # whether to fetch clean each time
