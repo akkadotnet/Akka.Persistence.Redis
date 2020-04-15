@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(NetCoreTestVersion)</TargetFrameworks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
