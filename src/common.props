@@ -16,7 +16,7 @@
   <PropertyGroup>
     <XunitVersion>2.4.1</XunitVersion>
     <TestSdkVersion>16.8.0</TestSdkVersion>
-    <AkkaVersion>1.4.9</AkkaVersion>
+    <AkkaVersion>1.4.12</AkkaVersion>
     <RedisVersion>2.1.58</RedisVersion>
     <DockerVersion>3.125.4</DockerVersion>
     <FluentAssertionsVersion>5.10.3</FluentAssertionsVersion>
