@@ -18,6 +18,8 @@ namespace Akka.Persistence.Redis.Tests.Query
     {
         public const int Database = 1;
 
+        protected override bool AllocatesAllPersistenceIDsPublisher => false;
+
         public static Config Config(RedisFixture fixture, int id)
         {
             DbUtils.Initialize(fixture);
