@@ -38,7 +38,7 @@ namespace Akka.Persistence.Redis.Tests
 
         public RedisJournalPerfSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output)
         {
-            EventsCount = 5 * 1000;
+            EventsCount = 2 * 1000;
             ExpectDuration = TimeSpan.FromMinutes(3);
         }
 
