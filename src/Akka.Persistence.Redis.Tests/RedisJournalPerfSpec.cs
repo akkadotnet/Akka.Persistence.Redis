@@ -22,29 +22,28 @@ namespace Akka.Persistence.Redis.Tests
         {
             DbUtils.Initialize(fixture);
 
-            return ConfigurationFactory.ParseString($@"
-            akka.loglevel = INFO
-            akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
-            akka.persistence.journal.redis {{
-                class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
-                plugin-dispatcher = ""akka.actor.default-dispatcher""
+                return ConfigurationFactory.ParseString($@"
+                    akka.loglevel = INFO
+                    akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
+                    akka.persistence.journal.redis {{
+                        class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
+                        plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{fixture.ConnectionString}""
-                database = {id}
-            }}
-            akka.test.single-expect-default = 3s")
-            .WithFallback(RedisPersistence.DefaultConfig())
-            .WithFallback(Persistence.DefaultConfig());
+                        database = {id}
+                    }}
+                    akka.test.single-expect-default = 3s")
+                    .WithFallback(RedisPersistence.DefaultConfig())
+                    .WithFallback(Persistence.DefaultConfig());
         }
 
         public RedisJournalPerfSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output)
         {
-            ExpectDuration = TimeSpan.FromMinutes(3);
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void AfterAll()
         {
-            base.Dispose(disposing);
             DbUtils.Clean(Database);
+            base.AfterAll();
         }
     }
 }
