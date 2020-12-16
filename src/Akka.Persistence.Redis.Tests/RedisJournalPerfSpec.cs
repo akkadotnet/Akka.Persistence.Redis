@@ -4,6 +4,7 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Performance;
@@ -37,6 +38,7 @@ namespace Akka.Persistence.Redis.Tests
 
         public RedisJournalPerfSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output)
         {
+            ExpectDuration = TimeSpan.FromSeconds(60);
         }
 
         protected override void Dispose(bool disposing)
