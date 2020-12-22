@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------------------
-// <copyright file="EventsByTagSource.cs" company="Akka.NET Project">
+// <copyright file="AllEventsSource.cs" company="Akka.NET Project">
 //     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
@@ -7,45 +7,37 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Pattern;
 using Akka.Persistence.Query;
-using Akka.Persistence.Redis.Journal;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Akka.Util.Internal;
 using StackExchange.Redis;
 
 namespace Akka.Persistence.Redis.Query.Stages
 {
-    internal class EventsByTagSource : GraphStage<SourceShape<EventEnvelope>>
+    internal class AllEventsSource : GraphStage<SourceShape<EventEnvelope>>
     {
         private readonly ConnectionMultiplexer _redis;
         private readonly int _database;
         private readonly Config _config;
-        private readonly string _tag;
         private readonly long _offset;
         private readonly ExtendedActorSystem _system;
         private readonly bool _live;
 
-        public EventsByTagSource(ConnectionMultiplexer redis, int database, Config config, string tag, long offset, ExtendedActorSystem system, bool live)
+        public AllEventsSource(ConnectionMultiplexer redis, int database, Config config, long offset, ExtendedActorSystem system, bool live)
         {
             _redis = redis;
             _database = database;
             _config = config;
-            _tag = tag;
             _offset = offset;
             _system = system;
             _live = live;
 
             Outlet = live
-                ? new Outlet<EventEnvelope>("EventsByTagSource")
-                : new Outlet<EventEnvelope>("CurrentEventsByTagSource");
+                ? new Outlet<EventEnvelope>("AllEventsSource")
+                : new Outlet<EventEnvelope>("CurrentAllEventsSource");
 
             Shape = new SourceShape<EventEnvelope>(Outlet);
         }
@@ -56,7 +48,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new EventsByTagLogic(_redis, _database, _config, _system, _tag, _offset, _live, Outlet, Shape);
+            return new AllEventsLogic(_redis, _database, _config, _system, _offset, _live, Outlet, Shape);
         }
 
         private enum State
@@ -69,7 +61,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             QueryWhenInitializing = 5
         }
 
-        private class EventsByTagLogic : GraphStageLogic
+        private class AllEventsLogic : GraphStageLogic
         {
             private State _state = State.Idle;
             private readonly Queue<EventEnvelope> _buffer = new Queue<EventEnvelope>();
@@ -83,18 +75,16 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly int _database;
             private readonly ActorSystem _system;
             private readonly long _offset;
-            private readonly string _tag;
             private readonly bool _live;
 
             private long _currentOffset;
             private long _maxOffset = long.MaxValue;
 
-            public EventsByTagLogic(
+            public AllEventsLogic(
                 ConnectionMultiplexer redis,
                 int database,
                 Config config,
                 ActorSystem system,
-                string tag,
                 long offset,
                 bool live,
                 Outlet<EventEnvelope> outlet, Shape shape) : base(shape)
@@ -104,7 +94,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _database = database;
                 _system = system;
                 _offset = offset;
-                _tag = tag;
                 _live = live;
 
                 _max = config.GetInt("max-buffer-size");
@@ -170,15 +159,12 @@ namespace Akka.Persistence.Redis.Query.Stages
                     }
                     else
                     {
-                        var evts = events.ZipWithIndex().Select(c =>
+                        var evts = events.ZipWithIndex()
+                        .Where(kvp => kvp.Key.Item2 != null && !kvp.Key.Item2.IsDeleted)
+                        .Select(c =>
                         {
                             var repr = c.Key.Item2;
-                            if (repr != null && !repr.IsDeleted)
-                            {
-                                return new EventEnvelope(new Sequence(_currentOffset + c.Value), repr.PersistenceId, repr.SequenceNr, repr.Payload);
-                            }
-
-                            return null;
+                            return new EventEnvelope(new Sequence(_currentOffset + c.Value), repr.PersistenceId, repr.SequenceNr, repr.Payload);
                         }).ToList();
 
                         _currentOffset += nb;
@@ -201,7 +187,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(_journalHelper.GetTagsChannel()) && data.bs == _tag)
+                        if (data.channel.Equals(_journalHelper.GetEventsChannel()))
                         {
                             Log.Debug("Message received");
 
@@ -220,11 +206,11 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     _state = State.Idle;
                                     Query();
                                     break;
+                                default:
+                                    Log.Error($"Unexpected source state: {_state}");
+                                    FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
+                                    break;
                             }
-                        }
-                        else if (data.channel.Equals(_journalHelper.GetTagsChannel()))
-                        {
-                            // ignore other tags
                         }
                         else
                         {
@@ -233,7 +219,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(_journalHelper.GetTagsChannel(), (channel, value) =>
+                    _subscription.Subscribe(_journalHelper.GetEventsChannel(), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -267,7 +253,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                     });
 
-                    _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag)).ContinueWith(task =>
+                    _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetEventsKey()).ContinueWith(task =>
                     {
                         if (!task.IsCanceled || task.IsFaulted)
                         {
@@ -298,7 +284,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _state = State.Querying;
 
                             // request next batch of events for this tag (potentially limiting to the max offset in the case of non live stream)
-                            var refs = _redis.GetDatabase(_database).ListRange(_journalHelper.GetTagKey(_tag), _currentOffset, Math.Min(_maxOffset, _currentOffset + _max - 1));
+                            var refs = _redis.GetDatabase(_database).ListRange(_journalHelper.GetEventsKey(), _currentOffset, Math.Min(_maxOffset, _currentOffset + _max - 1));
 
                             var trans = _redis.GetDatabase(_database).CreateTransaction();
 
@@ -354,30 +340,4 @@ namespace Akka.Persistence.Redis.Query.Stages
         }
     }
 
-    internal static class EventRefDeserializer
-    {
-        private static readonly Regex EventRef = new Regex("(\\d+):(.*)");
-
-        public static (long, string) Deserialize(this RedisValue value)
-        {
-            var match = EventRef.Match(value);
-
-            if (match.Success)
-                return (long.Parse(match.Groups[1].Value), match.Groups[2].Value);
-            else
-                throw new SerializationException($"Unable to deserializer {value}");
-        }
-
-        public static Dictionary<T, int> ZipWithIndex<T>(this IEnumerable<T> collection)
-        {
-            var i = 0;
-            var dict = new Dictionary<T, int>();
-            foreach (var item in collection)
-            {
-                dict.Add(item, i);
-                i++;
-            }
-            return dict;
-        }
-    }
 }

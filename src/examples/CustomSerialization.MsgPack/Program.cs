@@ -15,6 +15,7 @@ using Akka.Pattern;
 
 namespace CustomSerialization.MsgPack
 {
+    
     class Program
     {
         // if you want to benchmark your persistent storage provides, paste the configuration in string below

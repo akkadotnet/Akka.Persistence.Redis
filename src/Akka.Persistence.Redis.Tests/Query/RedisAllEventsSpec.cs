@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------------------
-// <copyright file="RedisCurrentPersistenceIdsSpec.cs" company="Akka.NET Project">
+// <copyright file="RedisAllEventsSpec.cs" company="Akka.NET Project">
 //     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>
 //-----------------------------------------------------------------------
@@ -14,7 +14,7 @@ using Xunit.Abstractions;
 namespace Akka.Persistence.Redis.Tests.Query
 {
     [Collection("RedisSpec")]
-    public sealed class RedisCurrentPersistenceIdsSpec : CurrentPersistenceIdsSpec
+    public class RedisAllEventsSpec : AllEventsSpec
     {
         public const int Database = 1;
 
@@ -26,20 +26,26 @@ namespace Akka.Persistence.Redis.Tests.Query
             akka.loglevel = INFO
             akka.persistence.journal.plugin = ""akka.persistence.journal.redis""
             akka.persistence.journal.redis {{
+                event-adapters {{
+                  color-tagger  = ""Akka.Persistence.TCK.Query.ColorFruitTagger, Akka.Persistence.TCK""
+                }}
+                event-adapter-bindings = {{
+                  ""System.String"" = color-tagger
+                }}
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{fixture.ConnectionString}""
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-                       .WithFallback(RedisPersistence.DefaultConfig());
+            .WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisCurrentPersistenceIdsSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisCurrentPersistenceIdsSpec), output)
+        public RedisAllEventsSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisAllEventsSpec), output)
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
-        
+
         protected override void Dispose(bool disposing)
         {
             DbUtils.Clean(Database);

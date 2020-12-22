@@ -22,6 +22,5 @@
     <PackageReference Include="StackExchange.Redis" Version="$(RedisVersion)" />
     <PackageReference Include="Akka.Persistence" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
-    <PackageReference Include="StackExchange.Redis" Version="$(RedisVersion)" />
   </ItemGroup>
 </Project>

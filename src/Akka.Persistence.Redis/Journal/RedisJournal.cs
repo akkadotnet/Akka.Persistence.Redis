@@ -71,6 +71,7 @@ namespace Akka.Persistence.Redis.Journal
 
         protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
         {
+           
             var writeTasks = messages.Select(WriteBatchAsync).ToList();
 
             foreach (var writeTask in writeTasks)
@@ -99,11 +100,19 @@ namespace Akka.Persistence.Redis.Journal
                 // notify about a new event being appended for this persistence id
                 transaction.PublishAsync(_journalHelper.GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
 
+                //save events sequenceNr and persistenceId so that we can read all events 
+                //with it starting from a given sequenceNr
+                var journalEventIdentifier = $"{payload.SequenceNr}:{payload.PersistenceId}";
+                transaction.ListRightPushAsync(_journalHelper.GetEventsKey(), journalEventIdentifier);
+
+                // notify about this event
+                transaction.PublishAsync(_journalHelper.GetEventsChannel(), journalEventIdentifier);
+
                 // save tags
                 foreach (var tag in tags)
                 {
-                    transaction.ListRightPushAsync(_journalHelper.GetTagKey(tag), $"{payload.SequenceNr}:{payload.PersistenceId}");
-                    transaction.PublishAsync(_journalHelper.GetTagsChannel(), tag);
+                   transaction.ListRightPushAsync(_journalHelper.GetTagKey(tag), journalEventIdentifier);
+                   transaction.PublishAsync(_journalHelper.GetTagsChannel(), tag);
                 }
             }
 
@@ -126,7 +135,6 @@ namespace Akka.Persistence.Redis.Journal
             }
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-
         private (byte[], IImmutableSet<string>) Extract(IPersistentRepresentation pr)
         {
             if (pr.Payload is Tagged tag)

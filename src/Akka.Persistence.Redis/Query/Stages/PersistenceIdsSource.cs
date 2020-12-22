@@ -26,6 +26,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             _redis = redis;
             _database = database;
             _system = system;
+            
         }
 
         public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(PersistenceIdsSource));
@@ -49,6 +50,7 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly ConnectionMultiplexer _redis;
             private readonly int _database;
             private readonly JournalHelper _journalHelper;
+           
 
             public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
             {
@@ -56,7 +58,6 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _database = database;
                 _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
                 _outlet = outlet;
-
                 SetHandler(outlet, onPull: () =>
                 {
                     _downstreamWaiting = true;

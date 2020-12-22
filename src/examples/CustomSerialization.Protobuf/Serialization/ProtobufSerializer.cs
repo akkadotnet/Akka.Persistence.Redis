@@ -61,7 +61,7 @@ namespace CustomSerialization.Protobuf.Serialization
 
         private IPersistentRepresentation PersistentFromProto(byte[] bytes)
         {
-            var persistentMessage = CustomSerialization.Protobuf.Msg.PersistentMessage.Parser.ParseFrom(bytes);
+            var persistentMessage = Msg.PersistentMessage.Parser.ParseFrom(bytes);
 
             return new Persistent(
                 payload: PayloadFromProto(persistentMessage.Payload),

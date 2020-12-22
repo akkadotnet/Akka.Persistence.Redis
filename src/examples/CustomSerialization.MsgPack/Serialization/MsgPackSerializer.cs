@@ -54,10 +54,7 @@ namespace CustomSerialization.MsgPack.Serialization
 
         static MsgPackSerializer()
         {
-            CompositeResolver.RegisterAndSetAsDefault(
-                ActorPathResolver.Instance,
-                OldSpecResolver.Instance, // Redis compatible MsgPack spec
-                ContractlessStandardResolver.Instance);
+            CompositeResolver.Create(new[] { ActorPathResolver.Instance });
         }
 
         public MsgPackSerializer(ExtendedActorSystem system) : base(system)
@@ -69,7 +66,7 @@ namespace CustomSerialization.MsgPack.Serialization
             if (obj is IPersistentRepresentation repr)
                 return PersistenceMessageSerializer(repr);
 
-            return MessagePackSerializer.NonGeneric.Serialize(obj.GetType(), obj);
+            return MessagePackSerializer.Serialize(obj.GetType(), obj);
         }
 
         public override object FromBinary(byte[] bytes, Type type)
@@ -77,7 +74,7 @@ namespace CustomSerialization.MsgPack.Serialization
             if (typeof(IPersistentRepresentation).IsAssignableFrom(type))
                 return PersistenceMessageDeserializer(bytes);
 
-            return MessagePackSerializer.NonGeneric.Deserialize(type, bytes);
+            return MessagePackSerializer.Deserialize(type, bytes);
         }
 
         public override int Identifier => 30;
