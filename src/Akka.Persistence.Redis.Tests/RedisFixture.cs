@@ -33,16 +33,30 @@ namespace Akka.Persistence.Redis.Tests
             Client = config.CreateClient();
         }
 
-        protected string RedisImageName => "redis";
+        protected string ImageName => "redis";
+        protected string Tag => "latest";
+        protected string RedisImageName => $"{ImageName}:{Tag}";
 
         public string ConnectionString { get; private set; }
 
         public async Task InitializeAsync()
         {
-            var images = await Client.Images.ListImagesAsync(new ImagesListParameters { MatchName = RedisImageName });
+            var images = await Client.Images.ListImagesAsync(new ImagesListParameters
+            {
+                Filters = new Dictionary<string, IDictionary<string, bool>>
+                {
+                    {
+                        "reference",
+                        new Dictionary<string, bool>
+                        {
+                            {RedisImageName, true}
+                        }
+                    }
+                }
+            });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "latest" }, null,
+                    new ImagesCreateParameters { FromImage = ImageName, Tag = Tag }, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
