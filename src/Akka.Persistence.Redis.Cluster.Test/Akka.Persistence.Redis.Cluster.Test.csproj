@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\common.props" />
+
+    <PropertyGroup>
+        <AssemblyTitle>Akka.Persistence.Redis.Cluster.Tests</AssemblyTitle>
+        <TargetFrameworks>$(NetFrameworkTestVersion);$(NetCoreTestVersion)</TargetFrameworks>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+        <TargetFrameworks>$(NetFrameworkTestVersion);$(NetCoreTestVersion)</TargetFrameworks>
+    </PropertyGroup>
+
+    <!-- disable .NET Framework (Mono) on Linux-->
+    <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+        <TargetFrameworks>$(NetCoreTestVersion)</TargetFrameworks>
+    </PropertyGroup>
+
+
+    <ItemGroup>
+        <ProjectReference Include="..\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(TestSdkVersion)" />
+        <!-- Needed by Redis to run -->
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="5.0.0" />
+        <PackageReference Include="Docker.DotNet" Version="$(DockerVersion)" />
+        <PackageReference Include="xunit" Version="$(XunitVersion)" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="$(XunitVersion)">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="FluentAssertions" Version="$(FluentAssertionsVersion)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Akka.TestKit" Version="$(AkkaVersion)" />
+        <PackageReference Include="Akka.Persistence.TCK" Version="$(AkkaVersion)" />
+        <PackageReference Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />
+        <PackageReference Include="Akka.Streams.TestKit" Version="$(AkkaVersion)" />
+    </ItemGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
+    </PropertyGroup>
+</Project>

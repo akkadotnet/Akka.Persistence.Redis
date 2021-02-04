@@ -4,6 +4,7 @@
   <PropertyGroup>
     <AssemblyTitle>Akka.Persistence.Redis.Tests</AssemblyTitle>
     <TargetFrameworks>$(NetFrameworkTestVersion);$(NetCoreTestVersion)</TargetFrameworks>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">

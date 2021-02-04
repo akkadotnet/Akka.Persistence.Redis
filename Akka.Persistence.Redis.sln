@@ -25,6 +25,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis", "s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Tests", "src\Akka.Persistence.Redis.Tests\Akka.Persistence.Redis.Tests.csproj", "{59871C63-8D5D-4221-B504-203BB3500DBF}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Cluster.Test", "src\Akka.Persistence.Redis.Cluster.Test\Akka.Persistence.Redis.Cluster.Test.csproj", "{40AE5277-CA42-46DC-BA0A-CB895AFDA601}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{59871C63-8D5D-4221-B504-203BB3500DBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{59871C63-8D5D-4221-B504-203BB3500DBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{59871C63-8D5D-4221-B504-203BB3500DBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40AE5277-CA42-46DC-BA0A-CB895AFDA601}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40AE5277-CA42-46DC-BA0A-CB895AFDA601}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40AE5277-CA42-46DC-BA0A-CB895AFDA601}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40AE5277-CA42-46DC-BA0A-CB895AFDA601}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
