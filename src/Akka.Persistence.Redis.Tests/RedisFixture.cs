@@ -33,7 +33,9 @@ namespace Akka.Persistence.Redis.Tests
             Client = config.CreateClient();
         }
 
-        protected string RedisImageName => "redis";
+        protected string ImageName = "redis";
+        protected string Tag = "6.0";
+        protected string RedisImageName => $"{ImageName}:{Tag}";
 
         public string ConnectionString { get; private set; }
 
@@ -42,7 +44,7 @@ namespace Akka.Persistence.Redis.Tests
             var images = await Client.Images.ListImagesAsync(new ImagesListParameters { MatchName = RedisImageName });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "6.0" }, null,
+                    new ImagesCreateParameters { FromImage = ImageName, Tag = Tag }, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
