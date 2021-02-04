@@ -38,9 +38,6 @@ namespace Akka.Persistence.Redis.Cluster.Test
         public RedisJournalPerfSpec(ITestOutputHelper output, RedisClusterFixture fixture)
             : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output)
         {
-            EventsCount = 1000;
-            ExpectDuration = TimeSpan.FromMinutes(10);
-            MeasurementIterations = 1;
         }
 
         protected override void Dispose(bool disposing)
