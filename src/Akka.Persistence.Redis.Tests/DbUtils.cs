@@ -25,8 +25,12 @@ namespace Akka.Persistence.Redis.Tests
             var connectionString = $"{ConnectionString},allowAdmin=true";
 
             var redisConnection = ConnectionMultiplexer.Connect(connectionString);
-            var server = redisConnection.GetServer(redisConnection.GetEndPoints().First());
-            server.FlushDatabase(database);
+            foreach (var endPoint in redisConnection.GetEndPoints())
+            {
+                var server = redisConnection.GetServer(endPoint);
+                if(!server.IsReplica)
+                    server.FlushAllDatabases();
+            }
         }
     }
 }
