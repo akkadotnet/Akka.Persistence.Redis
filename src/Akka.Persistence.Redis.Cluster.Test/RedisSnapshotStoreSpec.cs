@@ -14,9 +14,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
     [Collection("RedisClusterSpec")]
     public class RedisSnapshotStoreSpec : SnapshotStoreSpec
     {
-        public const int Database = 1;
-
-        public static Config Config(RedisClusterFixture fixture, int id)
+        public static Config Config(RedisClusterFixture fixture)
         {
             DbUtils.Initialize(fixture);
 
@@ -30,7 +28,6 @@ namespace Akka.Persistence.Redis.Cluster.Test
                             class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
                             configuration-string = ""{fixture.ConnectionString}""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
-                            database = ""{id}""
                         }}
                     }}
                 }}
@@ -48,7 +45,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
         }
 
         public RedisSnapshotStoreSpec(ITestOutputHelper output, RedisClusterFixture fixture)
-            : base(Config(fixture, Database), nameof(RedisSnapshotStoreSpec), output)
+            : base(Config(fixture), nameof(RedisSnapshotStoreSpec), output)
         {
             RedisPersistence.Get(Sys);
             Initialize();
@@ -57,7 +54,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(Database);
+            DbUtils.Clean();
         }
     }
 }

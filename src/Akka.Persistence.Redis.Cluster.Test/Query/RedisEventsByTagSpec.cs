@@ -16,9 +16,7 @@ namespace Akka.Persistence.Redis.Cluster.Test.Query
     [Collection("RedisClusterSpec")]
     public sealed class RedisEventsByTagSpec : EventsByTagSpec
     {
-        public const int Database = 1;
-
-        public static Config Config(RedisClusterFixture fixture, int id)
+        public static Config Config(RedisClusterFixture fixture)
         {
             DbUtils.Initialize(fixture);
 
@@ -34,23 +32,22 @@ namespace Akka.Persistence.Redis.Cluster.Test.Query
                 }}
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                configuration-string = ""{DbUtils.ConnectionString}""
-                database = {id}
+                configuration-string = ""{fixture.ConnectionString}""
             }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisPersistence.DefaultConfig());
         }
 
         public RedisEventsByTagSpec(ITestOutputHelper output, RedisClusterFixture fixture)
-            : base(Config(fixture, Database), nameof(RedisEventsByTagSpec), output)
+            : base(Config(fixture), nameof(RedisEventsByTagSpec), output)
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
         protected override void Dispose(bool disposing)
         {
-            DbUtils.Clean(Database);
             base.Dispose(disposing);
+            DbUtils.Clean();
         }
     }
 }

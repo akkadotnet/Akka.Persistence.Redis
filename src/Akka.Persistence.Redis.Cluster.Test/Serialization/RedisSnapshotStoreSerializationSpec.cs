@@ -14,9 +14,7 @@ namespace Akka.Persistence.Redis.Cluster.Test.Serialization
     [Collection("RedisClusterSpec")]
     public class RedisSnapshotStoreSerializationSpec : SnapshotStoreSerializationSpec
     {
-        public const int Database = 1;
-
-        public static Config Config(RedisClusterFixture fixture, int id)
+        public static Config Config(RedisClusterFixture fixture)
         {
             DbUtils.Initialize(fixture);
 
@@ -27,7 +25,6 @@ namespace Akka.Persistence.Redis.Cluster.Test.Serialization
                 class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
                 configuration-string = ""{fixture.ConnectionString}""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                database = {id}
             }}
             akka.actor {{
                 serializers {{
@@ -44,14 +41,15 @@ namespace Akka.Persistence.Redis.Cluster.Test.Serialization
             .WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisClusterFixture fixture) : base(Config(fixture, Database), nameof(RedisSnapshotStoreSerializationSpec), output)
+        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisClusterFixture fixture) 
+            : base(Config(fixture), nameof(RedisSnapshotStoreSerializationSpec), output)
         {
         }
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(Database);
+            DbUtils.Clean();
         }
     }
 }

@@ -14,9 +14,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
     [Collection("RedisClusterSpec")]
     public class RedisJournalSpec : JournalSpec
     {
-        public const int Database = 1;
-
-        public static Config Config(RedisClusterFixture fixture, int id)
+        public static Config Config(RedisClusterFixture fixture)
         {
             DbUtils.Initialize(fixture);
 
@@ -27,14 +25,13 @@ namespace Akka.Persistence.Redis.Cluster.Test
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{DbUtils.ConnectionString}""
-                database = {id}
             }}
             akka.test.single-expect-default = 3s")
             .WithFallback(RedisPersistence.DefaultConfig());
         }
 
         public RedisJournalSpec(ITestOutputHelper output, RedisClusterFixture fixture)
-            : base(Config(fixture, Database), nameof(RedisJournalSpec), output)
+            : base(Config(fixture), nameof(RedisJournalSpec), output)
         {
             RedisPersistence.Get(Sys);
             Initialize();
@@ -45,7 +42,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            DbUtils.Clean(Database);
+            DbUtils.Clean();
         }
     }
 }

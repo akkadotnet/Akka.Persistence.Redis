@@ -23,7 +23,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
             ConnectionString = connectionString;
         }
 
-        public static void Clean(int database)
+        public static void Clean(int database = -1)
         {
             var connectionString = $"{ConnectionString},allowAdmin=true";
 
