@@ -42,7 +42,7 @@ namespace Akka.Persistence.Redis.Tests
             var images = await Client.Images.ListImagesAsync(new ImagesListParameters { MatchName = RedisImageName });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "latest" }, null,
+                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "6.0" }, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
