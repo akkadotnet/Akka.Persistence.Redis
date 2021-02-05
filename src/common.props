@@ -17,7 +17,7 @@
     <XunitVersion>2.4.1</XunitVersion>
     <TestSdkVersion>16.8.0</TestSdkVersion>
     <AkkaVersion>1.4.16</AkkaVersion>
-    <RedisVersion>2.2.4</RedisVersion>
+    <RedisVersion>2.2.11</RedisVersion>
     <DockerVersion>3.125.4</DockerVersion>
     <FluentAssertionsVersion>5.10.3</FluentAssertionsVersion>
     <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
