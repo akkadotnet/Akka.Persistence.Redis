@@ -98,40 +98,40 @@ namespace Akka.Persistence.Redis.Journal
                 transaction.SortedSetAddAsync(_journalHelper.GetJournalKey(payload.PersistenceId), bytes, payload.SequenceNr);
 
                 // notify about a new event being appended for this persistence id
-                transaction.PublishAsync(_journalHelper.GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
+                //transaction.PublishAsync(_journalHelper.GetJournalChannel(payload.PersistenceId), payload.SequenceNr);
 
                 //save events sequenceNr and persistenceId so that we can read all events 
                 //with it starting from a given sequenceNr
-                var journalEventIdentifier = $"{payload.SequenceNr}:{payload.PersistenceId}";
-                transaction.ListRightPushAsync(_journalHelper.GetEventsKey(), journalEventIdentifier);
+                //var journalEventIdentifier = $"{payload.SequenceNr}:{payload.PersistenceId}";
+                //transaction.ListRightPushAsync(_journalHelper.GetEventsKey(), journalEventIdentifier);
 
                 // notify about this event
-                transaction.PublishAsync(_journalHelper.GetEventsChannel(), journalEventIdentifier);
+                //transaction.PublishAsync(_journalHelper.GetEventsChannel(), journalEventIdentifier);
 
                 // save tags
-                foreach (var tag in tags)
-                {
-                   transaction.ListRightPushAsync(_journalHelper.GetTagKey(tag), journalEventIdentifier);
-                   transaction.PublishAsync(_journalHelper.GetTagsChannel(), tag);
-                }
+                //foreach (var tag in tags)
+                //{
+                //   transaction.ListRightPushAsync(_journalHelper.GetTagKey(tag), journalEventIdentifier);
+                //   transaction.PublishAsync(_journalHelper.GetTagsChannel(), tag);
+                //}
             }
 
             // set highest sequence number key
             transaction.StringSetAsync(_journalHelper.GetHighestSequenceNrKey(aw.PersistenceId), aw.HighestSequenceNr);
 
             // add persistenceId
-            transaction.SetAddAsync(_journalHelper.GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
-            {
-                if (task.Result)
-                {
-                    // notify about a new persistenceId
-                    Database.Publish(_journalHelper.GetIdentifiersChannel(), aw.PersistenceId);
-                }
-            });
+            //transaction.SetAddAsync(_journalHelper.GetIdentifiersKey(), aw.PersistenceId).ContinueWith(task =>
+            //{
+            //    if (task.Result)
+            //    {
+            //        // notify about a new persistenceId
+            //        Database.Publish(_journalHelper.GetIdentifiersChannel(), aw.PersistenceId);
+            //    }
+            //});
 
             if (!await transaction.ExecuteAsync())
             {
-                throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {typeof(IPersistentRepresentation).Name} to redis");
+                throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
             }
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
