@@ -11,10 +11,14 @@ namespace Akka.Persistence.Redis
     internal class JournalHelper
     {
         private readonly ActorSystem _system;
+        private readonly Akka.Serialization.Serialization _serialization;
+        private readonly Akka.Serialization.Serializer _serializer;
 
         public JournalHelper(ActorSystem system, string keyPrefix)
         {
             _system = system;
+            _serialization = system.Serialization;
+            _serializer = _serialization.FindSerializerForType(typeof(Persistent));
             KeyPrefix = keyPrefix;
         }
 
@@ -22,14 +26,13 @@ namespace Akka.Persistence.Redis
 
         public byte[] PersistentToBytes(IPersistentRepresentation message)
         {
-            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
-            return serializer.ToBinary(message);
+            return _serialization.Serialize(message);
         }
 
         public IPersistentRepresentation PersistentFromBytes(byte[] bytes)
         {
-            var serializer = _system.Serialization.FindSerializerForType(typeof(IPersistentRepresentation));
-            return serializer.FromBinary<IPersistentRepresentation>(bytes);
+            var p = (IPersistentRepresentation)_serialization.Deserialize(bytes, _serializer.Identifier, typeof(Persistent));
+            return p;
         }
 
         public string GetIdentifiersKey() => $"{KeyPrefix}journal:persistenceIds";
