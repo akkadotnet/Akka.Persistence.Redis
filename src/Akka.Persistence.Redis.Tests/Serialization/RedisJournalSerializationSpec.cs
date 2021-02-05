@@ -55,6 +55,6 @@ namespace Akka.Persistence.Redis.Tests.Serialization
             DbUtils.Clean(Database);
         }
 
-        protected override bool SupportsSerialization => false;
+        protected override bool SupportsSerialization => true;
     }
 }
