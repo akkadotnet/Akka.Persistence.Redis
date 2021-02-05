@@ -52,7 +52,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new EventsByPersistenceIdLogic(_redis, _database, _config, _system, _persistenceId, _fromSequenceNr, _toSequenceNr, _live, Outlet, Shape);
+            return new EventsByPersistenceIdLogic(this);
         }
 
         private enum State
@@ -82,31 +82,24 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly string _persistenceId;
             private long _toSequenceNr;
             private readonly bool _live;
+            private readonly bool _isClustered;
 
-            public EventsByPersistenceIdLogic(
-                ConnectionMultiplexer redis,
-                int database,
-                Config config,
-                ActorSystem system,
-                string persistenceId,
-                long fromSequenceNr,
-                long toSequenceNr,
-                bool live,
-                Outlet<EventEnvelope> outlet, Shape shape) : base(shape)
+            public EventsByPersistenceIdLogic(EventsByPersistenceIdSource parent) : base(parent.Shape)
             {
-                _outlet = outlet;
-                _redis = redis;
-                _database = database;
-                _system = system;
-                _persistenceId = persistenceId;
-                _toSequenceNr = toSequenceNr;
-                _live = live;
+                _outlet = parent.Outlet;
+                _redis = parent._redis;
+                _database = parent._database;
+                _system = parent._system;
+                _persistenceId = parent._persistenceId;
+                _toSequenceNr = parent._toSequenceNr;
+                _live = parent._live;
+                _isClustered = _redis.IsClustered();
 
-                _max = config.GetInt("max-buffer-size");
-                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _max = parent._config.GetInt("max-buffer-size");
+                _journalHelper = new JournalHelper(_system, _system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
-                _currentSequenceNr = fromSequenceNr;
-                SetHandler(outlet, onPull: () =>
+                _currentSequenceNr = parent._fromSequenceNr;
+                SetHandler(_outlet, onPull: () =>
                 {
                     switch (_state)
                     {
@@ -199,7 +192,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     // subscribe to notification stream only if live stream was required
                     var messageCallback = GetAsyncCallback<(RedisChannel channel, string bs)>(data =>
                     {
-                        if (data.channel.Equals(_journalHelper.GetJournalChannel(_persistenceId)))
+                        if (data.channel.Equals(_journalHelper.GetJournalChannel(_persistenceId, _isClustered)))
                         {
                             Log.Debug("Message received");
 
@@ -227,7 +220,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(_journalHelper.GetJournalChannel(_persistenceId), (channel, value) =>
+                    _subscription.Subscribe(_journalHelper.GetJournalChannel(_persistenceId, _isClustered), (channel, value) =>
                     {
                         messageCallback.Invoke((channel, value));
                     });
@@ -267,7 +260,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                         }
                     });
 
-                    _redis.GetDatabase(_database).StringGetAsync(_journalHelper.GetHighestSequenceNrKey(_persistenceId)).ContinueWith(task =>
+                    _redis.GetDatabase(_database).StringGetAsync(_journalHelper.GetHighestSequenceNrKey(_persistenceId, _isClustered)).ContinueWith(task =>
                     {
                         if (!task.IsCanceled || task.IsFaulted)
                         {
@@ -311,23 +304,13 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 CompleteStage();
                             }
 
-                            _redis.GetDatabase(_database).SortedSetRangeByScoreAsync(
-                                key: _journalHelper.GetJournalKey(_persistenceId),
+                            var refs = _redis.GetDatabase(_database).SortedSetRangeByScore(
+                                key: _journalHelper.GetJournalKey(_persistenceId, _isClustered),
                                 start: _currentSequenceNr,
-                                stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr),
-                                order: Order.Ascending).ContinueWith(task =>
-                            {
-                                if (!task.IsCanceled || task.IsFaulted)
-                                {
-                                    var deserializedEvents = task.Result.Select(e => _journalHelper.PersistentFromBytes(e)).ToList();
-                                    _callback(deserializedEvents);
-                                }
-                                else
-                                {
-                                    Log.Error(task.Exception, "Error while querying events by persistence identifier");
-                                    FailStage(task.Exception);
-                                }
-                            });
+                                stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr));
+
+                            var deserializedEvents = refs.Select(e => _journalHelper.PersistentFromBytes(e)).ToList();
+                            _callback(deserializedEvents);
                         }
                         else
                         {

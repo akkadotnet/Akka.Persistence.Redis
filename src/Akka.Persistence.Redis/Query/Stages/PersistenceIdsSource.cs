@@ -35,7 +35,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new PersistenceIdsLogic(_redis, _database, _system, Outlet, Shape);
+            return new PersistenceIdsLogic(this);
         }
 
         private class PersistenceIdsLogic : GraphStageLogic
@@ -50,15 +50,18 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly ConnectionMultiplexer _redis;
             private readonly int _database;
             private readonly JournalHelper _journalHelper;
-           
+            private readonly bool _isClustered;
 
-            public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
+            //public PersistenceIdsLogic(ConnectionMultiplexer redis, int database, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
+            public PersistenceIdsLogic(PersistenceIdsSource parent) : base(parent.Shape)
             {
-                _redis = redis;
-                _database = database;
-                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
-                _outlet = outlet;
-                SetHandler(outlet, onPull: () =>
+                _redis = parent._redis;
+                _database = parent._database;
+                _journalHelper = new JournalHelper(parent._system, parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _outlet = parent.Outlet;
+                _isClustered = _redis.IsClustered();
+
+                SetHandler(_outlet, onPull: () =>
                 {
                     _downstreamWaiting = true;
                     if (_buffer.Count == 0 && (_start || _index > 0))

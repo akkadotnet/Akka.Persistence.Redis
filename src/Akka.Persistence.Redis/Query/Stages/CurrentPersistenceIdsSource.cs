@@ -34,7 +34,7 @@ namespace Akka.Persistence.Redis.Query.Stages
 
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
-            return new CurrentPersistenceIdsLogic(_redis.GetDatabase(_database), _system, Outlet, Shape);
+            return new CurrentPersistenceIdsLogic(this);
         }
 
         private sealed class CurrentPersistenceIdsLogic : GraphStageLogic
@@ -44,13 +44,18 @@ namespace Akka.Persistence.Redis.Query.Stages
             private readonly Queue<string> _buffer = new Queue<string>();
             private readonly Outlet<string> _outlet;
             private readonly JournalHelper _journalHelper;
+            private readonly bool _isClustered;
+            private readonly IDatabase _database;
 
-            public CurrentPersistenceIdsLogic(IDatabase redisDatabase, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
+            //public CurrentPersistenceIdsLogic(IDatabase redisDatabase, ExtendedActorSystem system, Outlet<string> outlet, Shape shape) : base(shape)
+            public CurrentPersistenceIdsLogic(CurrentPersistenceIdsSource parent) : base(parent.Shape)
             {
-                _outlet = outlet;
-                _journalHelper = new JournalHelper(system, system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _outlet = parent.Outlet;
+                _journalHelper = new JournalHelper(parent._system, parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _isClustered = parent._redis.IsClustered();
+                _database = parent._redis.GetDatabase(parent._database);
 
-                SetHandler(outlet, onPull: () =>
+                SetHandler(_outlet, onPull: () =>
                 {
                     if (_buffer.Count == 0 && (_start || _index > 0))
                     {
@@ -80,7 +85,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(redisDatabase.SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
+                        callback(_database.SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
                     }
                     else
                     {
