@@ -1,4 +1,4 @@
-#### 1.4.16 February 8th 2021 ####
+#### 1.4.16 February 6th 2021 ####
 This is a major update to the Akka.Persistence.Redis plugin.
 
 **Enabled Redis Cluster Support**
