@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 
 using Akka.Configuration;
-using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Serialization;
 using Xunit;
 using Xunit.Abstractions;

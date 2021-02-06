@@ -20,6 +20,8 @@ namespace Akka.Persistence.Redis.Snapshot
         private ActorSystem _system;
         public IDatabase Database => _database.Value;
 
+        public bool IsClustered { get; private set; }
+
         public RedisSnapshotStore()
         {
             _settings = RedisPersistence.Get(Context.System).SnapshotStoreSettings;
@@ -33,6 +35,7 @@ namespace Akka.Persistence.Redis.Snapshot
             _database = new Lazy<IDatabase>(() =>
             {
                 var redisConnection = ConnectionMultiplexer.Connect(_settings.ConfigurationString);
+                IsClustered = redisConnection.IsClustered();
                 return redisConnection.GetDatabase(_settings.Database);
             });
         }
@@ -41,7 +44,7 @@ namespace Akka.Persistence.Redis.Snapshot
             SnapshotSelectionCriteria criteria)
         {
             var snapshots = await Database.SortedSetRangeByScoreAsync(
-                GetSnapshotKey(persistenceId),
+                GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
                 -1,
                 Exclude.None,
@@ -60,21 +63,21 @@ namespace Akka.Persistence.Redis.Snapshot
         protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot)
         {
             return Database.SortedSetAddAsync(
-                GetSnapshotKey(metadata.PersistenceId),
+                GetSnapshotKey(metadata.PersistenceId, IsClustered),
                 PersistentToBytes(metadata, snapshot),
                 metadata.SequenceNr);
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata)
         {
-            await Database.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(metadata.PersistenceId), metadata.SequenceNr,
+            await Database.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(metadata.PersistenceId, IsClustered), metadata.SequenceNr,
                 metadata.SequenceNr);
         }
 
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
             var snapshots = await Database.SortedSetRangeByScoreAsync(
-                GetSnapshotKey(persistenceId),
+                GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
                 0L,
                 Exclude.None,
@@ -84,7 +87,7 @@ namespace Akka.Persistence.Redis.Snapshot
                 .Select(c => PersistentFromBytes(c))
                 .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
                                    snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
-                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(persistenceId),
+                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(persistenceId, IsClustered),
                     s.Metadata.SequenceNr, s.Metadata.SequenceNr))
                 .ToArray();
 
@@ -106,9 +109,11 @@ namespace Akka.Persistence.Redis.Snapshot
             return serializer.FromBinary<SelectedSnapshot>(bytes);
         }
 
-        private string GetSnapshotKey(string persistenceId)
+        public string GetSnapshotKey(string persistenceId, bool withHashTag)
         {
-            return $"{_settings.KeyPrefix}snapshot:{persistenceId}";
+            return withHashTag
+                ? $"{{__{persistenceId}}}.{_settings.KeyPrefix}snapshot:{persistenceId}"
+                : $"{_settings.KeyPrefix}snapshot:{persistenceId}";
         }
     }
 
