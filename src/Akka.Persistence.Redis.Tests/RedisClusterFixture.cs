@@ -1,4 +1,10 @@
-﻿using System;
+﻿// -----------------------------------------------------------------------
+// <copyright file="RedisClusterFixture.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
+// </copyright>
+// -----------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -40,10 +46,10 @@ namespace Akka.Persistence.Redis.Tests
 
         public async Task InitializeAsync()
         {
-            var images = await Client.Images.ListImagesAsync(new ImagesListParameters { MatchName = RedisImageName });
+            var images = await Client.Images.ListImagesAsync(new ImagesListParameters {MatchName = RedisImageName});
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "latest" }, null,
+                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = "latest"}, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
@@ -59,23 +65,13 @@ namespace Akka.Persistence.Redis.Tests
                 Image = RedisImageName,
                 Name = RedisContainerName,
                 Tty = true,
-                ExposedPorts = new Dictionary<string, EmptyStruct>
-                {
-                    {"6379/tcp", new EmptyStruct()}
-                },
+                ExposedPorts = new Dictionary<string, EmptyStruct> {{"6379/tcp", new EmptyStruct()}},
                 HostConfig = new HostConfig
                 {
                     PortBindings = new Dictionary<string, IList<PortBinding>>
                     {
                         {
-                            "6379/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort}"
-                                }
-                            }
+                            "6379/tcp", new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort}"}}
                         }
                     }
                 }
@@ -103,7 +99,7 @@ namespace Akka.Persistence.Redis.Tests
                 await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
 
                 await Client.Containers.RemoveContainerAsync(RedisContainerName,
-                    new ContainerRemoveParameters { Force = true });
+                    new ContainerRemoveParameters {Force = true});
                 Client.Dispose();
             }
         }

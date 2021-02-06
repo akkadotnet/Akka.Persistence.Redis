@@ -7,8 +7,10 @@
     <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
     <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
-    <PackageReleaseNotes>- Bump Akka to version 1.4.4
-- Update build system to use Docker.DotNet</PackageReleaseNotes>
+    <PackageReleaseNotes>
+      - Bump Akka to version 1.4.4
+      - Update build system to use Docker.DotNet
+    </PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>

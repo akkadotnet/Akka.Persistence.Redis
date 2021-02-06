@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="EventsByPersistenceIdSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Persistence.Query;
 using StackExchange.Redis;
@@ -28,7 +28,8 @@ namespace Akka.Persistence.Redis.Query.Stages
         private readonly ActorSystem _system;
         private readonly bool _live;
 
-        public EventsByPersistenceIdSource(ConnectionMultiplexer redis, int database, Config config, string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
+        public EventsByPersistenceIdSource(ConnectionMultiplexer redis, int database, Config config,
+            string persistenceId, long fromSequenceNr, long toSequenceNr, ActorSystem system, bool live)
         {
             _redis = redis;
             _database = database;
@@ -39,8 +40,8 @@ namespace Akka.Persistence.Redis.Query.Stages
             _system = system;
             _live = live;
 
-            Outlet = live 
-                ? new Outlet<EventEnvelope>("EventsByPersistenceIdSource") 
+            Outlet = live
+                ? new Outlet<EventEnvelope>("EventsByPersistenceIdSource")
                 : new Outlet<EventEnvelope>("CurrentEventsByPersistenceIdSource");
 
             Shape = new SourceShape<EventEnvelope>(Outlet);
@@ -96,10 +97,11 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _isClustered = _redis.IsClustered();
 
                 _max = parent._config.GetInt("max-buffer-size");
-                _journalHelper = new JournalHelper(_system, _system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _journalHelper = new JournalHelper(_system,
+                    _system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
                 _currentSequenceNr = parent._fromSequenceNr;
-                SetHandler(_outlet, onPull: () =>
+                SetHandler(_outlet, () =>
                 {
                     switch (_state)
                     {
@@ -120,12 +122,9 @@ namespace Akka.Persistence.Redis.Query.Stages
                     if (events.Count == 0)
                     {
                         if (_currentSequenceNr > _toSequenceNr)
-                        {
                             // end has been reached
                             CompleteStage();
-                        }
                         else
-                        {
                             switch (_state)
                             {
                                 case State.NotifiedWhenQuerying:
@@ -135,41 +134,38 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     break;
                                 case State.Querying:
                                     if (_live)
-                                    {
                                         // nothing new, wait for notification
                                         _state = State.WaitingForNotification;
-                                    }
                                     else
-                                    {
                                         // not a live stream, nothing else currently in the database, close the stream
                                         CompleteStage();
-                                    }
                                     break;
                                 default:
                                     Log.Error($"Unexpected source state: {_state}");
                                     FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
                                     break;
                             }
-                        }
                     }
                     else
                     {
-                        var (evts, maxSequenceNr) = events.Aggregate((new List<EventEnvelope>(), _currentSequenceNr), (tuple, pr) =>
-                        {
-                            if (!pr.IsDeleted &&
-                                pr.SequenceNr >= _currentSequenceNr &&
-                                pr.SequenceNr <= _toSequenceNr)
+                        var (evts, maxSequenceNr) = events.Aggregate((new List<EventEnvelope>(), _currentSequenceNr),
+                            (tuple, pr) =>
                             {
-                                tuple.Item1.Add(new EventEnvelope(new Sequence(pr.SequenceNr), pr.PersistenceId, pr.SequenceNr, pr.Payload));
-                                tuple.Item2 = pr.SequenceNr + 1;
-                            }
-                            else
-                            {
-                                tuple.Item2 = pr.SequenceNr + 1;
-                            }
+                                if (!pr.IsDeleted &&
+                                    pr.SequenceNr >= _currentSequenceNr &&
+                                    pr.SequenceNr <= _toSequenceNr)
+                                {
+                                    tuple.Item1.Add(new EventEnvelope(new Sequence(pr.SequenceNr), pr.PersistenceId,
+                                        pr.SequenceNr, pr.Payload));
+                                    tuple.Item2 = pr.SequenceNr + 1;
+                                }
+                                else
+                                {
+                                    tuple.Item2 = pr.SequenceNr + 1;
+                                }
 
-                            return tuple;
-                        });
+                                return tuple;
+                            });
 
                         _currentSequenceNr = maxSequenceNr;
                         Log.Debug($"Max sequence number is now {maxSequenceNr}");
@@ -220,10 +216,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(_journalHelper.GetJournalChannel(_persistenceId, _isClustered), (channel, value) =>
-                    {
-                        messageCallback.Invoke((channel, value));
-                    });
+                    _subscription.Subscribe(_journalHelper.GetJournalChannel(_persistenceId, _isClustered),
+                        (channel, value) => { messageCallback.Invoke((channel, value)); });
                 }
                 else
                 {
@@ -235,11 +229,9 @@ namespace Akka.Persistence.Redis.Query.Stages
                     var initCallback = GetAsyncCallback<long>(sn =>
                     {
                         if (_toSequenceNr > sn)
-                        {
                             // the initially requested max sequence number is higher than the current
                             // one, restrict it to the current one
                             _toSequenceNr = sn;
-                        }
 
                         switch (_state)
                         {
@@ -255,31 +247,30 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 break;
                             default:
                                 Log.Error($"Unexpected source state when initializing: {_state}");
-                                FailStage(new IllegalStateException($"Unexpected source state when initializing: {_state}"));
+                                FailStage(new IllegalStateException(
+                                    $"Unexpected source state when initializing: {_state}"));
                                 break;
                         }
                     });
 
-                    _redis.GetDatabase(_database).StringGetAsync(_journalHelper.GetHighestSequenceNrKey(_persistenceId, _isClustered)).ContinueWith(task =>
-                    {
-                        if (!task.IsCanceled || task.IsFaulted)
+                    _redis.GetDatabase(_database)
+                        .StringGetAsync(_journalHelper.GetHighestSequenceNrKey(_persistenceId, _isClustered))
+                        .ContinueWith(task =>
                         {
-                            if (task.Result.IsNull == true)
+                            if (!task.IsCanceled || task.IsFaulted)
                             {
-                                // not found, close
-                                CompleteStage();
+                                if (task.Result.IsNull == true)
+                                    // not found, close
+                                    CompleteStage();
+                                else
+                                    initCallback(long.Parse(task.Result));
                             }
                             else
                             {
-                                initCallback(long.Parse(task.Result));
+                                Log.Error(task.Exception, "Error while initializing current events by persistent id");
+                                FailStage(task.Exception);
                             }
-                        }
-                        else
-                        {
-                            Log.Error(task.Exception, "Error while initializing current events by persistent id");
-                            FailStage(task.Exception);
-                        }
-                    });
+                        });
                 }
             }
 
@@ -299,15 +290,12 @@ namespace Akka.Persistence.Redis.Query.Stages
                             _state = State.Querying;
 
                             // Complete stage if fromSequenceNr is higher than toSequenceNr
-                            if (_toSequenceNr < _currentSequenceNr)
-                            {
-                                CompleteStage();
-                            }
+                            if (_toSequenceNr < _currentSequenceNr) CompleteStage();
 
                             var refs = _redis.GetDatabase(_database).SortedSetRangeByScore(
-                                key: _journalHelper.GetJournalKey(_persistenceId, _isClustered),
-                                start: _currentSequenceNr,
-                                stop: Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr));
+                                _journalHelper.GetJournalKey(_persistenceId, _isClustered),
+                                _currentSequenceNr,
+                                Math.Min(_currentSequenceNr + _max - 1, _toSequenceNr));
 
                             var deserializedEvents = refs.Select(e => _journalHelper.PersistentFromBytes(e)).ToList();
                             _callback(deserializedEvents);
@@ -317,6 +305,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // buffer is non empty, let’s deliver buffered data
                             Deliver();
                         }
+
                         break;
                     default:
                         Log.Error($"Unexpected source state when querying: {_state}");
@@ -332,10 +321,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
                 if (_buffer.Count == 0 && _currentSequenceNr > _toSequenceNr)
-                {
                     // we delivered last buffered event and the upper bound was reached, complete
                     CompleteStage();
-                }
             }
         }
     }

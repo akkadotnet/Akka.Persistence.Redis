@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="CurrentPersistenceIdsSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using Akka.Streams.Stage;
@@ -51,11 +51,12 @@ namespace Akka.Persistence.Redis.Query.Stages
             public CurrentPersistenceIdsLogic(CurrentPersistenceIdsSource parent) : base(parent.Shape)
             {
                 _outlet = parent.Outlet;
-                _journalHelper = new JournalHelper(parent._system, parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _journalHelper = new JournalHelper(parent._system,
+                    parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
                 _isClustered = parent._redis.IsClustered();
                 _database = parent._redis.GetDatabase(parent._database);
 
-                SetHandler(_outlet, onPull: () =>
+                SetHandler(_outlet, () =>
                 {
                     if (_buffer.Count == 0 && (_start || _index > 0))
                     {
@@ -70,10 +71,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // enqueue received data
                             try
                             {
-                                foreach (var item in data)
-                                {
-                                    _buffer.Enqueue(item);
-                                }
+                                foreach (var item in data) _buffer.Enqueue(item);
                             }
                             catch (Exception e)
                             {

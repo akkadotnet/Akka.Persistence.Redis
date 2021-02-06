@@ -1,4 +1,10 @@
-﻿using System;
+﻿// -----------------------------------------------------------------------
+// <copyright file="PersistentSnapshotSerializer.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
+// </copyright>
+// -----------------------------------------------------------------------
+
+using System;
 using System.Runtime.Serialization;
 using Akka.Actor;
 using Akka.Persistence.Serialization.Proto.Msg;
@@ -20,10 +26,11 @@ namespace Akka.Persistence.Redis.Serialization
         {
             if (obj is SelectedSnapshot snapshot)
             {
-                SnapshotMessage snapshotMessage = new SnapshotMessage();
+                var snapshotMessage = new SnapshotMessage();
                 snapshotMessage.PersistenceId = snapshot.Metadata.PersistenceId;
                 snapshotMessage.SequenceNr = snapshot.Metadata.SequenceNr;
-                snapshotMessage.TimeStamp = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(snapshot.Metadata.Timestamp);
+                snapshotMessage.TimeStamp =
+                    Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(snapshot.Metadata.Timestamp);
                 snapshotMessage.Payload = GetPersistentPayload(snapshot.Snapshot);
                 return snapshotMessage.ToByteArray();
             }
@@ -45,25 +52,24 @@ namespace Akka.Persistence.Redis.Serialization
                     GetPayload(snapshotMessage.Payload));
             }
 
-            throw new SerializationException($"Unimplemented deserialization of message with type [{type}] in [{GetType()}]");
+            throw new SerializationException(
+                $"Unimplemented deserialization of message with type [{type}] in [{GetType()}]");
         }
 
         private PersistentPayload GetPersistentPayload(object obj)
         {
-            Serializer serializer = system.Serialization.FindSerializerFor(obj);
+            var serializer = system.Serialization.FindSerializerFor(obj);
             var payload = new PersistentPayload();
 
             if (serializer is SerializerWithStringManifest serializer2)
             {
-                string manifest = serializer2.Manifest(obj);
+                var manifest = serializer2.Manifest(obj);
                 payload.PayloadManifest = ByteString.CopyFromUtf8(manifest);
             }
             else
             {
                 if (serializer.IncludeManifest)
-                {
                     payload.PayloadManifest = ByteString.CopyFromUtf8(obj.GetType().TypeQualifiedName());
-                }
             }
 
             payload.Payload = ByteString.CopyFrom(serializer.ToBinary(obj));
@@ -74,7 +80,7 @@ namespace Akka.Persistence.Redis.Serialization
 
         private object GetPayload(PersistentPayload payload)
         {
-            string manifest = "";
+            var manifest = "";
             if (payload.PayloadManifest != null) manifest = payload.PayloadManifest.ToStringUtf8();
 
             return system.Serialization.Deserialize(payload.Payload.ToByteArray(), payload.SerializerId, manifest);

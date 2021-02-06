@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="PersistenceIdsSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using Akka.Streams.Stage;
@@ -26,7 +26,6 @@ namespace Akka.Persistence.Redis.Query.Stages
             _redis = redis;
             _database = database;
             _system = system;
-            
         }
 
         public Outlet<string> Outlet { get; } = new Outlet<string>(nameof(PersistenceIdsSource));
@@ -57,11 +56,12 @@ namespace Akka.Persistence.Redis.Query.Stages
             {
                 _redis = parent._redis;
                 _database = parent._database;
-                _journalHelper = new JournalHelper(parent._system, parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _journalHelper = new JournalHelper(parent._system,
+                    parent._system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
                 _outlet = parent.Outlet;
                 _isClustered = _redis.IsClustered();
 
-                SetHandler(_outlet, onPull: () =>
+                SetHandler(_outlet, () =>
                 {
                     _downstreamWaiting = true;
                     if (_buffer.Count == 0 && (_start || _index > 0))
@@ -77,10 +77,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // enqueue received data
                             try
                             {
-                                foreach (var item in data)
-                                {
-                                    _buffer.Enqueue(item);
-                                }
+                                foreach (var item in data) _buffer.Enqueue(item);
                             }
                             catch (Exception e)
                             {
@@ -92,7 +89,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                             Deliver();
                         });
 
-                        callback(_redis.GetDatabase(_database).SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
+                        callback(_redis.GetDatabase(_database)
+                            .SetScan(_journalHelper.GetIdentifiersKey(), cursor: _index));
                     }
                     else if (_buffer.Count == 0)
                     {
@@ -127,10 +125,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                 });
 
                 _subscription = _redis.GetSubscriber();
-                _subscription.Subscribe(_journalHelper.GetIdentifiersChannel(), (channel, value) =>
-                {
-                    callback.Invoke((channel, value));
-                });
+                _subscription.Subscribe(_journalHelper.GetIdentifiersChannel(),
+                    (channel, value) => { callback.Invoke((channel, value)); });
             }
 
             public override void PostStop()

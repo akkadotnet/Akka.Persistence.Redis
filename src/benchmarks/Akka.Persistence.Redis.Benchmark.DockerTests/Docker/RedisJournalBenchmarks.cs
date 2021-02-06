@@ -1,3 +1,9 @@
+// -----------------------------------------------------------------------
+// <copyright file="RedisJournalBenchmarks.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
+// </copyright>
+// -----------------------------------------------------------------------
+
 using System;
 using Akka.Configuration;
 using Akka.Persistence.Redis.BenchmarkTests.Docker;
@@ -38,9 +44,8 @@ namespace Akka.Persistence.Redis.Benchmark.DockerTests
         }
 
         public RedisJournalPerfSpec(ITestOutputHelper output, RedisFixture fixture)
-            : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output, 40, eventsCount: TestConstants.DockerNumMessages)
+            : base(Config(fixture, Database), nameof(RedisJournalPerfSpec), output, 40, TestConstants.DockerNumMessages)
         {
-
         }
 
         [Fact]

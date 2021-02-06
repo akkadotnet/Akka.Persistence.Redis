@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="RedisReadJournal.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Actor;
 using Akka.Configuration;
@@ -66,16 +66,19 @@ namespace Akka.Persistence.Redis.Query
         /// </para>
         /// </summary>
         /// 
+        public Source<string, NotUsed> PersistenceIds()
+        {
+            return Source.FromGraph(new PersistenceIdsSource(_redis, _database, _system));
+        }
 
-        public Source<string, NotUsed> PersistenceIds() =>
-            Source.FromGraph(new PersistenceIdsSource(_redis, _database, _system));
-        
 
         /// <summary>
         /// Returns the stream of current persisted identifiers. This stream is not live, once the identifiers were all returned, it is closed.
         /// </summary>
-        public Source<string, NotUsed> CurrentPersistenceIds() =>
-            Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database, _system));
+        public Source<string, NotUsed> CurrentPersistenceIds()
+        {
+            return Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database, _system));
+        }
 
         /// <summary>
         /// Returns the live stream of events for the given <paramref name="persistenceId"/>.
@@ -83,9 +86,12 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L,
-            long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
+            long toSequenceNr = long.MaxValue)
+        {
+            return Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId,
+                fromSequenceNr,
                 toSequenceNr, _system, true));
+        }
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
@@ -93,9 +99,12 @@ namespace Akka.Persistence.Redis.Query
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId,
-            long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
+            long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue)
+        {
+            return Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId,
+                fromSequenceNr,
                 toSequenceNr, _system, false));
+        }
 
         /// <summary>
         /// Returns the live stream of events with a given tag.
@@ -107,7 +116,8 @@ namespace Akka.Persistence.Redis.Query
             switch (offset)
             {
                 case Sequence seq:
-                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, false));
+                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system,
+                        false));
                 case NoOffset _:
                     return CurrentEventsByTag(tag, new Sequence(0L));
                 default:
@@ -126,7 +136,8 @@ namespace Akka.Persistence.Redis.Query
             switch (offset)
             {
                 case Sequence seq:
-                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, true));
+                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system,
+                        true));
                 case NoOffset _:
                     return EventsByTag(tag, new Sequence(0L));
                 default:
@@ -208,7 +219,7 @@ namespace Akka.Persistence.Redis.Query
         public Source<EventEnvelope, NotUsed> CurrentAllEvents(Offset offset)
         {
             offset = offset ?? new Sequence(0L);
-            switch (offset) 
+            switch (offset)
             {
                 case Sequence seq:
                     return Source.FromGraph(new AllEventsSource(_redis, _database, _config, seq.Value, _system, false));

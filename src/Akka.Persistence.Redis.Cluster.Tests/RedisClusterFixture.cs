@@ -1,4 +1,10 @@
-﻿using System;
+﻿// -----------------------------------------------------------------------
+// <copyright file="RedisClusterFixture.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
+// </copyright>
+// -----------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -44,18 +50,12 @@ namespace Akka.Persistence.Redis.Cluster.Test
             {
                 Filters = new Dictionary<string, IDictionary<string, bool>>
                 {
-                    {
-                        "reference",
-                        new Dictionary<string, bool>
-                        {
-                            {RedisImageName, true}
-                        }
-                    }
+                    {"reference", new Dictionary<string, bool> {{RedisImageName, true}}}
                 }
             });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "latest" }, null,
+                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = "latest"}, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
@@ -71,86 +71,47 @@ namespace Akka.Persistence.Redis.Cluster.Test
                 Image = RedisImageName,
                 Name = RedisContainerName,
                 Tty = true,
-                Env = new List<string>
-                {
-                    "IP=0.0.0.0",
-                    $"INITIAL_PORT={redisHostPort}"
-                },
-                ExposedPorts = new Dictionary<string, EmptyStruct>
-                {
-                    {$"{redisHostPort}/tcp", new EmptyStruct()},
-                    {$"{redisHostPort + 1}/tcp", new EmptyStruct()},
-                    {$"{redisHostPort + 2}/tcp", new EmptyStruct()},
-                    {$"{redisHostPort + 3}/tcp", new EmptyStruct()},
-                    {$"{redisHostPort + 4}/tcp", new EmptyStruct()},
-                    {$"{redisHostPort + 5}/tcp", new EmptyStruct()},
-                },
+                Env = new List<string> {"IP=0.0.0.0", $"INITIAL_PORT={redisHostPort}"},
+                ExposedPorts =
+                    new Dictionary<string, EmptyStruct>
+                    {
+                        {$"{redisHostPort}/tcp", new EmptyStruct()},
+                        {$"{redisHostPort + 1}/tcp", new EmptyStruct()},
+                        {$"{redisHostPort + 2}/tcp", new EmptyStruct()},
+                        {$"{redisHostPort + 3}/tcp", new EmptyStruct()},
+                        {$"{redisHostPort + 4}/tcp", new EmptyStruct()},
+                        {$"{redisHostPort + 5}/tcp", new EmptyStruct()}
+                    },
                 HostConfig = new HostConfig
                 {
                     PortBindings = new Dictionary<string, IList<PortBinding>>
                     {
                         {
                             $"{redisHostPort}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort}"
-                                }
-                            }
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort}"}}
                         },
                         {
                             $"{redisHostPort + 1}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort + 1}"
-                                }
-                            }
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort + 1}"}}
                         },
                         {
                             $"{redisHostPort + 2}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort + 2}"
-                                }
-                            }
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort + 2}"}}
                         },
                         {
                             $"{redisHostPort + 3}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort + 3}"
-                                }
-                            }
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort + 3}"}}
                         },
                         {
                             $"{redisHostPort + 4}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort + 4}"
-                                }
-                            }
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort + 4}"}}
                         },
                         {
                             $"{redisHostPort + 5}/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort + 5}"
-                                }
-                            }
-                        },
+                            new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort + 5}"}}
+                        }
                     }
-                },
+                }
             });
 
             // start the container
@@ -174,7 +135,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
                 await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
 
                 await Client.Containers.RemoveContainerAsync(RedisContainerName,
-                    new ContainerRemoveParameters { Force = true });
+                    new ContainerRemoveParameters {Force = true});
                 Client.Dispose();
             }
         }

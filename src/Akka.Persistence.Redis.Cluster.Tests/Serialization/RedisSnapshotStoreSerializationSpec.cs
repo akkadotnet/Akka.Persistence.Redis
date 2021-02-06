@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="RedisSnapshotStoreSerializationSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Configuration;
 using Akka.Persistence.TCK.Serialization;
@@ -38,10 +38,10 @@ namespace Akka.Persistence.Redis.Cluster.Test.Serialization
                 }}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisPersistence.DefaultConfig());
+                .WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisClusterFixture fixture) 
+        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisClusterFixture fixture)
             : base(Config(fixture), nameof(RedisSnapshotStoreSerializationSpec), output)
         {
         }

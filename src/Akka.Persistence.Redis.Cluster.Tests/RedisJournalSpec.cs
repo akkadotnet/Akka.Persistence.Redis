@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="RedisJournalSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Configuration;
 using Akka.Persistence.TCK.Journal;
@@ -27,7 +27,7 @@ namespace Akka.Persistence.Redis.Cluster.Test
                 configuration-string = ""{DbUtils.ConnectionString}""
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisPersistence.DefaultConfig());
+                .WithFallback(RedisPersistence.DefaultConfig());
         }
 
         public RedisJournalSpec(ITestOutputHelper output, RedisClusterFixture fixture)

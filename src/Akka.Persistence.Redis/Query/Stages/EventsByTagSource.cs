@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="EventsByTagSource.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -33,7 +33,8 @@ namespace Akka.Persistence.Redis.Query.Stages
         private readonly ExtendedActorSystem _system;
         private readonly bool _live;
 
-        public EventsByTagSource(ConnectionMultiplexer redis, int database, Config config, string tag, long offset, ExtendedActorSystem system, bool live)
+        public EventsByTagSource(ConnectionMultiplexer redis, int database, Config config, string tag, long offset,
+            ExtendedActorSystem system, bool live)
         {
             _redis = redis;
             _database = database;
@@ -102,11 +103,12 @@ namespace Akka.Persistence.Redis.Query.Stages
                 _isClustered = _redis.IsClustered();
 
                 _max = parent._config.GetInt("max-buffer-size");
-                _journalHelper = new JournalHelper(_system, _system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
+                _journalHelper = new JournalHelper(_system,
+                    _system.Settings.Config.GetString("akka.persistence.journal.redis.key-prefix"));
 
                 _currentOffset = _offset > 0 ? _offset + 1 : 0;
 
-                SetHandler(_outlet, onPull: () =>
+                SetHandler(_outlet, () =>
                 {
                     switch (_state)
                     {
@@ -130,12 +132,9 @@ namespace Akka.Persistence.Redis.Query.Stages
                     if (events.Count == 0)
                     {
                         if (_currentOffset >= _maxOffset)
-                        {
                             // end has been reached
                             CompleteStage();
-                        }
                         else
-                        {
                             switch (_state)
                             {
                                 case State.NotifiedWhenQuerying:
@@ -145,22 +144,17 @@ namespace Akka.Persistence.Redis.Query.Stages
                                     break;
                                 case State.Querying:
                                     if (_live)
-                                    {
                                         // nothing new, wait for notification
                                         _state = State.WaitingForNotification;
-                                    }
                                     else
-                                    {
                                         // not a live stream, nothing else currently in the database, close the stream
                                         CompleteStage();
-                                    }
                                     break;
                                 default:
                                     Log.Error($"Unexpected source state: {_state}");
                                     FailStage(new IllegalStateException($"Unexpected source state: {_state}"));
                                     break;
                             }
-                        }
                     }
                     else
                     {
@@ -168,9 +162,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                         {
                             var repr = c.Key.Item2;
                             if (repr != null && !repr.IsDeleted)
-                            {
-                                return new EventEnvelope(new Sequence(_currentOffset + c.Value), repr.PersistenceId, repr.SequenceNr, repr.Payload);
-                            }
+                                return new EventEnvelope(new Sequence(_currentOffset + c.Value), repr.PersistenceId,
+                                    repr.SequenceNr, repr.Payload);
 
                             return null;
                         }).ToList();
@@ -227,10 +220,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                     });
 
                     _subscription = _redis.GetSubscriber();
-                    _subscription.Subscribe(_journalHelper.GetTagsChannel(), (channel, value) =>
-                    {
-                        messageCallback.Invoke((channel, value));
-                    });
+                    _subscription.Subscribe(_journalHelper.GetTagsChannel(),
+                        (channel, value) => { messageCallback.Invoke((channel, value)); });
                 }
                 else
                 {
@@ -256,23 +247,25 @@ namespace Akka.Persistence.Redis.Query.Stages
                                 break;
                             default:
                                 Log.Error($"Unexpected source state when initializing: {_state}");
-                                FailStage(new IllegalStateException($"Unexpected source state when initializing: {_state}"));
+                                FailStage(new IllegalStateException(
+                                    $"Unexpected source state when initializing: {_state}"));
                                 break;
                         }
                     });
 
-                    _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag, _isClustered)).ContinueWith(task =>
-                    {
-                        if (!task.IsCanceled || task.IsFaulted)
+                    _redis.GetDatabase(_database).ListLengthAsync(_journalHelper.GetTagKey(_tag, _isClustered))
+                        .ContinueWith(task =>
                         {
-                            initCallback(task.Result - 1);
-                        }
-                        else
-                        {
-                            Log.Error(task.Exception, "Error while initializing current events by tag");
-                            FailStage(task.Exception);
-                        }
-                    });
+                            if (!task.IsCanceled || task.IsFaulted)
+                            {
+                                initCallback(task.Result - 1);
+                            }
+                            else
+                            {
+                                Log.Error(task.Exception, "Error while initializing current events by tag");
+                                FailStage(task.Exception);
+                            }
+                        });
                 }
             }
 
@@ -305,7 +298,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             {
                                 var evt = database.SortedSetRangeByScore(
                                     _journalHelper.GetJournalKey(persistenceId, _isClustered),
-                                    sequenceNr, 
+                                    sequenceNr,
                                     sequenceNr);
                                 var repr = _journalHelper.PersistentFromBytes(evt.First());
                                 result.Add((repr.PersistenceId, repr));
@@ -318,6 +311,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                             // buffer is non empty, let’s deliver buffered data
                             Deliver();
                         }
+
                         break;
                     default:
                         Log.Error($"Unexpected source state when querying: {_state}");
@@ -333,10 +327,8 @@ namespace Akka.Persistence.Redis.Query.Stages
                 var elem = _buffer.Dequeue();
                 Push(_outlet, elem);
                 if (_buffer.Count == 0 && _currentOffset >= _maxOffset)
-                {
                     // max offset has been reached and delivered, complete
                     CompleteStage();
-                }
             }
         }
     }
@@ -364,6 +356,7 @@ namespace Akka.Persistence.Redis.Query.Stages
                 dict.Add(item, i);
                 i++;
             }
+
             return dict;
         }
     }

@@ -1,9 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Diagnostics;
@@ -15,8 +14,7 @@ using Akka.Pattern;
 
 namespace CustomSerialization.MsgPack
 {
-    
-    class Program
+    internal class Program
     {
         // if you want to benchmark your persistent storage provides, paste the configuration in string below
         // by default we're checking against in-memory journal
@@ -40,14 +38,15 @@ namespace CustomSerialization.MsgPack
         public const int ActorCount = 1000;
         public const int MessagesPerActor = 100;
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            using (var system = ActorSystem.Create("persistent-benchmark", config.WithFallback(ConfigurationFactory.Default())))
+            using (var system = ActorSystem.Create("persistent-benchmark",
+                config.WithFallback(ConfigurationFactory.Default())))
             {
                 Console.WriteLine("Performance benchmark starting...");
 
                 var actors = new IActorRef[ActorCount];
-                for (int i = 0; i < ActorCount; i++)
+                for (var i = 0; i < ActorCount; i++)
                 {
                     var pid = "a-" + i;
                     actors[i] = system.ActorOf(Props.Create(() => new PerformanceTestActor(pid)));
@@ -60,31 +59,23 @@ namespace CustomSerialization.MsgPack
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
 
-                for (int i = 0; i < MessagesPerActor; i++)
-                {
-                    for (int j = 0; j < ActorCount; j++)
-                    {
-                        actors[j].Tell(new Store(1));
-                    }
-                }
+                for (var i = 0; i < MessagesPerActor; i++)
+                for (var j = 0; j < ActorCount; j++)
+                    actors[j].Tell(new Store(1));
 
                 var finished = new Task[ActorCount];
-                for (int i = 0; i < ActorCount; i++)
-                {
-                    finished[i] = actors[i].Ask<Finished>(Finish.Instance);
-                }
+                for (var i = 0; i < ActorCount; i++) finished[i] = actors[i].Ask<Finished>(Finish.Instance);
 
                 Task.WaitAll(finished);
 
                 var elapsed = stopwatch.ElapsedMilliseconds;
 
-                Console.WriteLine($"{ActorCount} actors stored {MessagesPerActor} events each in {elapsed/1000.0} sec. Average: {ActorCount*MessagesPerActor*1000.0/elapsed} events/sec");
+                Console.WriteLine(
+                    $"{ActorCount} actors stored {MessagesPerActor} events each in {elapsed / 1000.0} sec. Average: {ActorCount * MessagesPerActor * 1000.0 / elapsed} events/sec");
 
                 foreach (Task<Finished> task in finished)
-                {
                     if (!task.IsCompleted || task.Result.State != MessagesPerActor)
                         throw new IllegalStateException("Actor's state was invalid");
-                }
             }
 
             Console.ReadLine();
