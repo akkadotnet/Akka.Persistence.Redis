@@ -6,7 +6,6 @@
 
 using System;
 using Akka.Configuration;
-using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TestKit.Performance;
 using Xunit;
 using Xunit.Abstractions;
