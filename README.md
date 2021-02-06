@@ -165,5 +165,57 @@ akka.actor {
 }
 ```
 
+## Securing your Redis server
+You can secure the Redis server Akka.Persistence.Redis connects to by leveraging Redis ACL and requiring users to use AUTH to connect to the Redis server.
+
+1. Redis ACL
+  You can use [Redis ACL](https://redis.io/topics/acl) to:
+  - Create users
+  - Set user passwords
+  - Limit the set of Redis commands a user can use
+  - Allow/disallow pub/sub channels
+  - Allow/disallow certain keys
+  - etc.
+
+2. Redis SSL/TLS
+  You can use [redis-cli](https://redis.io/topics/rediscli) to enable SSL/TLS feature in Redis.
+
+3. StackExchange.Redis Connection string
+  To connect to ACL enabled Redis server, you will need to set the user and password option in the [connection string](https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings):
+  "myServer.net:6380,user=\<username\>,password=\<password\>"
+
+### Minimum command set
+These are the minimum Redis commands that are needed by Akka.Persistence.Redis to work properly.
+
+| Redis Command    | StackExchange.Redis Command      |
+|------------------|----------------------------------|
+| MULTI            | Transaction                      |
+| EXEC             |                                  |
+| DISCARD          |                                  |
+| SET              | String Set                       |
+| SETNX            |                                  |
+| SETEX            |                                  |
+| GET              | String Get                       |
+| LLEN             | List Length                      |
+| LRANGE           | List Range                       |
+| RPUSH            | List Right Push                  |
+| RPUSHX           |                                  |
+| LLEN             |                                  |
+| ZADD             | Sorted Set Add                   |
+| ZREMRANGEBYSCORE | Delete Sorted Set by Score Range |
+| ZREVRANGEBYSCORE | Get Sorted Set by Score Range    |
+| ZRANGEBYSCORE    |                                  |
+| WITHSCORES       |                                  |
+| LIMIT            |                                  |
+| SSCAN            | Scan                             |
+| SMEMBERS         |                                  |
+| PUBSUB           | Pub/Sub                          |
+| PING             |                                  |
+| UNSUBSCRIBE      |                                  |
+| SUBSCRIBE        |                                  |
+| PSUBSCRIBE       |                                  |
+| PUNSUBSCRIBE     |                                  |
+| PUBLISH          | Pub/Sub Publish                  |
+
 ## Maintainer
 - [alexvaluyskiy](https://github.com/alexvaluyskiy)
