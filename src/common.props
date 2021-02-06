@@ -1,12 +1,12 @@
 <Project>
   <PropertyGroup>
-    <Copyright>Copyright © 2013-2020 Akka.NET Project</Copyright>
+    <Copyright>Copyright © 2013-2021 Akka.NET Project</Copyright>
     <Authors>Akka.NET</Authors>
     <VersionPrefix>1.4.16</VersionPrefix>
     <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
     <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
-    <PackageProjectUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/AkkaNetContrib/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/akkadotnet/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
     <PackageReleaseNotes>This is a major update to the Akka.Persistence.Redis plugin.
 Enabled Redis Cluster Support**
 Akka.Persistence.Redis will now automatically detect whether or not you are running in clustered mode via your Redis connection string and will distribute journal entries and snapshots accordingly.
