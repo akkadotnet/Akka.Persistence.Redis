@@ -8,9 +8,7 @@ using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Query;
 using Akka.Streams.Dsl;
-using StackExchange.Redis;
 using System;
-using Akka.Persistence.Redis.Query.Stages;
 
 namespace Akka.Persistence.Redis.Query
 {
@@ -24,11 +22,11 @@ namespace Akka.Persistence.Redis.Query
         IAllEventsQuery,
         ICurrentAllEventsQuery
     {
+        private readonly TimeSpan _refreshInterval;
+        private readonly string _writeJournalPluginId;
+        private readonly int _maxBufferSize;
         private readonly ExtendedActorSystem _system;
         private readonly Config _config;
-
-        private ConnectionMultiplexer _redis;
-        private int _database;
 
         /// <summary>
         /// The default identifier for <see cref="RedisReadJournal" /> to be used with <see cref="PersistenceQueryExtensions.ReadJournalFor{TJournal}" />.
@@ -37,12 +35,14 @@ namespace Akka.Persistence.Redis.Query
 
         public RedisReadJournal(ExtendedActorSystem system, Config config)
         {
-            _system = system;
-            _config = config;
-            var address = system.Settings.Config.GetString("akka.persistence.journal.redis.configuration-string");
+            if (config == null || config.IsEmpty)
+                throw new ConfigurationException($"Could not find sub-configuration [{Identifier}]");
 
-            _database = system.Settings.Config.GetInt("akka.persistence.journal.redis.database");
-            _redis = ConnectionMultiplexer.Connect(address);
+            _config = config;
+            _system = system;
+            _refreshInterval = config.GetTimeSpan("refresh-interval", TimeSpan.FromSeconds(3));
+            _writeJournalPluginId = config.GetString("write-plugin", "");
+            _maxBufferSize = config.GetInt("max-buffer-size", 100);
         }
 
         /// <summary>
@@ -66,54 +66,61 @@ namespace Akka.Persistence.Redis.Query
         /// </para>
         /// </summary>
         /// 
-
-        public Source<string, NotUsed> PersistenceIds() =>
-            Source.FromGraph(new PersistenceIdsSource(_redis, _database, _system));
-        
+        public Source<string, NotUsed> PersistenceIds()
+            => throw new NotImplementedException("PersistenceIds query is not implemented for Redis.");
 
         /// <summary>
         /// Returns the stream of current persisted identifiers. This stream is not live, once the identifiers were all returned, it is closed.
         /// </summary>
-        public Source<string, NotUsed> CurrentPersistenceIds() =>
-            Source.FromGraph(new CurrentPersistenceIdsSource(_redis, _database, _system));
+        public Source<string, NotUsed> CurrentPersistenceIds() 
+            => throw new NotImplementedException("CurrentPersistenceIds query is not implemented for Redis.");
 
         /// <summary>
         /// Returns the live stream of events for the given <paramref name="persistenceId"/>.
         /// Events are ordered by <paramref name="fromSequenceNr"/>.
         /// When the <paramref name="toSequenceNr"/> has been delivered, the stream is closed.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> EventsByPersistenceId(string persistenceId, long fromSequenceNr = 0L,
-            long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
-                toSequenceNr, _system, true));
+        public Source<EventEnvelope, NotUsed> EventsByPersistenceId(
+            string persistenceId, 
+            long fromSequenceNr = 0L,
+            long toSequenceNr = long.MaxValue)
+            => Source.ActorPublisher<EventEnvelope>(
+                    EventsByPersistenceIdPublisher.Props(
+                        persistenceId, 
+                        fromSequenceNr, 
+                        toSequenceNr, 
+                        _refreshInterval, 
+                        _maxBufferSize, 
+                        _writeJournalPluginId))
+                    .MapMaterializedValue(_ => NotUsed.Instance)
+                    .Named("EventsByPersistenceId-" + persistenceId);
 
         /// <summary>
         /// Returns the stream of current events for the given <paramref name="persistenceId"/>.
         /// Events are ordered by <paramref name="fromSequenceNr"/>.
         /// When the <paramref name="toSequenceNr"/> has been delivered or no more elements are available at the current time, the stream is closed.
         /// </summary>
-        public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(string persistenceId,
-            long fromSequenceNr = 0L, long toSequenceNr = long.MaxValue) =>
-            Source.FromGraph(new EventsByPersistenceIdSource(_redis, _database, _config, persistenceId, fromSequenceNr,
-                toSequenceNr, _system, false));
+        public Source<EventEnvelope, NotUsed> CurrentEventsByPersistenceId(
+            string persistenceId,
+            long fromSequenceNr = 0L, 
+            long toSequenceNr = long.MaxValue)
+            => Source.ActorPublisher<EventEnvelope>(
+                    EventsByPersistenceIdPublisher.Props(
+                        persistenceId, 
+                        fromSequenceNr, 
+                        toSequenceNr, 
+                        null, 
+                        _maxBufferSize, 
+                        _writeJournalPluginId))
+                    .MapMaterializedValue(_ => NotUsed.Instance)
+                    .Named("CurrentEventsByPersistenceId-" + persistenceId);
 
         /// <summary>
         /// Returns the live stream of events with a given tag.
         /// The events are sorted in the order they occurred, you can rely on it.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentEventsByTag(string tag, Offset offset)
-        {
-            offset = offset ?? new Sequence(0L);
-            switch (offset)
-            {
-                case Sequence seq:
-                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, false));
-                case NoOffset _:
-                    return CurrentEventsByTag(tag, new Sequence(0L));
-                default:
-                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
-            }
-        }
+            => throw new NotImplementedException("CurrentEventsByTag query is not implemented for Redis.");
 
         /// <summary>
         /// Returns the stream of current events with a given tag.
@@ -121,18 +128,7 @@ namespace Akka.Persistence.Redis.Query
         /// Once there are no more events in the store, the stream is closed, not waiting for new ones.
         /// </summary>
         public Source<EventEnvelope, NotUsed> EventsByTag(string tag, Offset offset)
-        {
-            offset = offset ?? new Sequence(0L);
-            switch (offset)
-            {
-                case Sequence seq:
-                    return Source.FromGraph(new EventsByTagSource(_redis, _database, _config, tag, seq.Value, _system, true));
-                case NoOffset _:
-                    return EventsByTag(tag, new Sequence(0L));
-                default:
-                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
-            }
-        }
+            => throw new NotImplementedException("EventsByTag query is not implemented for Redis.");
 
         /// <summary>
         /// <see cref="AllEvents"/> is used for retrieving all events
@@ -165,18 +161,7 @@ namespace Akka.Persistence.Redis.Query
         /// backend journal.
         /// </summary>
         public Source<EventEnvelope, NotUsed> AllEvents(Offset offset)
-        {
-            offset = offset ?? new Sequence(0L);
-            switch (offset)
-            {
-                case Sequence seq:
-                    return Source.FromGraph(new AllEventsSource(_redis, _database, _config, seq.Value, _system, true));
-                case NoOffset _:
-                    return AllEvents(new Sequence(0L));
-                default:
-                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
-            }
-        }
+            => throw new NotImplementedException("AllEvents query is not implemented for Redis.");
 
         /// <summary>
         /// <see cref="CurrentAllEvents"/> is used for retrieving all stored events, the event stream
@@ -206,17 +191,6 @@ namespace Akka.Persistence.Redis.Query
         /// backend journal.
         /// </summary>
         public Source<EventEnvelope, NotUsed> CurrentAllEvents(Offset offset)
-        {
-            offset = offset ?? new Sequence(0L);
-            switch (offset) 
-            {
-                case Sequence seq:
-                    return Source.FromGraph(new AllEventsSource(_redis, _database, _config, seq.Value, _system, false));
-                case NoOffset _:
-                    return CurrentAllEvents(new Sequence(0L));
-                default:
-                    throw new ArgumentException($"RedisReadJournal does not support {offset.GetType().Name} offsets");
-            }
-        }
+            => throw new NotImplementedException("CurrentAllEvents query is not implemented for Redis.");
     }
 }
