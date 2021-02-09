@@ -1,9 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="PerformanceActors.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2016 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2016 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Actor;
 using Akka.Persistence;
@@ -13,19 +12,28 @@ namespace CustomSerialization.Protobuf
     public sealed class Init
     {
         public static Init Instance { get; } = new Init();
-        private Init() { }
+
+        private Init()
+        {
+        }
     }
 
     public sealed class Finish
     {
         public static Finish Instance { get; } = new Finish();
-        private Finish() { }
+
+        private Finish()
+        {
+        }
     }
 
     public sealed class Done
     {
         public static Done Instance { get; } = new Done();
-        private Done() { }
+
+        private Done()
+        {
+        }
     }
 
     public sealed class Finished
@@ -82,10 +90,7 @@ namespace CustomSerialization.Protobuf
                     });
                     break;
                 case Store store:
-                    Persist(new Stored(store.Value), s =>
-                    {
-                        _state += s.Value;
-                    });
+                    Persist(new Stored(store.Value), s => { _state += s.Value; });
                     break;
                 case Finish _:
                     Sender.Tell(new Finished(_state));

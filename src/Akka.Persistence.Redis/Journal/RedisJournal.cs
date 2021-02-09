@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
-// <copyright file="RedisJournal.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+﻿// -----------------------------------------------------------------------
+// <copyright file="RedisJournal.cs" company="Petabridge, LLC">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -65,8 +65,9 @@ namespace Akka.Persistence.Redis.Journal
 
         public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNr)
         {
-            var highestSequenceNr = await Database.StringGetAsync(_journalHelper.GetHighestSequenceNrKey(persistenceId, IsClustered));
-            return highestSequenceNr.IsNull ? 0L : (long)highestSequenceNr;
+            var highestSequenceNr =
+                await Database.StringGetAsync(_journalHelper.GetHighestSequenceNrKey(persistenceId, IsClustered));
+            return highestSequenceNr.IsNull ? 0L : (long) highestSequenceNr;
         }
 
         public override async Task ReplayMessagesAsync(
@@ -85,9 +86,7 @@ namespace Akka.Persistence.Redis.Journal
                 take: max);
 
             foreach (var journal in journals)
-            {
                 recoveryCallback(_journalHelper.PersistentFromBytes(journal));
-            }
         }
 
         protected override async Task DeleteMessagesToAsync(string persistenceId, long toSequenceNr)
@@ -110,12 +109,8 @@ namespace Akka.Persistence.Redis.Journal
                         .ToImmutableList());
 
             if (HasNewEventSubscribers)
-            {
                 foreach (var subscriber in _newEventsSubscriber)
-                {
                     subscriber.Tell(NewEventAppended.Instance);
-                }
-            }
 
             return result;
         }
@@ -141,7 +136,8 @@ namespace Akka.Persistence.Redis.Journal
                 eventList.Add(new SortedSetEntry(bytes, payload.SequenceNr));
 
                 /*
-                persistenceIdPublishList.Add((_journalHelper.GetJournalChannel(payload.PersistenceId, IsClustered), payload.SequenceNr));
+                persistenceIdPublishList.Add((_journalHelper.GetJournalChannel(payload.PersistenceId, IsClustered),
+                    payload.SequenceNr));
 
                 var journalEventIdentifier = $"{payload.SequenceNr}:{payload.PersistenceId}";
                 eventIdList.Add(journalEventIdentifier);
@@ -155,15 +151,18 @@ namespace Akka.Persistence.Redis.Journal
             }
 
             var transaction = Database.CreateTransaction();
-            transaction.SortedSetAddAsync(_journalHelper.GetJournalKey(aw.PersistenceId, IsClustered), eventList.ToArray());
+            transaction.SortedSetAddAsync(_journalHelper.GetJournalKey(aw.PersistenceId, IsClustered),
+                eventList.ToArray());
 
             // set highest sequence number key
-            transaction.StringSetAsync(_journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, IsClustered), aw.HighestSequenceNr);
-
+            transaction.StringSetAsync(_journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, IsClustered),
+                aw.HighestSequenceNr);
             if (!await transaction.ExecuteAsync())
-                throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
+                throw new Exception(
+                    $"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
 
             #region Query support
+
             /*
             //save events sequenceNr and persistenceId so that we can read all events 
             //with it starting from a given sequenceNr
@@ -227,6 +226,7 @@ namespace Akka.Persistence.Redis.Journal
             if (!await transaction.ExecuteAsync())
                 throw new Exception($"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
             */
+
             #endregion
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed

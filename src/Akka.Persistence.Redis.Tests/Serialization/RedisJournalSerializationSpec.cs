@@ -1,11 +1,10 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="RedisJournalSerializationSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Configuration;
-using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Serialization;
 using Xunit;
 using Xunit.Abstractions;
@@ -37,10 +36,11 @@ namespace Akka.Persistence.Redis.Tests.Serialization
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisPersistence.DefaultConfig());
+                .WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisJournalSerializationSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisJournalSerializationSpec), output)
+        public RedisJournalSerializationSpec(ITestOutputHelper output, RedisFixture fixture) : base(
+            Config(fixture, Database), nameof(RedisJournalSerializationSpec), output)
         {
         }
 

@@ -1,11 +1,10 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="RedisSnapshotStoreSerializationSpec.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Akka.Configuration;
-using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Serialization;
 using Xunit;
 using Xunit.Abstractions;
@@ -42,10 +41,11 @@ namespace Akka.Persistence.Redis.Tests.Serialization
                 }}
             }}
             akka.test.single-expect-default = 3s")
-            .WithFallback(RedisPersistence.DefaultConfig());
+                .WithFallback(RedisPersistence.DefaultConfig());
         }
 
-        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisFixture fixture) : base(Config(fixture, Database), nameof(RedisSnapshotStoreSerializationSpec), output)
+        public RedisSnapshotStoreSerializationSpec(ITestOutputHelper output, RedisFixture fixture) : base(
+            Config(fixture, Database), nameof(RedisSnapshotStoreSerializationSpec), output)
         {
         }
 

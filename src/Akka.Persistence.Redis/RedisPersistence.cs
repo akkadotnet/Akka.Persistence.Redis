@@ -1,8 +1,8 @@
-﻿//-----------------------------------------------------------------------
-// <copyright file="RedisSettings.cs" company="Akka.NET Project">
-//     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
+﻿// -----------------------------------------------------------------------
+// <copyright file="RedisPersistence.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using Akka.Actor;
@@ -31,16 +31,23 @@ namespace Akka.Persistence.Redis
                 throw new ArgumentNullException(nameof(config));
 
             return new RedisSettings(
-              configurationString: config.GetString("configuration-string", string.Empty),
-              keyPrefix: config.GetString("key-prefix", string.Empty),
-              database: config.GetInt("database", 0));
+                config.GetString("configuration-string", string.Empty),
+                config.GetString("key-prefix", string.Empty),
+                config.GetInt("database", 0));
         }
     }
 
     public class RedisPersistence : IExtension
     {
-        public static RedisPersistence Get(ActorSystem system) => system.WithExtension<RedisPersistence, RedisPersistenceProvider>();
-        public static Config DefaultConfig() => ConfigurationFactory.FromResource<RedisPersistence>("Akka.Persistence.Redis.reference.conf");
+        public static RedisPersistence Get(ActorSystem system)
+        {
+            return system.WithExtension<RedisPersistence, RedisPersistenceProvider>();
+        }
+
+        public static Config DefaultConfig()
+        {
+            return ConfigurationFactory.FromResource<RedisPersistence>("Akka.Persistence.Redis.reference.conf");
+        }
 
         public RedisSettings JournalSettings { get; }
         public RedisSettings SnapshotStoreSettings { get; }
@@ -50,7 +57,8 @@ namespace Akka.Persistence.Redis
             system.Settings.InjectTopLevelFallback(DefaultConfig());
 
             JournalSettings = RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.journal.redis"));
-            SnapshotStoreSettings = RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.snapshot-store.redis"));
+            SnapshotStoreSettings =
+                RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.snapshot-store.redis"));
         }
     }
 

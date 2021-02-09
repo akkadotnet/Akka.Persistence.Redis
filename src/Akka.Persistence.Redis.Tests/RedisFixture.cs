@@ -1,4 +1,10 @@
-﻿using System;
+﻿// -----------------------------------------------------------------------
+// <copyright file="RedisFixture.cs" company="Akka.NET Project">
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
+// </copyright>
+// -----------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Runtime.InteropServices;
@@ -45,18 +51,12 @@ namespace Akka.Persistence.Redis.Tests
             {
                 Filters = new Dictionary<string, IDictionary<string, bool>>
                 {
-                    {
-                        "reference",
-                        new Dictionary<string, bool>
-                        {
-                            {RedisImageName, true}
-                        }
-                    }
+                    {"reference", new Dictionary<string, bool> {{RedisImageName, true}}}
                 }
             });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters { FromImage = ImageName, Tag = Tag }, null,
+                    new ImagesCreateParameters {FromImage = ImageName, Tag = Tag}, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
@@ -72,29 +72,19 @@ namespace Akka.Persistence.Redis.Tests
                 Image = RedisImageName,
                 Name = RedisContainerName,
                 Tty = true,
-                ExposedPorts = new Dictionary<string, EmptyStruct>
-                {
-                    {"6379/tcp", new EmptyStruct()}
-                },
+                ExposedPorts = new Dictionary<string, EmptyStruct> {{"6379/tcp", new EmptyStruct()}},
                 HostConfig = new HostConfig
                 {
                     PortBindings = new Dictionary<string, IList<PortBinding>>
                     {
                         {
-                            "6379/tcp",
-                            new List<PortBinding>
-                            {
-                                new PortBinding
-                                {
-                                    HostPort = $"{redisHostPort}"
-                                }
-                            }
+                            "6379/tcp", new List<PortBinding> {new PortBinding {HostPort = $"{redisHostPort}"}}
                         }
                     }
                 }
             });
 
-            
+
             // start the container
             await Client.Containers.StartContainerAsync(RedisContainerName, new ContainerStartParameters());
 
@@ -116,7 +106,7 @@ namespace Akka.Persistence.Redis.Tests
                 await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
 
                 await Client.Containers.RemoveContainerAsync(RedisContainerName,
-                    new ContainerRemoveParameters { Force = true });
+                    new ContainerRemoveParameters {Force = true});
                 Client.Dispose();
             }
         }

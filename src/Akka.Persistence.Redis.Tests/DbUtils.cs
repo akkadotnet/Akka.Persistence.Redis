@@ -1,9 +1,8 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="DbUtils.cs" company="Akka.NET Project">
-//     Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
-//     Copyright (C) 2013-2017 Akka.NET project <https://github.com/akkadotnet/akka.net>
+//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Linq;
@@ -28,7 +27,7 @@ namespace Akka.Persistence.Redis.Tests
             foreach (var endPoint in redisConnection.GetEndPoints())
             {
                 var server = redisConnection.GetServer(endPoint);
-                if(!server.IsReplica)
+                if (!server.IsReplica)
                     server.FlushAllDatabases();
             }
         }

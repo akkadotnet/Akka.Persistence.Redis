@@ -1,28 +1,40 @@
-#### 1.4.4 April 11th 2020 ####
-- Bump Akka to version 1.4.4
-- Update build system to use Docker.DotNet
+#### 1.4.16 February 6th 2021 ####
+This is a major update to the Akka.Persistence.Redis plugin.
 
-#### 1.0.0-beta2 March 2nd 2020 ####
-- Update Akka to version 1.4.1-RC1
-- Update build system
+**Enabled Redis Cluster Support**
+Akka.Persistence.Redis will now automatically detect whether or not you are running in clustered mode via your Redis connection string and will distribute journal entries and snapshots accordingly.
 
-#### 1.0.0-beta1 Sep 10 2017 ####
-- Support for .NET Standard 1.6
-- Support for Persistence Query
-- Use Google.Protobuf serialization both for journal and snapshots
-- Updated Akka.Persistence to 1.3.1
-- StackExchange.Redis to 1.2.6
+All journal entries and all snapshots for a single entity will all reside inside the same Redis host cost - [using Redis' consistent hash distribution tagging](https://redis.io/topics/cluster-tutorial) scheme.
 
-#### 0.2.5 Oct 16 2016 ####
-- Updated Akka.Persistence to 1.1.2
-- Updated Json.Net to 9.0.1
-- StackExchange.Redis to 1.1.608
+**Significant Performance Improvements**
+Akka.Persistence.Redis' write throughput was improved significantly in Akka.Persistence.Redis v1.4.16:
 
-#### 0.2.0 Aug 12 2016 ####
-- custom serializer for the events and snapshots
-- use intermediate types JournalEntry and SnapshotEntry instead of default persistence types
-- fixed sync call inside WriteMessagesAsync
-- small optimizations and code refactoring
+| Test            | Akka.Persistence.Redis v1.4.4 (msg/s) | current PR (msg/s) |
+|-----------------|---------------------------------------|--------------------|
+| Persist         | 782                                   | 772                |
+| PersistAll      | 15019                                 | 20275              |
+| PersistAsync    | 9496                                  | 13131              |
+| PersistAllAsync | 32765                                 | 44776              |
+| PersistGroup10  | 611                                   | 6523               |
+| PersistGroup100 | 8878                                  | 12533              |
+| PersistGroup200 | 9598                                  | 12214              |
+| PersistGroup25  | 9209                                  | 10819              |
+| PersistGroup400 | 9209                                  | 11824              |
+| PersistGroup50  | 9506                                  | 9704               |
+| Recovering      | 17374                                 | 20119              |
+| Recovering8     | 36915                                 | 37290              |
+| RecoveringFour  | 22432                                 | 20884              |
+| RecoveringTwo   | 22209                                 | 21222              |
 
-#### 0.1.0 Jul 19 2016 ####
-- First version of the package
+These numbers were generated running a single Redis instance inside a Docker container on Docker for Windows - real-world values generated in cloud environments will likely be much higher.
+
+**Removed Akka.Persistence.Query Support**
+In order to achieve support for clustering and improved write performance, we made the descision to drop Akka.Persistence.Query support from Akka.Persistence.Redis at this time - if you wish to learn more about our decision-making process or if you are affected by this change, please comment on this thread here: https://github.com/akkadotnet/Akka.Persistence.Redis/issues/126
+
+**Other Changes**
+
+- Bump [Akka.NET to version 1.4.16](https://github.com/akkadotnet/akka.net/releases/tag/1.4.16)
+- Modernized Akka.NET Serialization calls
+- [Added benchmarks](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/118)
+- Upgraded to [StackExchange.Redis 2.2.11](https://github.com/StackExchange/StackExchange.Redis/blob/main/docs/ReleaseNotes.md)
+- Improved documentation
