@@ -80,9 +80,11 @@ namespace Akka.Persistence.Redis.Cluster.Test
             }
 
             var values = dict.Values.AsEnumerable().ToArray();
-            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]");
 
-            // Evaluate standard deviation.
+            // Evaluate standard deviation
+            var standardDeviation = StandardDeviation(values);
+            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]. Standard deviation: [{standardDeviation}]");
+
             // Should be less than 1 percent of total keys
             StandardDeviation(values).Should().BeLessThan(totalEntries * 0.01);
         }
@@ -120,11 +122,13 @@ namespace Akka.Persistence.Redis.Cluster.Test
             }
 
             var values = dict.Values.AsEnumerable().ToArray();
-            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]");
 
             // Evaluate standard deviation
+            var standardDeviation = StandardDeviation(values);
+            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]. Standard deviation: [{standardDeviation}]");
+
             // Should be less than 20 percent of total keys
-            StandardDeviation(values).Should().BeLessThan(totalEntries * 0.2);
+            standardDeviation.Should().BeLessThan(totalEntries * 0.2);
         }
 
         private double StandardDeviation(int[] values)
