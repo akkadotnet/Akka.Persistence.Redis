@@ -89,48 +89,6 @@ namespace Akka.Persistence.Redis.Cluster.Test
             StandardDeviation(values).Should().BeLessThan(totalEntries * 0.01);
         }
 
-        [Fact]
-        public void Randomly_distributed_20_PersistenceId_should_be_distributed_relatively_equally_between_cluster_master()
-        {
-            var totalEntries = 10000;
-
-            // Setup 20 random ids
-            var random = new Random();
-            var ids = new List<string>();
-            for (var i = 0; i < 20; ++i)
-                ids.Add(Guid.NewGuid().ToString("N"));
-
-            // Setup redis
-            var redis = ConnectionMultiplexer.Connect(_fixture.ConnectionString);
-            var db = redis.GetDatabase();
-            var journalHelper = new JournalHelper(Sys, "foo");
-            var dict = new Dictionary<EndPoint, int>();
-
-            // Simulate key distribution
-            for (var i = 0; i < totalEntries; ++i)
-            {
-                var id = ids[random.Next(0, ids.Count)];
-                var ep = db.IdentifyEndpoint(journalHelper.GetJournalKey(id, true));
-                if (!dict.TryGetValue(ep, out _))
-                {
-                    dict[ep] = 1;
-                }
-                else
-                {
-                    dict[ep]++;
-                }
-            }
-
-            var values = dict.Values.AsEnumerable().ToArray();
-
-            // Evaluate standard deviation
-            var standardDeviation = StandardDeviation(values);
-            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]. Standard deviation: [{standardDeviation}]");
-
-            // Should be less than 20 percent of total keys
-            standardDeviation.Should().BeLessThan(totalEntries * 0.2);
-        }
-
         private double StandardDeviation(int[] values)
         {
             var mean = values.Average();
