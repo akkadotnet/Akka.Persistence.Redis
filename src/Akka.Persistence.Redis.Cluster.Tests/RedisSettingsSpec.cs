@@ -7,7 +7,7 @@
 using FluentAssertions;
 using Xunit;
 
-namespace Akka.Persistence.Redis.Cluster.Test
+namespace Akka.Persistence.Redis.Cluster.Tests
 {
     public class RedisSettingsSpec : Akka.TestKit.Xunit2.TestKit
     {

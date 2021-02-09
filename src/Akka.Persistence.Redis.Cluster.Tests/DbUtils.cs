@@ -5,10 +5,9 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-using System.Linq;
 using StackExchange.Redis;
 
-namespace Akka.Persistence.Redis.Cluster.Test
+namespace Akka.Persistence.Redis.Cluster.Tests
 {
     public static class DbUtils
     {
