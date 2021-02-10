@@ -13,7 +13,7 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 using Xunit;
 
-namespace Akka.Persistence.Redis.Cluster.Test
+namespace Akka.Persistence.Redis.Cluster.Tests
 {
     [CollectionDefinition("RedisClusterSpec")]
     public sealed class RedisSpecsFixture : ICollectionFixture<RedisClusterFixture>

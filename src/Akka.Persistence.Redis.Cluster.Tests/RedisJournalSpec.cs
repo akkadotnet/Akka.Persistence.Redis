@@ -15,7 +15,7 @@ using StackExchange.Redis;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Cluster.Test
+namespace Akka.Persistence.Redis.Cluster.Tests
 {
     [Collection("RedisClusterSpec")]
     public class RedisJournalSpec : JournalSpec
