@@ -4,13 +4,12 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
 using Akka.Configuration;
 using Akka.Persistence.TestKit.Performance;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Cluster.Test
+namespace Akka.Persistence.Redis.Cluster.Tests
 {
     [Collection("RedisClusterSpec")]
     public class RedisJournalPerfSpec : JournalPerfSpec

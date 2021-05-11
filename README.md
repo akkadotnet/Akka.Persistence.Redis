@@ -34,7 +34,7 @@ akka.persistence.journal.redis {
   # qualified type name of the Redis persistence journal actor
   class = "Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis"
 
-  # connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
+  # connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
   configuration-string = ""
 
   # Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
@@ -43,7 +43,7 @@ akka.persistence.journal.redis {
 ```
 
 ### Configuration
-- `configuration-string` - connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/docs/Configuration.md#basic-configuration-strings
+- `configuration-string` - connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
 - `key-prefix` - Redis journals key prefixes. Leave it for default or change it to customized value. WARNING: don't change this value after you've started persisting data in production.
 
 ## Snapshot Store
@@ -59,7 +59,7 @@ akka.persistence.snapshot-store.redis {
   # qualified type name of the Redis persistence journal actor
   class = "Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis"
 
-  # connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Configuration.md#basic-configuration-strings
+  # connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
   configuration-string = ""
 
   # Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
@@ -68,7 +68,7 @@ akka.persistence.snapshot-store.redis {
 ```
 
 ### Configuration
-- `configuration-string` - connection string, as described here: https://github.com/StackExchange/StackExchange.Redis/blob/master/docs/Configuration.md#basic-configuration-strings
+- `configuration-string` - connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
 - `key-prefix` - Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
 
 ## Security and Access Control

@@ -9,7 +9,7 @@ using Akka.Persistence.TCK.Serialization;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Cluster.Test.Serialization
+namespace Akka.Persistence.Redis.Cluster.Tests.Serialization
 {
     [Collection("RedisClusterSpec")]
     public class RedisSnapshotStoreSerializationSpec : SnapshotStoreSerializationSpec
