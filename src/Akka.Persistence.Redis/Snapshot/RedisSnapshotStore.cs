@@ -19,8 +19,8 @@ namespace Akka.Persistence.Redis.Snapshot
         protected static readonly RedisPersistence Extension = RedisPersistence.Get(Context.System);
 
         private readonly RedisSettings _settings;
-        private Lazy<IDatabase> _database;
-        private ActorSystem _system;
+        private readonly Lazy<IDatabase> _database;
+        private readonly ActorSystem _system;
         public IDatabase Database => _database.Value;
 
         public bool IsClustered { get; private set; }
@@ -28,11 +28,6 @@ namespace Akka.Persistence.Redis.Snapshot
         public RedisSnapshotStore(Config snapshotConfig)
         {
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
-        }
-
-        protected override void PreStart()
-        {
-            base.PreStart();
 
             _system = Context.System;
             _database = new Lazy<IDatabase>(() =>

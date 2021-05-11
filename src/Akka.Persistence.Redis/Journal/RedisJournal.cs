@@ -33,7 +33,7 @@ namespace Akka.Persistence.Redis.Journal
 
         protected bool HasNewEventSubscribers => _newEventsSubscriber.Count != 0;
 
-        public RedisJournal()
+        public RedisJournal(Config journalConfig)
         {
             _settings = RedisSettings.Create(journalConfig.WithFallback(Extension.DefaultJournalConfig));
             _journalHelper = new JournalHelper(Context.System, _settings.KeyPrefix);
