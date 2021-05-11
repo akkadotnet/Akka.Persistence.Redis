@@ -39,6 +39,9 @@ namespace Akka.Persistence.Redis
 
     public class RedisPersistence : IExtension
     {
+        public const string JournalConfigPath = "akka.persistence.journal.redis";
+        public const string SnapshotConfigPath = "akka.persistence.snapshot-store.redis";
+
         public static RedisPersistence Get(ActorSystem system)
         {
             return system.WithExtension<RedisPersistence, RedisPersistenceProvider>();
@@ -49,12 +52,22 @@ namespace Akka.Persistence.Redis
             return ConfigurationFactory.FromResource<RedisPersistence>("Akka.Persistence.Redis.reference.conf");
         }
 
+        [Obsolete("This returns the default journal settings, not the current journal settings.")]
         public RedisSettings JournalSettings { get; }
+
+        [Obsolete("This returns the default snapshot settings, not the current snapshot settings.")]
         public RedisSettings SnapshotStoreSettings { get; }
+
+        public Config DefaultJournalConfig { get; }
+        public Config DefaultSnapshotConfig { get; }
 
         public RedisPersistence(ExtendedActorSystem system)
         {
-            system.Settings.InjectTopLevelFallback(DefaultConfig());
+            var defaultConfig = DefaultConfig();
+            system.Settings.InjectTopLevelFallback(defaultConfig);
+
+            DefaultJournalConfig = defaultConfig.GetConfig(JournalConfigPath);
+            DefaultSnapshotConfig = defaultConfig.GetConfig(SnapshotConfigPath);
 
             JournalSettings = RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.journal.redis"));
             SnapshotStoreSettings =

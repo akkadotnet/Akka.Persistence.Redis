@@ -10,6 +10,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Akka.Actor;
+using Akka.Configuration;
 using Akka.Persistence.Journal;
 using Akka.Util.Internal;
 using StackExchange.Redis;
@@ -18,6 +19,8 @@ namespace Akka.Persistence.Redis.Journal
 {
     public class RedisJournal : AsyncWriteJournal
     {
+        protected static readonly RedisPersistence Extension = RedisPersistence.Get(Context.System);
+
         private readonly RedisSettings _settings;
         private readonly JournalHelper _journalHelper;
         private Lazy<IDatabase> _database;
@@ -26,9 +29,9 @@ namespace Akka.Persistence.Redis.Journal
         public IDatabase Database => _database.Value;
         public bool IsClustered { get; private set; }
 
-        public RedisJournal()
+        public RedisJournal(Config journalConfig)
         {
-            _settings = RedisPersistence.Get(Context.System).JournalSettings;
+            _settings = RedisSettings.Create(journalConfig.WithFallback(Extension.DefaultJournalConfig));
             _journalHelper = new JournalHelper(Context.System, _settings.KeyPrefix);
         }
 
