@@ -1,4 +1,4 @@
-#### 1.4.17 March 17 2021 ####
+#### 1.4.19 May 30 2021 ####
 
-* Upgraded to [Akka.NET 1.4.17](https://github.com/akkadotnet/akka.net/releases/tag/1.4.17)
-* [Added Akka.Persistence.Query support for EventsByPersistenceId back](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/133)
+* Upgraded to [Akka.NET 1.4.19](https://github.com/akkadotnet/akka.net/releases/tag/1.4.19)
+* [Journal and snapshot store should obtain their configuration from Persistence](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/147)
