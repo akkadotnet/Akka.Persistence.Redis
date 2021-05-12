@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Akka.Cluster.Sharding" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.TestKit" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.Persistence.TCK" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />

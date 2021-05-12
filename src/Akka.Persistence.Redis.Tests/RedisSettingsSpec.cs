@@ -15,20 +15,22 @@ namespace Akka.Persistence.Redis.Tests
         public void Redis_JournalSettings_must_have_default_values()
         {
             var redisPersistence = RedisPersistence.Get(Sys);
+            var settings = RedisSettings.Create(redisPersistence.DefaultJournalConfig);
 
-            redisPersistence.JournalSettings.ConfigurationString.Should().Be(string.Empty);
-            redisPersistence.JournalSettings.Database.Should().Be(0);
-            redisPersistence.JournalSettings.KeyPrefix.Should().Be(string.Empty);
+            settings.ConfigurationString.Should().Be(string.Empty);
+            settings.Database.Should().Be(0);
+            settings.KeyPrefix.Should().Be(string.Empty);
         }
 
         [Fact]
         public void Redis_SnapshotStoreSettingsSettings_must_have_default_values()
         {
             var redisPersistence = RedisPersistence.Get(Sys);
+            var settings = RedisSettings.Create(redisPersistence.DefaultSnapshotConfig);
 
-            redisPersistence.SnapshotStoreSettings.ConfigurationString.Should().Be(string.Empty);
-            redisPersistence.SnapshotStoreSettings.Database.Should().Be(0);
-            redisPersistence.SnapshotStoreSettings.KeyPrefix.Should().Be(string.Empty);
+            settings.ConfigurationString.Should().Be(string.Empty);
+            settings.Database.Should().Be(0);
+            settings.KeyPrefix.Should().Be(string.Empty);
         }
     }
 }
