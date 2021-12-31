@@ -57,7 +57,7 @@ This will run the snapshot-store with its default settings. The default settings
 ```
 akka.persistence.snapshot-store.redis {
   # qualified type name of the Redis persistence journal actor
-  class = "Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis"
+  class = "Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis"
 
   # connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
   configuration-string = ""
