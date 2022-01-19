@@ -1,3 +1,6 @@
+#### 1.4.32 January 19 2022 ####
+* Upgraded to [Akka.NET 1.4.32](https://github.com/akkadotnet/akka.net/releases/tag/1.4.32)
+
 #### 1.4.31 December 21 2021 ####
 * Upgraded to [Akka.NET 1.4.31](https://github.com/akkadotnet/akka.net/releases/tag/1.4.31)
 * [Upgraded StackExchange.Redis to 2.2.88](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/179)
