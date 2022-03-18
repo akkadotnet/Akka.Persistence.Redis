@@ -45,6 +45,7 @@ akka.persistence.journal.redis {
 ### Configuration
 - `configuration-string` - connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
 - `key-prefix` - Redis journals key prefixes. Leave it for default or change it to customized value. WARNING: don't change this value after you've started persisting data in production.
+- `database` - Set the Redis default database to use. If you added `defaultDatabase` to the `connection-strings`, you have to set `database` to the value of `defaultDatabase`.
 
 ## Snapshot Store
 To activate the snapshot plugin, add the following line to your HOCON config:
