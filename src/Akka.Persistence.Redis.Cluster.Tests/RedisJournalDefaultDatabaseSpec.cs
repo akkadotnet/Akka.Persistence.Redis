@@ -32,7 +32,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             akka.persistence.journal.redis {{
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                configuration-string = ""{DbUtils.ConnectionString},defaultDatabase=0""
+                configuration-string = ""{DbUtils.ConnectionString},defaultDatabase=2""
             }}
             akka.test.single-expect-default = 3s")
                 .WithFallback(RedisPersistence.DefaultConfig());
