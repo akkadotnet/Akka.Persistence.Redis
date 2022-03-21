@@ -41,13 +41,14 @@ namespace Akka.Persistence.Redis.Journal
             _database = new Lazy<IDatabase>(() =>
             {
                 var redisConnection = ConnectionMultiplexer.Connect(_settings.ConfigurationString);
-                var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
                 IsClustered = redisConnection.IsClustered();
-
-                if (conf.DefaultDatabase.HasValue)
-                    //_settings.Database = conf.DefaultDatabase;
-                    return redisConnection.GetDatabase(conf.DefaultDatabase.Value);
-
+                if (_settings.DatabaseFromConnectionString)
+                {
+                    var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
+                    if (conf.DefaultDatabase.HasValue)
+                        return redisConnection.GetDatabase(conf.DefaultDatabase.Value);
+                }
+                
                 return redisConnection.GetDatabase(_settings.Database);
             });
         }

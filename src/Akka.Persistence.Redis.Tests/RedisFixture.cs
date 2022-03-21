@@ -91,7 +91,7 @@ namespace Akka.Persistence.Redis.Tests
             // Provide a 30 second startup delay
             await Task.Delay(TimeSpan.FromSeconds(10));
 
-            ConnectionString = $"localhost:{redisHostPort}";
+            ConnectionString = $"localhost:{redisHostPort}"; 
         }
 
         public async Task DisposeAsync()
