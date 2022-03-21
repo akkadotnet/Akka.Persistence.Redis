@@ -28,8 +28,9 @@ namespace Akka.Persistence.Redis.Tests
                         plugin = ""akka.persistence.snapshot-store.redis""
                         redis {{
                             class = ""Akka.Persistence.Redis.Snapshot.RedisSnapshotStore, Akka.Persistence.Redis""
-                            configuration-string = ""{fixture.ConnectionString},defaultDatabase=2""
+                            configuration-string = ""{fixture.ConnectionString},defaultDatabase=1""
                             plugin-dispatcher = ""akka.actor.default-dispatcher""
+                            use-database-number-from-connection-string = true
                             database = ""{id}""
                         }}
                     }}

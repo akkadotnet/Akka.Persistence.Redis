@@ -26,7 +26,8 @@ namespace Akka.Persistence.Redis.Tests
             akka.persistence.journal.redis {{
                 class = ""Akka.Persistence.Redis.Journal.RedisJournal, Akka.Persistence.Redis""
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
-                configuration-string = ""{fixture.ConnectionString},defaultDatabase=2""
+                configuration-string = ""{fixture.ConnectionString},defaultDatabase=1""
+                use-database-number-from-connection-string = true
                 database = {id}
             }}
             akka.test.single-expect-default = 3s")
