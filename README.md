@@ -48,7 +48,7 @@ akka.persistence.journal.redis {
 - `database` - Set the Redis default database to use. If you added `defaultDatabase` to the `connection-strings`, you have to set `database` to the value of `defaultDatabase`.
 - `use-database-number-from-connection-string` - determines redis database precedence when a user adds defaultDatabase to the connection-strings. For Redis Cluster, the `defaultDatabase` is 0! See below:
 
-NOTE: Redis Standalone supports deploying multiple instances, but Redis cluster does not. The default database with Redis Cluster is always 0! [cluster-spec](https://redis.io/topics/cluster-spec#implemented-subset)
+NOTE: Redis Standalone supports deploying multiple instances, but Redis cluster does not. The default database with Redis Cluster is always 0 - If you are deploying Redis Cluster, you don't need to add the `defaultDatabase` to the `connection-string`'! [cluster-spec](https://redis.io/topics/cluster-spec#implemented-subset)
 
 ## Snapshot Store
 To activate the snapshot plugin, add the following line to your HOCON config:
