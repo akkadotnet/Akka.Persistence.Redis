@@ -35,12 +35,16 @@ namespace Akka.Persistence.Redis.Snapshot
                 var redisConnection = ConnectionMultiplexer.Connect(_settings.ConfigurationString);
                 IsClustered = redisConnection.IsClustered();
 
-                if (_settings.DatabaseFromConnectionString)
+                if (_settings.DatabaseFromConnectionString && !IsClustered)
                 {
                     var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
                     if (conf.DefaultDatabase.HasValue)
                         return redisConnection.GetDatabase(conf.DefaultDatabase.Value);
                 }
+
+                // for Redis Cluster, the database is 0 https://redis.io/topics/cluster-spec#implemented-subset
+                if (IsClustered)
+                    return redisConnection.GetDatabase(0);
 
                 return redisConnection.GetDatabase(_settings.Database);
             });

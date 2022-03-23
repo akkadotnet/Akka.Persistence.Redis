@@ -23,6 +23,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
     public class RedisClusterFixture : IAsyncLifetime
     {
         protected readonly string RedisContainerName = $"redis-cluster-{Guid.NewGuid():N}";
+        protected readonly string RedisContainerName2 = $"redis-cluster-{Guid.NewGuid():N}";
         protected DockerClient Client;
 
         public RedisClusterFixture()
@@ -55,7 +56,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = "latest"}, null,
+                    new ImagesCreateParameters { FromImage = RedisImageName, Tag = "latest" }, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
@@ -63,15 +64,24 @@ namespace Akka.Persistence.Redis.Cluster.Tests
                             : $"{message.ID} {message.Status} {message.ProgressMessage}");
                     }));
 
-            var redisHostPort = ThreadLocalRandom.Current.Next(9000, 10000);
+            var redisHostPort1 = ThreadLocalRandom.Current.Next(9000, 10000);
+            var redisHostPort2 = ThreadLocalRandom.Current.Next(9000, 10000);
+
+            await CreateContainer(redisHostPort1, RedisContainerName);
+            await CreateContainer(redisHostPort2, RedisContainerName2);
+
+            ConnectionString = $"127.0.0.1:{redisHostPort1},127.0.0.1:{redisHostPort2}";
+        }
+        private async ValueTask CreateContainer(int redisHostPort, string redisContainerName)
+        {
 
             // create the container
             await Client.Containers.CreateContainerAsync(new CreateContainerParameters
             {
                 Image = RedisImageName,
-                Name = RedisContainerName,
+                Name = redisContainerName,
                 Tty = true,
-                Env = new List<string> {"IP=0.0.0.0", $"INITIAL_PORT={redisHostPort}"},
+                Env = new List<string> { "IP=0.0.0.0", $"INITIAL_PORT={redisHostPort}" },
                 ExposedPorts =
                     new Dictionary<string, EmptyStruct>
                     {
@@ -115,14 +125,11 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             });
 
             // start the container
-            await Client.Containers.StartContainerAsync(RedisContainerName, new ContainerStartParameters());
+            await Client.Containers.StartContainerAsync(redisContainerName, new ContainerStartParameters());
 
             // Provide a 10 second startup delay
             await Task.Delay(TimeSpan.FromSeconds(10));
-
-            ConnectionString = $"127.0.0.1:{redisHostPort}";
         }
-
         public async Task DisposeAsync()
         {
             if (Client != null)
@@ -130,14 +137,19 @@ namespace Akka.Persistence.Redis.Cluster.Tests
                 // Delay to make sure that all tests has completed cleanup.
                 await Task.Delay(TimeSpan.FromSeconds(5));
 
-                // Kill the container, we can't simply stop the container because Redis can hung indefinetly
-                // if we simply stop the container.
-                await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
-
-                await Client.Containers.RemoveContainerAsync(RedisContainerName,
-                    new ContainerRemoveParameters {Force = true});
+                await KillContainer(RedisContainerName);
+                await KillContainer(RedisContainerName2);
                 Client.Dispose();
             }
+        }
+        private async ValueTask KillContainer(string container)
+        {
+            // Kill the container, we can't simply stop the container because Redis can hung indefinetly
+            // if we simply stop the container.
+            await Client.Containers.KillContainerAsync(container, new ContainerKillParameters());
+
+            await Client.Containers.RemoveContainerAsync(container,
+                new ContainerRemoveParameters { Force = true });
         }
     }
 }
