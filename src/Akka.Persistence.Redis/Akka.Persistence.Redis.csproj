@@ -6,8 +6,10 @@
     <TargetFrameworks>$(NetStandardLibVersion);$(NetFrameworkLibVersion)</TargetFrameworks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <TargetFrameworks>$(NetStandardVersion)</TargetFrameworks>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <LangVersion>7.1</LangVersion>   
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>   
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
