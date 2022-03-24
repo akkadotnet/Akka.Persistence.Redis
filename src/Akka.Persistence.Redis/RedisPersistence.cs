@@ -12,11 +12,12 @@ namespace Akka.Persistence.Redis
 {
     public class RedisSettings
     {
-        public RedisSettings(string configurationString, string keyPrefix, int database)
+        public RedisSettings(string configurationString, string keyPrefix, int database, bool useDatabaseFromConnectionString)
         {
             ConfigurationString = configurationString;
             KeyPrefix = keyPrefix;
             Database = database;
+            DatabaseFromConnectionString = useDatabaseFromConnectionString; 
         }
 
         public string ConfigurationString { get; }
@@ -24,6 +25,7 @@ namespace Akka.Persistence.Redis
         public string KeyPrefix { get; }
 
         public int Database { get; }
+        public bool DatabaseFromConnectionString { get; }
 
         public static RedisSettings Create(Config config)
         {
@@ -33,7 +35,8 @@ namespace Akka.Persistence.Redis
             return new RedisSettings(
                 config.GetString("configuration-string", string.Empty),
                 config.GetString("key-prefix", string.Empty),
-                config.GetInt("database", 0));
+                config.GetInt("database", 0),
+                config.GetBoolean("use-database-number-from-connection-string"));
         }
     }
 

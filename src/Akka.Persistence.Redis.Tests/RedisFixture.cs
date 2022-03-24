@@ -24,6 +24,7 @@ namespace Akka.Persistence.Redis.Tests
     public class RedisFixture : IAsyncLifetime
     {
         protected readonly string RedisContainerName = $"redis-{Guid.NewGuid():N}";
+        protected readonly string RedisContainerName2 = $"redis-{Guid.NewGuid():N}";
         protected DockerClient Client;
 
         public RedisFixture()
@@ -64,15 +65,23 @@ namespace Akka.Persistence.Redis.Tests
                             : $"{message.ID} {message.Status} {message.ProgressMessage}");
                     }));
 
-            var redisHostPort = ThreadLocalRandom.Current.Next(9000, 10000);
+            var redisHostPort1 = ThreadLocalRandom.Current.Next(9000, 10000);
+            var redisHostPort2 = ThreadLocalRandom.Current.Next(9000, 10000);
 
+            await CreateContainer(redisHostPort1, RedisContainerName);
+            await CreateContainer(redisHostPort2, RedisContainerName2);
+
+            ConnectionString = $"localhost:{redisHostPort1},localhost:{redisHostPort2}"; 
+        }
+        private async ValueTask CreateContainer(int redisHostPort, string redisContainerName)
+        {
             // create the container
             await Client.Containers.CreateContainerAsync(new CreateContainerParameters
             {
                 Image = RedisImageName,
-                Name = RedisContainerName,
+                Name = redisContainerName,
                 Tty = true,
-                ExposedPorts = new Dictionary<string, EmptyStruct> {{"6379/tcp", new EmptyStruct()}},
+                ExposedPorts = new Dictionary<string, EmptyStruct> { { "6379/tcp", new EmptyStruct() } },
                 HostConfig = new HostConfig
                 {
                     PortBindings = new Dictionary<string, IList<PortBinding>>
@@ -86,29 +95,31 @@ namespace Akka.Persistence.Redis.Tests
 
 
             // start the container
-            await Client.Containers.StartContainerAsync(RedisContainerName, new ContainerStartParameters());
+            await Client.Containers.StartContainerAsync(redisContainerName, new ContainerStartParameters());
 
             // Provide a 30 second startup delay
             await Task.Delay(TimeSpan.FromSeconds(10));
-
-            ConnectionString = $"localhost:{redisHostPort}";
         }
-
         public async Task DisposeAsync()
         {
             if (Client != null)
             {
                 // Delay to make sure that all tests has completed cleanup.
                 await Task.Delay(TimeSpan.FromSeconds(5));
-
-                // Kill the container, we can't simply stop the container because Redis can hung indefinetly
-                // if we simply stop the container.
-                await Client.Containers.KillContainerAsync(RedisContainerName, new ContainerKillParameters());
-
-                await Client.Containers.RemoveContainerAsync(RedisContainerName,
-                    new ContainerRemoveParameters {Force = true});
+                await KillContainer(RedisContainerName);
+                await KillContainer(RedisContainerName2);
+               
                 Client.Dispose();
             }
+        }
+        private async ValueTask KillContainer(string container)
+        {
+            // Kill the container, we can't simply stop the container because Redis can hung indefinetly
+            // if we simply stop the container.
+            await Client.Containers.KillContainerAsync(container, new ContainerKillParameters());
+
+            await Client.Containers.RemoveContainerAsync(container,
+                new ContainerRemoveParameters { Force = true });
         }
     }
 }
