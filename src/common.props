@@ -44,8 +44,8 @@ Other Changes**
   </PropertyGroup>
   <PropertyGroup>
     <XunitVersion>2.4.1</XunitVersion>
-    <TestSdkVersion>16.11.0</TestSdkVersion>
-    <AkkaVersion>1.4.31</AkkaVersion>
+    <TestSdkVersion>17.1.0</TestSdkVersion>
+    <AkkaVersion>1.4.35</AkkaVersion>
     <RedisVersion>2.2.88</RedisVersion>
     <DockerVersion>3.125.5</DockerVersion>
     <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
@@ -58,6 +58,7 @@ Other Changes**
   <!-- SourceLink support for all Akka.NET projects -->
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath="\" />
   </ItemGroup>
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
