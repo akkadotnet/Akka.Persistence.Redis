@@ -43,7 +43,7 @@ Other Changes**
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
-    <XunitVersion>2.4.1</XunitVersion>
+    <XunitVersion>2.4.2</XunitVersion>
     <TestSdkVersion>17.2.0</TestSdkVersion>
     <AkkaVersion>1.4.41</AkkaVersion>
     <RedisVersion>2.2.88</RedisVersion>
