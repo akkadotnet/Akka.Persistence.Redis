@@ -44,8 +44,8 @@ Other Changes**
   </PropertyGroup>
   <PropertyGroup>
     <XunitVersion>2.4.2</XunitVersion>
-    <TestSdkVersion>17.4.0</TestSdkVersion>
-    <AkkaVersion>1.4.49</AkkaVersion>
+    <TestSdkVersion>17.5.0</TestSdkVersion>
+    <AkkaVersion>1.5.0-beta4</AkkaVersion>
     <RedisVersion>2.6.86</RedisVersion>
     <DockerVersion>3.125.12</DockerVersion>
     <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
