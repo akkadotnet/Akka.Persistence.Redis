@@ -4,6 +4,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using Akka.Configuration;
 using Akka.Persistence.TCK.Snapshot;
 using Xunit;
@@ -54,6 +55,7 @@ namespace Akka.Persistence.Redis.Tests
             Initialize();
         }
 
+        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);

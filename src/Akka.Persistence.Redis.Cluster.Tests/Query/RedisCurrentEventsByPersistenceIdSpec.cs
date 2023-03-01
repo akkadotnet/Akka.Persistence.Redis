@@ -1,4 +1,5 @@
-﻿using Akka.Configuration;
+﻿using System;
+using Akka.Configuration;
 using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Query;
@@ -36,6 +37,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests.Query
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
+        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             DbUtils.Clean();

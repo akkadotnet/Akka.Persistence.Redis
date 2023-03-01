@@ -50,6 +50,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
 
         protected override bool SupportsRejectingNonSerializableObjects { get; } = false;
 
+        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);

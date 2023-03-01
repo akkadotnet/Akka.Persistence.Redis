@@ -13,6 +13,7 @@ using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Query;
 using Xunit;
 using Xunit.Abstractions;
+using System;
 
 namespace Akka.Persistence.Redis.Tests.Query
 {
@@ -43,7 +44,7 @@ namespace Akka.Persistence.Redis.Tests.Query
         {
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
-
+        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             DbUtils.Clean(Database);

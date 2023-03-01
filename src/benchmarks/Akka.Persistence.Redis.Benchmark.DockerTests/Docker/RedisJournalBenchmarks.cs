@@ -54,6 +54,7 @@ namespace Akka.Persistence.Redis.Benchmark.DockerTests
             RunGroupBenchmark(1000, 10);
         }
 
+        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
