@@ -55,7 +55,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = "latest"}, null,
+                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = Tag}, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)
