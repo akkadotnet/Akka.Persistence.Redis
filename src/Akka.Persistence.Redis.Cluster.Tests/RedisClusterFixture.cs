@@ -39,7 +39,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
         }
 
         protected string ImageName => "grokzen/redis-cluster";
-        protected string Tag => "latest";
+        protected string Tag => "6.0.13";
         protected string RedisImageName => $"{ImageName}:{Tag}";
 
         public string ConnectionString { get; private set; }
@@ -55,7 +55,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             });
             if (images.Count == 0)
                 await Client.Images.CreateImageAsync(
-                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = "latest"}, null,
+                    new ImagesCreateParameters {FromImage = RedisImageName, Tag = Tag}, null,
                     new Progress<JSONMessage>(message =>
                     {
                         Console.WriteLine(!string.IsNullOrEmpty(message.ErrorMessage)

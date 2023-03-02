@@ -55,9 +55,9 @@ namespace Akka.Persistence.Redis.Tests
             Initialize();
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void AfterAll()
         {
-            base.Dispose(disposing);
+            base.AfterAll();
             DbUtils.Clean(Database);
         }
     }

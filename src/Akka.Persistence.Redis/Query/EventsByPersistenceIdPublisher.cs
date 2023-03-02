@@ -68,11 +68,18 @@ namespace Akka.Persistence.Redis.Query
 
         protected bool Init(object message)
         {
-            return message.Match()
-                .With<EventsByPersistenceIdPublisher.Continue>(() => { })
-                .With<Request>(_ => ReceiveInitialRequest())
-                .With<Cancel>(_ => Context.Stop(Self))
-                .WasHandled;
+            switch (message)
+            {
+                case EventsByPersistenceIdPublisher.Continue _:                   
+                    return true;
+                case Request _:
+                    ReceiveInitialRequest();
+                    return true;
+                case Cancel _:
+                    Context.Stop(Self);
+                    return true;
+            }
+            return false;
         }
 
         protected bool Idle(object message)
