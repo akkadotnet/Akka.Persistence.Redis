@@ -39,7 +39,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
         }
 
         protected string ImageName => "grokzen/redis-cluster";
-        protected string Tag => "latest";
+        protected string Tag => "6.0.13";
         protected string RedisImageName => $"{ImageName}:{Tag}";
 
         public string ConnectionString { get; private set; }
