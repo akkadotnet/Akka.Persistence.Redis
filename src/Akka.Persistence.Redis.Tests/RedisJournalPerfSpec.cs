@@ -40,7 +40,6 @@ namespace Akka.Persistence.Redis.Tests
         {
         }
 
-        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);

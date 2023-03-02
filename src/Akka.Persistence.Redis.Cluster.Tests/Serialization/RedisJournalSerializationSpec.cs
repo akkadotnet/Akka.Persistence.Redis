@@ -4,7 +4,6 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
 using Akka.Configuration;
 using Akka.Persistence.TCK.Serialization;
 using Xunit;
@@ -47,7 +46,6 @@ namespace Akka.Persistence.Redis.Cluster.Tests.Serialization
         {
         }
 
-        [Obsolete]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
