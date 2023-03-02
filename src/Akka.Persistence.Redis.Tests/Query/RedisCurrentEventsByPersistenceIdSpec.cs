@@ -44,10 +44,10 @@ namespace Akka.Persistence.Redis.Tests.Query
             ReadJournal = Sys.ReadJournalFor<RedisReadJournal>(RedisReadJournal.Identifier);
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void AfterAll()
         {
             DbUtils.Clean(Database);
-            base.Dispose(disposing);
+            base.AfterAll();
         }
     }
 }

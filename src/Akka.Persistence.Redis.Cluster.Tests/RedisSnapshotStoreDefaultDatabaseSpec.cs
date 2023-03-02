@@ -52,9 +52,9 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             Initialize();
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void AfterAll()
         {
-            base.Dispose(disposing);
+            base.AfterAll();
             DbUtils.Clean();
         }
     }
