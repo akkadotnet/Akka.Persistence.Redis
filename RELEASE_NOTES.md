@@ -1,3 +1,6 @@
+#### 1.5.0 March 3 2023 ####
+* Upgraded to [Akka.NET 1.5.0](https://github.com/akkadotnet/akka.net/releases/tag/1.5.0)
+
 #### 1.4.35 March 23 2022 ####
 * Fix default database 0 overriding StackExchange.Redis' defaultDatabase in configuration-strings [#194](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/194)
 * Upgraded to [Akka.NET 1.4.35](https://github.com/akkadotnet/akka.net/releases/tag/1.4.35)
