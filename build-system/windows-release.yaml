@@ -21,11 +21,15 @@ variables:
   - name: githubRepositoryName
     value: akkadotnet/Akka.Persistence.Redis
 steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET 7 SDK'
+  inputs:
+    version: 7.x
 - task: BatchScript@1
   displayName: 'FAKE Build'
   inputs:
     filename: build.cmd
-    arguments: 'Nuget SignClientUser=$(signingUsername) SignClientSecret=$(signingPassword) nugetpublishurl=https://www.nuget.org/api/v2/package nugetkey=$(nugetKey)'
+    arguments: 'Nuget nugetpublishurl=https://www.nuget.org/api/v2/package nugetkey=$(nugetKey)'
 
 - task: GitHubRelease@0
   displayName: 'GitHub release (create)'
