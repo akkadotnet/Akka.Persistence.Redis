@@ -27,6 +27,6 @@ jobs:
     parameters:
       name: 'linux_pr'
       displayName: 'Linux PR Validation'
-      vmImage: 'ubuntu-20.04'
+      vmImage: 'ubuntu-latest'
       scriptFileName: ./build.sh
       scriptArgs: RunTests
