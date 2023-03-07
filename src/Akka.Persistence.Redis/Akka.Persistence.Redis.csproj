@@ -5,7 +5,7 @@
     <AssemblyTitle>Akka.Persistence.Redis</AssemblyTitle>
     <TargetFrameworks>$(NetStandardLibVersion);$(NetFrameworkLibVersion)</TargetFrameworks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <TargetFrameworks>$(NetStandardVersion)</TargetFrameworks>
+    <TargetFramework>$(NetStandardVersion)</TargetFramework>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <LangVersion>7.1</LangVersion>   
     <GenerateDocumentationFile>true</GenerateDocumentationFile>   
@@ -22,7 +22,5 @@
     <PackageReference Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
     <PackageReference Include="Akka.Streams" Version="$(AkkaVersion)" />
     <PackageReference Include="StackExchange.Redis" Version="$(RedisVersion)" />
-    <PackageReference Include="Akka.Persistence" Version="$(AkkaVersion)" />
-    <PackageReference Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
   </ItemGroup>
 </Project>
