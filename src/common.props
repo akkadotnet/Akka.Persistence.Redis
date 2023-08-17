@@ -44,7 +44,7 @@ Other Changes**
   </PropertyGroup>
   <PropertyGroup>
     <XunitVersion>2.4.2</XunitVersion>
-    <TestSdkVersion>17.6.3</TestSdkVersion>
+    <TestSdkVersion>17.7.1</TestSdkVersion>
     <AkkaVersion>1.5.8</AkkaVersion>
     <RedisVersion>2.6.111</RedisVersion>
     <DockerVersion>3.125.15</DockerVersion>
