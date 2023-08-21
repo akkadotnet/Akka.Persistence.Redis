@@ -48,9 +48,9 @@ Other Changes**
     <AkkaVersion>1.5.8</AkkaVersion>
     <RedisVersion>2.6.111</RedisVersion>
     <DockerVersion>3.125.15</DockerVersion>
-    <NetCoreTestVersion>netcoreapp3.1</NetCoreTestVersion>
+    <NetTestVersion>net7.0</NetTestVersion>
     <NetStandardVersion>netstandard2.0</NetStandardVersion>
-    <NetFrameworkTestVersion>net461</NetFrameworkTestVersion>
+    <NetFrameworkTestVersion>net471</NetFrameworkTestVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
