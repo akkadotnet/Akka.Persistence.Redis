@@ -1,6 +1,6 @@
 # Akka.Persistence.Redis 
 
-![Akka.NET logo](docs/images/AkkaNetLogo.Normal.png)
+![Akka.NET logo](https://github.com/akkadotnet/Akka.Persistence.Redis/blob/dev/docs/images/AkkaNetLogo.Normal.png)
 
 [![NuGet Version](http://img.shields.io/nuget/v/Akka.Persistence.Redis.svg?style=flat)](https://www.nuget.org/packages/Akka.Persistence.Redis)
 

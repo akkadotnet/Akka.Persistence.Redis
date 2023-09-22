@@ -1,7 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\common.props" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>$(NetCoreTestVersion)</TargetFramework>
+    <TargetFramework>$(NetTestVersion)</TargetFramework>
     <RootNamespace>Akka.Persistence.Redis.BenchmarkTests.Docker</RootNamespace>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -11,18 +10,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(TestSdkVersion)" />
-    <PackageReference Include="Docker.DotNet" Version="$(DockerVersion)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Docker.DotNet" />
     <!-- Needed by Redis to run -->
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
-    <PackageReference Include="Akka" Version="$(AkkaVersion)" />
-    <PackageReference Include="xunit" Version="2.4.2" />
-    <PackageReference Include="JetBrains.dotMemoryUnit" Version="3.2.20220510" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.2">
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
+    <PackageReference Include="Akka" />
+    <PackageReference Include="JetBrains.dotMemoryUnit" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="3.2.0">
+    <PackageReference Include="coverlet.collector">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

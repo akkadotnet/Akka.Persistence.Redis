@@ -1,0 +1,40 @@
+<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <AkkaVersion>1.5.8</AkkaVersion>
+    </PropertyGroup>
+    <!-- Library dependencies -->
+    <ItemGroup>
+        <PackageVersion Include="Akka" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.Persistence" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.Streams" Version="$(AkkaVersion)" />
+        <PackageVersion Include="StackExchange.Redis" Version="2.6.111" />
+    </ItemGroup>
+    <!-- Test dependencies -->
+    <ItemGroup>
+        <PackageVersion Include="Akka.Cluster.Sharding" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.TestKit" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.Persistence.TCK" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />
+        <PackageVersion Include="Akka.Streams.TestKit" Version="$(AkkaVersion)" />
+
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.6.3" />
+        <!-- Needed by Redis to run -->
+        <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+        <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
+        <PackageVersion Include="xunit" Version="2.4.2" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.2" />
+
+        <PackageVersion Include="coverlet.collector" Version="3.2.0" /> 
+        <PackageVersion Include="JetBrains.dotMemoryUnit" Version="3.2.20220510" />
+    </ItemGroup>
+    <!--Custom Serialization Examples-->
+    <ItemGroup>
+        <PackageVersion Include="MessagePack" Version="2.5.108" />
+    </ItemGroup>
+    <!-- SourceLink support for all Akka.NET projects -->
+    <ItemGroup>
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1 "/>
+    </ItemGroup>
+</Project>

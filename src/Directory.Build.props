@@ -1,0 +1,41 @@
+<Project>
+  <PropertyGroup>
+    <Copyright>Copyright © 2013-2023 Akka.NET Project</Copyright>
+    <Authors>Akka.NET</Authors>
+    <VersionPrefix>1.5.0</VersionPrefix>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NetTestVersion>net7.0</NetTestVersion>
+    <NetStandardVersion>netstandard2.0</NetStandardVersion>
+    <NetFrameworkTestVersion>net471</NetFrameworkTestVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
+  </PropertyGroup>
+  <!-- SourceLink support for all Akka.NET projects -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)\..\docs\images\icon.png" Pack="true" Visible="false" PackagePath="\" />
+  </ItemGroup>
+  <!-- NuGet package properties -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <!-- Optional: Embed source files that are not tracked by the source control manager in the PDB -->
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReleaseNotes>Upgraded to [Akka.NET 1.5.0](https://github.com/akkadotnet/akka.net/releases/tag/1.5.0)
+Upgraded [StackExchange.Redis 2.6.86](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/232)</PackageReleaseNotes>
+  </PropertyGroup>
+</Project>
