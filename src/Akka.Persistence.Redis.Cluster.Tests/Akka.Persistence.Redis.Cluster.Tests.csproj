@@ -11,7 +11,7 @@
 
     <!-- disable .NET Framework (Mono) on Linux-->
     <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-        <TargetFrameworks>$(NetTestVersion)</TargetFrameworks>
+        <TargetFramework>$(NetTestVersion)</TargetFramework>
     </PropertyGroup>
 
 

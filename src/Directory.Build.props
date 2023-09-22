@@ -1,55 +1,14 @@
 <Project>
   <PropertyGroup>
-    <Copyright>Copyright © 2013-2021 Akka.NET Project</Copyright>
+    <Copyright>Copyright © 2013-2023 Akka.NET Project</Copyright>
     <Authors>Akka.NET</Authors>
-    <VersionPrefix>1.4.16</VersionPrefix>
-    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
-    <PackageIconUrl>http://getakka.net/images/AkkaNetLogo.Normal.png</PackageIconUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/akkadotnet/Akka.Persistence.Redis/blob/dev/LICENSE</PackageLicenseUrl>
-    <PackageReleaseNotes>This is a major update to the Akka.Persistence.Redis plugin.
-Enabled Redis Cluster Support**
-Akka.Persistence.Redis will now automatically detect whether or not you are running in clustered mode via your Redis connection string and will distribute journal entries and snapshots accordingly.
-All journal entries and all snapshots for a single entity will all reside inside the same Redis host cost - [using Redis' consistent hash distribution tagging](https://redis.io/topics/cluster-tutorial) scheme.
-Significant Performance Improvements**
-Akka.Persistence.Redis' write throughput was improved significantly in Akka.Persistence.Redis v1.4.16:
-| Test            | Akka.Persistence.Redis v1.4.4 (msg/s) | current PR (msg/s) |
-|-----------------|---------------------------------------|--------------------|
-| Persist         | 782                                   | 772                |
-| PersistAll      | 15019                                 | 20275              |
-| PersistAsync    | 9496                                  | 13131              |
-| PersistAllAsync | 32765                                 | 44776              |
-| PersistGroup10  | 611                                   | 6523               |
-| PersistGroup100 | 8878                                  | 12533              |
-| PersistGroup200 | 9598                                  | 12214              |
-| PersistGroup25  | 9209                                  | 10819              |
-| PersistGroup400 | 9209                                  | 11824              |
-| PersistGroup50  | 9506                                  | 9704               |
-| Recovering      | 17374                                 | 20119              |
-| Recovering8     | 36915                                 | 37290              |
-| RecoveringFour  | 22432                                 | 20884              |
-| RecoveringTwo   | 22209                                 | 21222              |
-These numbers were generated running a single Redis instance inside a Docker container on Docker for Windows - real-world values generated in cloud environments will likely be much higher.
-Removed Akka.Persistence.Query Support**
-In order to achieve support for clustering and improved write performance, we made the descision to drop Akka.Persistence.Query support from Akka.Persistence.Redis at this time - if you wish to learn more about our decision-making process or if you are affected by this change, please comment on this thread here: https://github.com/akkadotnet/Akka.Persistence.Redis/issues/126
-Other Changes**
-- Bump [Akka.NET to version 1.4.16](https://github.com/akkadotnet/akka.net/releases/tag/1.4.16)
-- Modernized Akka.NET Serialization calls
-- [Added benchmarks](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/118)
-- Upgraded to [StackExchange.Redis 2.2.11](https://github.com/StackExchange/StackExchange.Redis/blob/main/docs/ReleaseNotes.md)
-- Improved documentation</PackageReleaseNotes>
+    <VersionPrefix>1.5.0</VersionPrefix>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
-    <XunitVersion>2.4.2</XunitVersion>
-    <TestSdkVersion>17.6.3</TestSdkVersion>
-    <AkkaVersion>1.5.8</AkkaVersion>
-    <RedisVersion>2.6.111</RedisVersion>
-    <DockerVersion>3.125.15</DockerVersion>
     <NetTestVersion>net7.0</NetTestVersion>
     <NetStandardVersion>netstandard2.0</NetStandardVersion>
     <NetFrameworkTestVersion>net471</NetFrameworkTestVersion>
@@ -61,7 +20,9 @@ Other Changes**
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)\..\docs\images\icon.png" Pack="true" Visible="false" PackagePath="\" />
   </ItemGroup>
+  <!-- NuGet package properties -->
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <!-- Optional: Embed source files that are not tracked by the source control manager in the PDB -->
@@ -69,5 +30,12 @@ Other Changes**
     <!-- Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageTags>akka;actors;actor model;Akka;concurrency;persistence;eventsource;redis</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReleaseNotes>Upgraded to [Akka.NET 1.5.0](https://github.com/akkadotnet/akka.net/releases/tag/1.5.0)
+Upgraded [StackExchange.Redis 2.6.86](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/232)</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
