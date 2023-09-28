@@ -20,9 +20,24 @@ public class RedisSnapshotOptions : SnapshotOptions
         Identifier = identifier;
     }
 
+    /// <summary>
+    /// Connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
+    /// </summary>
     public string ConfigurationString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
+    /// </summary>
     public string? KeyPrefix { get; set; }
+
+    /// <summary>
+    /// Set the Redis default database to use. If you added defaultDatabase to the connection-strings, you have to set database to the value of defaultDatabase.
+    /// </summary>
     public int? Database { get; set; }
+
+    /// <summary>
+    /// Determines redis database precedence when a user adds defaultDatabase to the connection-strings. For Redis Cluster, the defaultDatabase is 0
+    /// </summary>
     public bool? UseDatabaseFromConnectionString { get; set; }
 
     public override string Identifier { get; set; }

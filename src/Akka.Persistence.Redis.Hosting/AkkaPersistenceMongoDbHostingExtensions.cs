@@ -16,8 +16,8 @@ public static class AkkaPersistenceRedisHostingExtensions
     /// <param name="builder">
     ///     The builder instance being configured.
     /// </param>
-    /// <param name="connectionString">
-    ///     Connection string used for database access.
+    /// <param name="configurationString">
+    ///     Connection string as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings.
     /// </param>
     /// <param name="mode">
     ///     <para>
@@ -185,8 +185,7 @@ public static class AkkaPersistenceRedisHostingExtensions
         RedisSnapshotOptions? snapshotOptions = null)
     {
         if (journalOptions is null && snapshotOptions is null)
-            throw new ArgumentException(
-                $"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null");
+            throw new ArgumentException($"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null");
 
         return (journalOptions, snapshotOptions) switch
         {
