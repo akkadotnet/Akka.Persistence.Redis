@@ -16,6 +16,7 @@
 
   
   <ItemGroup>
+    <ProjectReference Include="..\Akka.Persistence.Redis.Hosting\Akka.Persistence.Redis.Hosting.csproj" />
     <ProjectReference Include="..\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj" />
   </ItemGroup>
 
