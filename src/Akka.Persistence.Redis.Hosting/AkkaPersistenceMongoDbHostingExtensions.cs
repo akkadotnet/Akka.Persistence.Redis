@@ -11,7 +11,7 @@ namespace Akka.Persistence.Redis.Hosting;
 public static class AkkaPersistenceRedisHostingExtensions
 {
     /// <summary>
-    ///     Adds Akka.Persistence.SqlServer support to this <see cref="ActorSystem"/>.
+    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/>.
     /// </summary>
     /// <param name="builder">
     ///     The builder instance being configured.
@@ -27,7 +27,7 @@ public static class AkkaPersistenceRedisHostingExtensions
     /// </param>
     /// <param name="autoInitialize">
     ///     <para>
-    ///         Should the SQL store table be initialized automatically.
+    ///         Should the redis store table be initialized automatically.
     ///     </para>
     ///     <i>Default</i>: <c>false</c>
     /// </param>
@@ -41,7 +41,7 @@ public static class AkkaPersistenceRedisHostingExtensions
     ///     <para>
     ///         The configuration identifier for the plugins
     ///     </para>
-    ///     <i>Default</i>: <c>"sql-server"</c>
+    ///     <i>Default</i>: <c>"redis"</c>
     /// </param>
     /// <param name="isDefaultPlugin">
     ///     <para>
@@ -62,7 +62,7 @@ public static class AkkaPersistenceRedisHostingExtensions
         PersistenceMode mode = PersistenceMode.Both,
         bool autoInitialize = true,
         Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
-        string pluginIdentifier = "Redis",
+        string pluginIdentifier = "redis",
         bool isDefaultPlugin = true)
     {
         if (mode == PersistenceMode.SnapshotStore && journalBuilder is { })

@@ -64,11 +64,11 @@ public static AkkaConfigurationBuilder WithRedisPersistence(
 
 * `journalOptions` __RedisJournalOptions__
 
-  An `RedisJournalOptions` instance to configure the SqlServer journal.
+  An `RedisJournalOptions` instance to configure the Redis journal store.
 
 * `snapshotOptions` __RedisSnapshotOptions__
 
-  An `RedisSnapshotOptions` instance to configure the SqlServer snapshot store.
+  An `RedisSnapshotOptions` instance to configure the Redis snapshot store.
 
 ## Example
 
