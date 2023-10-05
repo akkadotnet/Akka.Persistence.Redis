@@ -152,6 +152,30 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
                 $"Workers: {numGroup} , Average time: {avgTime} ms, {msgPerSec} msg/sec/actor, {msgPerSecTotal} total msg/sec.");
         }
 
+        internal async Task MeasureGroupAsync(Func<TimeSpan, string> msg, Func<Task> block, int numMsg, int numGroup)
+        {
+            var measurements = new List<TimeSpan>(MeasurementIterations);
+
+            await block(); //warm-up
+
+            var i = 0;
+            while (i < MeasurementIterations)
+            {
+                var sw = Stopwatch.StartNew();
+                await block();
+                sw.Stop();
+                measurements.Add(sw.Elapsed);
+                Output.WriteLine(msg(sw.Elapsed));
+                i++;
+            }
+
+            var avgTime = measurements.Select(c => c.TotalMilliseconds).Sum() / MeasurementIterations;
+            var msgPerSec = numMsg / avgTime * 1000;
+            var msgPerSecTotal = numMsg * numGroup / avgTime * 1000;
+            Output.WriteLine(
+                $"Workers: {numGroup} , Average time: {avgTime} ms, {msgPerSec} msg/sec/actor, {msgPerSecTotal} total msg/sec.");
+        }
+
         [DotMemoryUnit(CollectAllocations = true, FailIfRunWithoutSupport = false)]
         [Fact]
         public void DotMemory_PersistenceActor_performance_must_measure_Persist()
@@ -337,13 +361,13 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
         }
 
         [Fact]
-        public void PersistenceActor_performance_must_measure_RecoveringTwo()
+        public async Task PersistenceActor_performance_must_measure_RecoveringTwo()
         {
             var p1 = BenchActorNewProbe("DoublePersistRecoverPid1", EventsCount);
             var p2 = BenchActorNewProbe("DoublePersistRecoverPid2", EventsCount);
             FeedAndExpectLastSpecific(p1, "p", Commands);
             FeedAndExpectLastSpecific(p2, "p", Commands);
-            MeasureGroup(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", () =>
+            await MeasureGroupAsync(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", async () =>
             {
                 var task1 = Task.Run(() =>
                 {
@@ -356,12 +380,12 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
                     var refAndProbe = BenchActorNewProbe("DoublePersistRecoverPid2", EventsCount);
                     refAndProbe.probe.ExpectMsg(Commands.Last(), ExpectDuration);
                 });
-                Task.WaitAll(new[] {task1, task2});
+                await Task.WhenAll(task1, task2);
             }, EventsCount, 2);
         }
 
         [Fact]
-        public void PersistenceActor_performance_must_measure_RecoveringFour()
+        public async Task PersistenceActor_performance_must_measure_RecoveringFour()
         {
             var p1 = BenchActorNewProbe("QuadPersistRecoverPid1", EventsCount);
             var p2 = BenchActorNewProbe("QuadPersistRecoverPid2", EventsCount);
@@ -371,7 +395,7 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
             FeedAndExpectLastSpecific(p2, "p", Commands);
             FeedAndExpectLastSpecific(p3, "p", Commands);
             FeedAndExpectLastSpecific(p4, "p", Commands);
-            MeasureGroup(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", () =>
+            await MeasureGroupAsync(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", async () =>
             {
                 var task1 = Task.Run(() =>
                 {
@@ -394,12 +418,12 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
                     var refAndProbe = BenchActorNewProbe("QuadPersistRecoverPid4", EventsCount);
                     refAndProbe.probe.ExpectMsg(Commands.Last(), ExpectDuration);
                 });
-                Task.WaitAll(new[] {task1, task2, task3, task4});
+                await Task.WhenAll(task1, task2, task3, task4);
             }, EventsCount, 4);
         }
 
         [Fact]
-        public void PersistenceActor_performance_must_measure_Recovering8()
+        public async Task PersistenceActor_performance_must_measure_Recovering8()
         {
             var p1 = BenchActorNewProbe("OctPersistRecoverPid1", EventsCount);
             var p2 = BenchActorNewProbe("OctPersistRecoverPid2", EventsCount);
@@ -417,7 +441,7 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
             FeedAndExpectLastSpecific(p6, "p", Commands);
             FeedAndExpectLastSpecific(p7, "p", Commands);
             FeedAndExpectLastSpecific(p8, "p", Commands);
-            MeasureGroup(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", () =>
+            await MeasureGroupAsync(d => $"Recovering {EventsCount} took {d.TotalMilliseconds} ms", async () =>
             {
                 var task1 = Task.Run(() =>
                 {
@@ -460,7 +484,7 @@ namespace Akka.Persistence.Redis.BenchmarkTests.Docker
                     var refAndProbe = BenchActorNewProbe("OctPersistRecoverPid8", EventsCount);
                     refAndProbe.probe.ExpectMsg(Commands.Last(), ExpectDuration);
                 });
-                Task.WaitAll(new[] {task1, task2, task3, task4, task5, task6, task7, task8});
+                await Task.WhenAll(task1, task2, task3, task4, task5, task6, task7, task8);
             }, EventsCount, 8);
         }
     }
