@@ -12,8 +12,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Docker.DotNet" />
-    <!-- Needed by Redis to run -->
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
     <PackageReference Include="Akka" />
     <PackageReference Include="JetBrains.dotMemoryUnit" />
     <PackageReference Include="xunit" />

@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <AssemblyTitle>Akka.Persistence.Redis.Cluster.Tests</AssemblyTitle>
-        <TargetFrameworks>$(NetFrameworkTestVersion);$(NetTestVersion)</TargetFrameworks>
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
@@ -21,8 +20,6 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <!-- Needed by Redis to run -->
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
         <PackageReference Include="Docker.DotNet" />
         <PackageReference Include="xunit" />
         <PackageReference Include="xunit.runner.visualstudio">
