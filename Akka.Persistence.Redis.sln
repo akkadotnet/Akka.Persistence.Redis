@@ -34,6 +34,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Benc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Hosting", "src\Akka.Persistence.Redis.Hosting\Akka.Persistence.Redis.Hosting.csproj", "{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build-system", "build-system", "{D118A7A7-A89D-450D-8218-E2AE580DEF5D}"
+	ProjectSection(SolutionItems) = preProject
+		build-system\azure-pipeline.template.yaml = build-system\azure-pipeline.template.yaml
+		build-system\pr-validation.yaml = build-system\pr-validation.yaml
+		build-system\README.md = build-system\README.md
+		build-system\windows-release.yaml = build-system\windows-release.yaml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +84,7 @@ Global
 		{6EEB8234-FAB9-4645-86EF-297240B3798A} = {1F453772-CA5E-4F41-A50E-75F3F59F72D6}
 		{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F} = {1F453772-CA5E-4F41-A50E-75F3F59F72D6}
 		{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9} = {DA31E2A8-AE1A-474D-843C-1B6848B921E2}
+		{D118A7A7-A89D-450D-8218-E2AE580DEF5D} = {EB67BFB9-7589-469F-B0E0-6DDFC0032E67}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6ADAF1F3-8019-4D3E-A8B0-2BF7CF7B439B}
