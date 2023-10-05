@@ -11,8 +11,6 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <!-- Needed by Redis to run -->
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
         <PackageReference Include="Docker.DotNet" />
         <PackageReference Include="xunit" />
         <PackageReference Include="xunit.runner.visualstudio">
