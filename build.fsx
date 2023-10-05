@@ -331,6 +331,7 @@ Target "Nuget" DoNothing
 
 // tests dependencies
 "Build" ==> "RunTests"
+"Build" ==> "RunTestsNet"
 
 // nuget dependencies
 "Clean" ==> "Build" ==> "CreateNuget"
@@ -342,6 +343,7 @@ Target "Nuget" DoNothing
 // all
 "BuildRelease" ==> "All"
 "RunTests" ==> "All"
+"RunTestsNet" ==> "All"
 "NBench" ==> "All"
 "Nuget" ==> "All"
 
