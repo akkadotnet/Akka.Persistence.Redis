@@ -1,3 +1,9 @@
+#### 1.5.13 October 6 2023 ####
+
+* Upgraded to [Akka.NET 1.5.13](https://github.com/akkadotnet/akka.net/releases/tag/1.5.13)
+* [First release of Akka.Persistence.Redis.Hosting v1.5.13](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/283)
+* [Bump StackExchange.Redis to 2.6.122](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/269)
+
 #### 1.5.0 March 3 2023 ####
 * Upgraded to [Akka.NET 1.5.0](https://github.com/akkadotnet/akka.net/releases/tag/1.5.0)
 * Upgraded [StackExchange.Redis 2.6.86](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/232)
