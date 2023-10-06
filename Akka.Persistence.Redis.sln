@@ -32,6 +32,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Akka.Persistence.Redis.Benchmark.DockerTests", "src\benchmarks\Akka.Persistence.Redis.Benchmark.DockerTests\Akka.Persistence.Redis.Benchmark.DockerTests.csproj", "{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Hosting", "src\Akka.Persistence.Redis.Hosting\Akka.Persistence.Redis.Hosting.csproj", "{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build-system", "build-system", "{D118A7A7-A89D-450D-8218-E2AE580DEF5D}"
 	ProjectSection(SolutionItems) = preProject
 		build-system\azure-pipeline.template.yaml = build-system\azure-pipeline.template.yaml
@@ -70,6 +72,10 @@ Global
 		{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
