@@ -5,14 +5,15 @@
 // -----------------------------------------------------------------------
 
 using Akka.Configuration;
+using Akka.Persistence.Redis.Cluster.Tests;
 using Akka.Persistence.TestKit.Performance;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Akka.Persistence.Redis.Cluster.Tests
+namespace Akka.Persistence.Redis.Tests.Perf
 {
     [Collection("RedisClusterSpec")]
-    public class RedisJournalPerfSpec : JournalPerfSpec
+    public class RedisClusterJournalPerfSpec : JournalPerfSpec
     {
         public static Config Config(RedisClusterFixture fixture)
         {
@@ -31,8 +32,8 @@ namespace Akka.Persistence.Redis.Cluster.Tests
                 .WithFallback(Persistence.DefaultConfig());
         }
 
-        public RedisJournalPerfSpec(ITestOutputHelper output, RedisClusterFixture fixture)
-            : base(Config(fixture), nameof(RedisJournalPerfSpec), output)
+        public RedisClusterJournalPerfSpec(ITestOutputHelper output, RedisClusterFixture fixture)
+            : base(Config(fixture), nameof(RedisClusterJournalPerfSpec), output)
         {
         }
 
