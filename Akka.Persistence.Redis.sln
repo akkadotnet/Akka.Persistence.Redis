@@ -42,6 +42,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build-system", "build-syste
 		build-system\windows-release.yaml = build-system\windows-release.yaml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.Redis.Tests.Perf", "src\benchmarks\Akka.Persistence.Redis.Tests.Perf\Akka.Persistence.Redis.Tests.Perf.csproj", "{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +78,10 @@ Global
 		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80BD65FD-3AB6-4AF1-B0CD-573C9D50DB1E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -85,6 +91,7 @@ Global
 		{90084FC1-C04B-46BF-AA37-2ACD71E1AD4F} = {1F453772-CA5E-4F41-A50E-75F3F59F72D6}
 		{BFBB3933-E8FC-4574-8D60-E6FA6BEABAE9} = {DA31E2A8-AE1A-474D-843C-1B6848B921E2}
 		{D118A7A7-A89D-450D-8218-E2AE580DEF5D} = {EB67BFB9-7589-469F-B0E0-6DDFC0032E67}
+		{BE9CD3E1-53C4-4FDE-9DD9-DD0D4C49F234} = {DA31E2A8-AE1A-474D-843C-1B6848B921E2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6ADAF1F3-8019-4D3E-A8B0-2BF7CF7B439B}
