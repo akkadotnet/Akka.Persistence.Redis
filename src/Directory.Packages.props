@@ -7,7 +7,7 @@
     <ItemGroup>
         <PackageVersion Include="Akka" Version="$(AkkaVersion)" />
         <PackageVersion Include="Akka.Persistence" Version="$(AkkaVersion)" />
-        <PackageVersion Include="Akka.Persistence.Hosting" Version="1.5.22" />
+        <PackageVersion Include="Akka.Persistence.Hosting" Version="1.5.24" />
         <PackageVersion Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
         <PackageVersion Include="Akka.Streams" Version="$(AkkaVersion)" />
         <PackageVersion Include="StackExchange.Redis" Version="2.7.33" />
