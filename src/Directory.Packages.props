@@ -10,7 +10,7 @@
         <PackageVersion Include="Akka.Persistence.Hosting" Version="1.5.27" />
         <PackageVersion Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
         <PackageVersion Include="Akka.Streams" Version="$(AkkaVersion)" />
-        <PackageVersion Include="StackExchange.Redis" Version="2.8.0" />
+        <PackageVersion Include="StackExchange.Redis" Version="2.8.14" />
     </ItemGroup>
     <!-- Test dependencies -->
     <ItemGroup>
