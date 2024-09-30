@@ -80,8 +80,33 @@ namespace Akka.Persistence.Redis.Snapshot
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata)
         {
-            await Database.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(metadata.PersistenceId, IsClustered), metadata.SequenceNr,
-                metadata.SequenceNr);
+            if(metadata.Timestamp == DateTime.MinValue)
+            {
+                await Database.SortedSetRemoveRangeByScoreAsync(
+                    GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                    metadata.SequenceNr,
+                    metadata.SequenceNr);
+                return;
+            }
+            
+            var snapshots = await Database.SortedSetRangeByScoreAsync(
+                key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                start: metadata.SequenceNr,
+                stop: 0L,
+                exclude: Exclude.None,
+                order: Order.Descending);
+
+            var found = snapshots
+                .Select(c => PersistentFromBytes(c))
+                .Where(snapshot => snapshot.Metadata.Timestamp <= metadata.Timestamp &&
+                                   snapshot.Metadata.SequenceNr == metadata.SequenceNr)
+                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(
+                    key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                    start: s.Metadata.SequenceNr, 
+                    stop: s.Metadata.SequenceNr))
+                .ToArray();
+
+            await Task.WhenAll(found);
         }
 
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
