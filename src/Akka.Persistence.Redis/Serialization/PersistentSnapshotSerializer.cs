@@ -11,7 +11,10 @@ using Akka.Persistence.Serialization.Proto.Msg;
 using Akka.Serialization;
 using Akka.Util;
 using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
+using Type = System.Type;
 
+#nullable enable
 namespace Akka.Persistence.Redis.Serialization
 {
     public class PersistentSnapshotSerializer : Serializer
@@ -26,12 +29,13 @@ namespace Akka.Persistence.Redis.Serialization
         {
             if (obj is SelectedSnapshot snapshot)
             {
-                var snapshotMessage = new SnapshotMessage();
-                snapshotMessage.PersistenceId = snapshot.Metadata.PersistenceId;
-                snapshotMessage.SequenceNr = snapshot.Metadata.SequenceNr;
-                snapshotMessage.TimeStamp =
-                    Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(snapshot.Metadata.Timestamp);
-                snapshotMessage.Payload = GetPersistentPayload(snapshot.Snapshot);
+                var snapshotMessage = new SnapshotMessage
+                {
+                    PersistenceId = snapshot.Metadata.PersistenceId, 
+                    SequenceNr = snapshot.Metadata.SequenceNr,
+                    TimeStamp = DateTime.SpecifyKind(snapshot.Metadata.Timestamp, DateTimeKind.Utc).ToTimestamp(),
+                    Payload = GetPersistentPayload(snapshot.Snapshot)
+                };
                 return snapshotMessage.ToByteArray();
             }
 
