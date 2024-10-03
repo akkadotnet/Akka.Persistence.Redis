@@ -1,4 +1,16 @@
+#### 1.5.30 October 3rd 2024 ####
+
+* Upgraded to [Akka.NET 1.5.30](https://github.com/akkadotnet/akka.net/releases/tag/1.5.30)
+* Upgraded to [Akka.Hosting 1.5.30](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.30)
+* [Bump StackExchange.Redis to 2.8.0](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/345)
+
 #### 1.5.29 October 1st 2024 ####
+
+> [!NOTE]
+>
+> **Deprecated**
+>
+> Deprecated due to Akka.NET 1.5.29 deprecation. Please use 1.5.30 instead.
 
 * Upgraded to [Akka.NET 1.5.29](https://github.com/akkadotnet/akka.net/releases/tag/1.5.29)
 * Upgraded to [Akka.Hosting 1.5.29](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.29)
