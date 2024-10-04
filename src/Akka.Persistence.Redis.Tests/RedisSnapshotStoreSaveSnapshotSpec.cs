@@ -12,6 +12,9 @@ using Xunit.Abstractions;
 #nullable enable
 namespace Akka.Persistence.Redis.Tests;
 
+// These would fail until Akka.NET 1.5.31 
+// Would need https://github.com/akkadotnet/akka.net/pull/7356 to work properly.
+/*
 [Collection("RedisSpec")]
 public class RedisSnapshotStoreSaveSnapshotSpec: SnapshotStoreSaveSnapshotSpec
 {
@@ -61,3 +64,4 @@ public class RedisSnapshotStoreSaveSnapshotSpec: SnapshotStoreSaveSnapshotSpec
     }
 
 }
+*/
