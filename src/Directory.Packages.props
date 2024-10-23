@@ -30,7 +30,7 @@
     </ItemGroup>
     <!--Custom Serialization Examples-->
     <ItemGroup>
-        <PackageVersion Include="MessagePack" Version="2.5.172" />
+        <PackageVersion Include="MessagePack" Version="2.5.187" />
     </ItemGroup>
     <!-- SourceLink support for all Akka.NET projects -->
     <ItemGroup>
