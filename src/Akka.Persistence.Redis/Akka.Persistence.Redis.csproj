@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyTitle>Akka.Persistence.Redis</AssemblyTitle>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <TargetFramework>$(NetStandardVersion)</TargetFramework>
+    <TargetFrameworks>$(NetStandardVersion);$(NetVersion)</TargetFrameworks>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
   </PropertyGroup>
