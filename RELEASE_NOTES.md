@@ -1,3 +1,9 @@
+#### 1.5.37 January 23rd 2025 ####
+
+* Upgraded to [Akka.NET 1.5.37](https://github.com/akkadotnet/akka.net/releases/tag/1.5.37)
+* Upgraded to [Akka.Hosting 1.5.37](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.37)
+* [Bump StackExchange.Redis to 2.8.16](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/359)
+
 #### 1.5.30 October 3rd 2024 ####
 
 * Upgraded to [Akka.NET 1.5.30](https://github.com/akkadotnet/akka.net/releases/tag/1.5.30)
