@@ -11,22 +11,22 @@ pr:
   branches:
     include: [ dev, master ] # branch names which will trigger a build
 
-name: $(Year:yyyy).$(Month).$(DayOfMonth)$(Rev:.r)
+name: $(SourceBranchName)_$(Year:yyyy).$(Month).$(DayOfMonth)$(Rev:.r)
 
 jobs:
   # Windows testing is disabled, Redis linux container can not run in windows docker.
-#  - template: azure-pipeline.template.yaml
-#    parameters:
-#      name: 'windows_pr'
-#      displayName: 'Windows PR Validation'
-#      vmImage: 'windows-2019'
-#      scriptFileName: build.cmd
-#      scriptArgs: all
+  # - template: azure-pipeline.template.yaml
+  #  parameters:
+  #    name: 'windows_pr'
+  #    displayName: 'Windows PR Validation'
+  #    vmImage: 'windows-latest'
+  #    outputDirectory: 'bin/nuget'
+  #    artifactName: 'nuget_pack-$(Build.BuildId)'
 
   - template: azure-pipeline.template.yaml
     parameters:
       name: 'linux_pr'
       displayName: 'Linux PR Validation'
       vmImage: 'ubuntu-latest'
-      scriptFileName: ./build.sh
-      scriptArgs: RunTestsNet
+      outputDirectory: 'bin/nuget'
+      artifactName: 'nuget_pack-$(Build.BuildId)'
