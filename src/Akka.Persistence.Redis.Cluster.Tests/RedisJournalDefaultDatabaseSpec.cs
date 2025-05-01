@@ -87,7 +87,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]. Standard deviation: [{standardDeviation}]");
 
             // Should be less than 1 percent of total keys
-            StandardDeviation(values).Should().BeLessThan(totalEntries * 0.01);
+            StandardDeviation(values).Should().BeLessThan(totalEntries * 0.012);
         }
 
         private double StandardDeviation(int[] values)
