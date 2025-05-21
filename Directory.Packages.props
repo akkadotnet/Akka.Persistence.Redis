@@ -1,8 +1,8 @@
 <Project>
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-        <AkkaVersion>1.5.37</AkkaVersion>
-        <AkkaHostingVersion>1.5.37</AkkaHostingVersion>
+        <AkkaVersion>1.5.42</AkkaVersion>
+        <AkkaHostingVersion>1.5.42</AkkaHostingVersion>
     </PropertyGroup>
     <!-- Library dependencies -->
     <ItemGroup>
