@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
@@ -69,8 +70,11 @@ namespace Akka.Persistence.Redis.Journal
             return false;
         }
 
-        public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNr)
+        public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNr, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var highestSequenceNr =
                 await Database.StringGetAsync(_journalHelper.GetHighestSequenceNrKey(persistenceId, IsClustered));
             return highestSequenceNr.IsNull ? 0L : (long) highestSequenceNr;
@@ -95,16 +99,22 @@ namespace Akka.Persistence.Redis.Journal
                 recoveryCallback(_journalHelper.PersistentFromBytes(journal));
         }
 
-        protected override async Task DeleteMessagesToAsync(string persistenceId, long toSequenceNr)
+        protected override async Task DeleteMessagesToAsync(string persistenceId, long toSequenceNr, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             await Database.SortedSetRemoveRangeByScoreAsync(
                 _journalHelper.GetJournalKey(persistenceId, IsClustered), 
                 -1, 
                 toSequenceNr);
         }
 
-        protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
+        protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var writeTasks = messages.Select(WriteBatchAsync).ToArray();
 
             var result = await Task<IImmutableList<Exception>>
@@ -112,7 +122,7 @@ namespace Akka.Persistence.Redis.Journal
                 .ContinueWhenAll(
                     writeTasks,
                     tasks => tasks.Select(t => t.IsFaulted ? TryUnwrapException(t.Exception) : null)
-                        .ToImmutableList());
+                        .ToImmutableList(), cancellationToken);
 
             if (HasNewEventSubscribers)
                 foreach (var subscriber in _newEventsSubscriber)
