@@ -6,6 +6,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
@@ -51,8 +52,11 @@ namespace Akka.Persistence.Redis.Snapshot
         }
 
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId,
-            SnapshotSelectionCriteria criteria)
+            SnapshotSelectionCriteria criteria, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var snapshots = await Database.SortedSetRangeByScoreAsync(
                 GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
@@ -70,16 +74,22 @@ namespace Akka.Persistence.Redis.Snapshot
             return found;
         }
 
-        protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot)
+        protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             return Database.SortedSetAddAsync(
                 GetSnapshotKey(metadata.PersistenceId, IsClustered),
                 PersistentToBytes(metadata, snapshot),
                 metadata.SequenceNr);
         }
 
-        protected override async Task DeleteAsync(SnapshotMetadata metadata)
+        protected override async Task DeleteAsync(SnapshotMetadata metadata, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             if(metadata.Timestamp == DateTime.MinValue)
             {
                 await Database.SortedSetRemoveRangeByScoreAsync(
@@ -109,8 +119,11 @@ namespace Akka.Persistence.Redis.Snapshot
             await Task.WhenAll(found);
         }
 
-        protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
+        protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria, CancellationToken cancellationToken)
         {
+            // Redis driver does not support cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var snapshots = await Database.SortedSetRangeByScoreAsync(
                 GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
