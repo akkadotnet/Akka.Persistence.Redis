@@ -1,8 +1,8 @@
 <Project>
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-        <AkkaVersion>1.5.42</AkkaVersion>
-        <AkkaHostingVersion>1.5.42</AkkaHostingVersion>
+        <AkkaVersion>1.5.45</AkkaVersion>
+        <AkkaHostingVersion>1.5.45</AkkaHostingVersion>
     </PropertyGroup>
     <!-- Library dependencies -->
     <ItemGroup>
@@ -11,7 +11,7 @@
         <PackageVersion Include="Akka.Persistence.Hosting" Version="$(AkkaHostingVersion)" />
         <PackageVersion Include="Akka.Persistence.Query" Version="$(AkkaVersion)" />
         <PackageVersion Include="Akka.Streams" Version="$(AkkaVersion)" />
-        <PackageVersion Include="StackExchange.Redis" Version="2.8.37" />
+        <PackageVersion Include="StackExchange.Redis" Version="2.8.41" />
     </ItemGroup>
     <!-- Test dependencies -->
     <ItemGroup>
@@ -21,21 +21,21 @@
         <PackageVersion Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />
         <PackageVersion Include="Akka.Streams.TestKit" Version="$(AkkaVersion)" />
 
-        <PackageVersion Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+        <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
         <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
-        <PackageVersion Include="xunit" Version="2.9.2" />
-        <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageVersion Include="xunit" Version="2.9.3" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.2" />
 
-        <PackageVersion Include="coverlet.collector" Version="6.0.3" /> 
+        <PackageVersion Include="coverlet.collector" Version="6.0.4" /> 
         <PackageVersion Include="JetBrains.dotMemoryUnit" Version="3.2.20220510" />
     </ItemGroup>
     <!--Custom Serialization Examples-->
     <ItemGroup>
-        <PackageVersion Include="MessagePack" Version="2.5.187" />
+        <PackageVersion Include="MessagePack" Version="3.1.4" />
     </ItemGroup>
     <!-- SourceLink support for all Akka.NET projects -->
     <ItemGroup>
-        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0 "/>
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0 " />
     </ItemGroup>
 </Project>
