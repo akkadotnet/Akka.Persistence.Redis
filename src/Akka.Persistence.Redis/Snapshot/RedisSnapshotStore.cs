@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,7 @@ namespace Akka.Persistence.Redis.Snapshot
         private readonly RedisSettings _settings;
         private readonly Lazy<IDatabase> _database;
         private readonly ActorSystem _system;
+        private readonly IReadOnlyDictionary<string, object> _defaultHealthCheckTags;
         public IDatabase Database => _database.Value;
 
         public bool IsClustered { get; private set; }
@@ -49,6 +51,11 @@ namespace Akka.Persistence.Redis.Snapshot
 
                 return redisConnection.GetDatabase(_settings.Database);
             });
+            
+            _defaultHealthCheckTags = new Dictionary<string, object>
+            {
+                { "snapshot-store", Self.Path.Name }
+            };
         }
 
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId,
@@ -162,6 +169,24 @@ namespace Akka.Persistence.Redis.Snapshot
             return withHashTag
                 ? $"{{__{persistenceId}}}.{_settings.KeyPrefix}snapshot:{persistenceId}"
                 : $"{_settings.KeyPrefix}snapshot:{persistenceId}";
+        }
+
+        public override async Task<PersistenceHealthCheckResult> CheckHealthAsync(CancellationToken cancellationToken = default)
+        {
+            var result = await base.CheckHealthAsync(cancellationToken);
+            if(result.Status is not PersistenceHealthStatus.Healthy)
+                return result;
+            
+            try
+            {
+                await Database.ExecuteAsync("PING", cancellationToken);
+            }
+            catch (Exception e)
+            {
+                return new PersistenceHealthCheckResult(PersistenceHealthStatus.Degraded, "Redis connection failed", e, _defaultHealthCheckTags);
+            }
+            
+            return result;
         }
     }
 

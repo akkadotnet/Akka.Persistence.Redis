@@ -28,6 +28,7 @@ namespace Akka.Persistence.Redis.Journal
         private readonly JournalHelper _journalHelper;
         private readonly Lazy<IDatabase> _database;
         private readonly ActorSystem _system;
+        private readonly IReadOnlyDictionary<string, object> _defaultHealthCheckTags;
 
         public IDatabase Database => _database.Value;
         public bool IsClustered { get; private set; }
@@ -55,6 +56,11 @@ namespace Akka.Persistence.Redis.Journal
 
                 return redisConnection.GetDatabase(_settings.Database);
             });
+            
+            _defaultHealthCheckTags = new Dictionary<string, object>
+            {
+                { "journal", Self.Path.Name }
+            };
         }
 
         protected override bool ReceivePluginInternal(object message)
@@ -159,5 +165,23 @@ namespace Akka.Persistence.Redis.Journal
                     $"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
         }
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+
+        public override async Task<PersistenceHealthCheckResult> CheckHealthAsync(CancellationToken cancellationToken = default)
+        {
+            var result = await base.CheckHealthAsync(cancellationToken);
+            if(result.Status is not PersistenceHealthStatus.Healthy)
+                return result;
+            
+            try
+            {
+                await Database.ExecuteAsync("PING", cancellationToken);
+            }
+            catch (Exception e)
+            {
+                return new PersistenceHealthCheckResult(PersistenceHealthStatus.Degraded, "Redis connection failed", e, _defaultHealthCheckTags);
+            }
+            
+            return result;
+        }
     }
 }
