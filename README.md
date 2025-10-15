@@ -150,6 +150,55 @@ These are the minimum Redis commands that are needed by Akka.Persistence.Redis t
 | PUBLISH          | Pub/Sub Publish                  |
 
 
+## Akka.Hosting Integration
+
+[Akka.Persistence.Redis.Hosting](https://github.com/akkadotnet/Akka.Persistence.Redis/tree/dev/src/Akka.Persistence.Redis.Hosting) provides a set of extension methods for integrating Akka.Persistence.Redis with [Akka.Hosting](https://github.com/akkadotnet/Akka.Hosting), making it easy to configure Redis persistence and health checks using Microsoft's dependency injection and hosting model.
+
+### Installation
+From `Nuget Package Manager`
+```
+Install-Package Akka.Persistence.Redis.Hosting
+```
+From `.NET CLI`
+```
+dotnet add package Akka.Persistence.Redis.Hosting
+```
+
+### Basic Configuration
+
+```csharp
+using var host = new HostBuilder()
+    .ConfigureServices((context, services) =>
+    {
+        services.AddAkka("redisDemo", (builder, provider) =>
+        {
+            builder
+                .WithRedisPersistence("your-redis-connection-string");
+        });
+    }).Build();
+
+await host.RunAsync();
+```
+
+### Health Checks
+
+The Hosting package includes built-in health check support for monitoring the health of your Redis persistence plugins:
+
+```csharp
+builder
+    .WithRedisPersistence(
+        journalOptions: new RedisJournalOptions
+        {
+            ConfigurationString = "your-redis-connection-string",
+        },
+        snapshotOptions: new RedisSnapshotOptions
+        {
+            ConfigurationString = "your-redis-connection-string",
+        },
+        journalBuilder: journal => journal.WithHealthCheck(HealthStatus.Degraded),
+        snapshotBuilder: snapshot.WithHealthCheck(HealthStatus.Degraded));
+```
+
 ## Serialization
 Akka Persistence provided serializers wrap the user payload in an envelope containing all persistence-relevant information. Redis Journal uses provided Protobuf serializers for the wrapper types (e.g. `IPersistentRepresentation`), then the payload will be serialized using the user configured serializer. 
 

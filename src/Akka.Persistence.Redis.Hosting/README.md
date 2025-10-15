@@ -13,6 +13,7 @@ public static AkkaConfigurationBuilder WithRedisPersistence(
     PersistenceMode mode = PersistenceMode.Both,
     bool autoInitialize = true,
     Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+    Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null,
     string pluginIdentifier = "Redis",
     bool isDefaultPlugin = true);
 ```
@@ -29,7 +30,9 @@ public static AkkaConfigurationBuilder WithRedisPersistence(
 public static AkkaConfigurationBuilder WithRedisPersistence(
     this AkkaConfigurationBuilder builder,
     RedisJournalOptions? journalOptions = null,
-    RedisSnapshotOptions? snapshotOptions = null)
+    RedisSnapshotOptions? snapshotOptions = null
+    Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+    Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null)
 ```
 
 ### Parameters
@@ -52,7 +55,11 @@ public static AkkaConfigurationBuilder WithRedisPersistence(
 
 * `journalBuilder` __Action\<AkkaPersistenceJournalBuilder\>__
 
-  An Action delegate used to configure an `AkkaPersistenceJournalBuilder` instance. Used to configure [Event Adapters](https://getakka.net/articles/persistence/event-adapters.html)
+  An Action delegate used to configure an `AkkaPersistenceJournalBuilder` instance. Used to configure health check.
+
+* `snapshotBuilder` __Action\<AkkaPersistenceSnapshotBuilder\>__
+
+  An Action delegate used to configure an `AkkaPersistenceSnapshotBuilder` instance. Used to configure health check.
 
 * `journalConfigurator` __Action\<RedisJournalOptions\>__
 
@@ -70,18 +77,29 @@ public static AkkaConfigurationBuilder WithRedisPersistence(
 
   An `RedisSnapshotOptions` instance to configure the Redis snapshot store.
 
-## Example
+## Microsoft.Extensions.Diagnostics.HealthChecks Integration
+
+Akka.Persistence.Redis.Hosting includes built-in health check support for Redis persistence plugins through the `WithHealthCheck()` extension methods. These health checks integrate with [Microsoft.Extensions.Diagnostics.HealthChecks](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks) to monitor the health of your Redis journal and snapshot stores.
+
+### Built-in Health Checks
+
+All health checks are tagged with `akka`, `persistence`, and `mongodb` for easy filtering.
+
+### Configuring Health Checks
+
+You can add health checks when configuring Redis persistence using the `WithHealthCheck()` method:
 
 ```csharp
-using var host = new HostBuilder()
-    .ConfigureServices((context, services) =>
-    {
-        services.AddAkka("redisDemo", (builder, provider) =>
+builder
+    .WithRedisPersistence(
+        journalOptions: new RedisJournalOptions
         {
-            builder
-                .WithRedisPersistence("your-redis-connection-string");
-        });
-    }).Build();
-
-await host.RunAsync();
+            ConfigurationString = "your-redis-connection-string",
+        },
+        snapshotOptions: new RedisSnapshotOptions
+        {
+            ConfigurationString = "your-redis-connection-string",
+        },
+        journalBuilder: journal => journal.WithHealthCheck(HealthStatus.Degraded),
+        snapshotBuilder: snapshot.WithHealthCheck(HealthStatus.Degraded));
 ```
