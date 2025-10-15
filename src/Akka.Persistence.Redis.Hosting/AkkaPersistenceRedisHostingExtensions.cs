@@ -11,7 +11,8 @@ namespace Akka.Persistence.Redis.Hosting;
 public static class AkkaPersistenceRedisHostingExtensions
 {
     /// <summary>
-    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/>.
+    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/> with optional support
+    ///     for health checks on both journal and snapshot store.
     /// </summary>
     /// <param name="builder">
     ///     The builder instance being configured.
@@ -62,6 +63,16 @@ public static class AkkaPersistenceRedisHostingExtensions
     ///     Thrown when <see cref="journalBuilder"/> is set and <see cref="mode"/> is set to
     ///     <see cref="PersistenceMode.SnapshotStore"/>
     /// </exception>
+    /// <example>
+    /// <code>
+    /// builder.WithRedisPersistence(
+    ///     configurationString: "...",
+    ///     journalBuilder: journal => journal
+    ///         .WithHealthCheck(HealthStatus.Degraded),
+    ///     snapshotBuilder: snapshot => snapshot
+    ///         .WithHealthCheck(HealthStatus.Degraded));
+    /// </code>
+    /// </example>
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         string configurationString,
@@ -81,12 +92,6 @@ public static class AkkaPersistenceRedisHostingExtensions
             ConfigurationString = configurationString,
             AutoInitialize = autoInitialize,
         };
-
-        /*
-        var adapters = new AkkaPersistenceJournalBuilder(journalOpt.Identifier, builder);
-        journalBuilder?.Invoke(adapters);
-        journalOpt.Adapters = adapters;
-        */
 
         var snapshotOpt = new RedisSnapshotOptions(isDefaultPlugin, pluginIdentifier)
         {
