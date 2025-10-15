@@ -37,6 +37,12 @@ public static class AkkaPersistenceRedisHostingExtensions
     ///     </para>
     ///     <i>Default</i>: <c>null</c>
     /// </param>
+    /// <param name="snapshotBuilder">
+    ///     <para>
+    ///         An <see cref="Action{T}"/> used to configure an <see cref="AkkaPersistenceSnapshotBuilder"/> instance.
+    ///     </para>
+    ///     <i>Default</i>: <c>null</c>
+    /// </param>
     /// <param name="pluginIdentifier">
     ///     <para>
     ///         The configuration identifier for the plugins
@@ -62,6 +68,7 @@ public static class AkkaPersistenceRedisHostingExtensions
         PersistenceMode mode = PersistenceMode.Both,
         bool autoInitialize = true,
         Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+        Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null,
         string pluginIdentifier = "redis",
         bool isDefaultPlugin = true)
     {
@@ -75,9 +82,11 @@ public static class AkkaPersistenceRedisHostingExtensions
             AutoInitialize = autoInitialize,
         };
 
+        /*
         var adapters = new AkkaPersistenceJournalBuilder(journalOpt.Identifier, builder);
         journalBuilder?.Invoke(adapters);
         journalOpt.Adapters = adapters;
+        */
 
         var snapshotOpt = new RedisSnapshotOptions(isDefaultPlugin, pluginIdentifier)
         {
@@ -87,9 +96,9 @@ public static class AkkaPersistenceRedisHostingExtensions
 
         return mode switch
         {
-            PersistenceMode.Journal => builder.WithRedisPersistence(journalOpt, null),
-            PersistenceMode.SnapshotStore => builder.WithRedisPersistence(null, snapshotOpt),
-            PersistenceMode.Both => builder.WithRedisPersistence(journalOpt, snapshotOpt),
+            PersistenceMode.Journal => builder.WithRedisPersistence(journalOpt, null, journalBuilder, snapshotBuilder),
+            PersistenceMode.SnapshotStore => builder.WithRedisPersistence(null, snapshotOpt, journalBuilder, snapshotBuilder),
+            PersistenceMode.Both => builder.WithRedisPersistence(journalOpt, snapshotOpt, journalBuilder, snapshotBuilder),
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid PersistenceMode defined.")
         };
     }
@@ -173,6 +182,18 @@ public static class AkkaPersistenceRedisHostingExtensions
     ///     </para>
     ///     <i>Default</i>: <c>null</c>
     /// </param>
+    /// <param name="journalBuilder">
+    ///     <para>
+    ///         An <see cref="Action{T}" /> used to configure an <see cref="AkkaPersistenceJournalBuilder" /> instance for event adapters and health checks.
+    ///     </para>
+    ///     <i>Default</i>: <c>null</c>
+    /// </param>
+    /// <param name="snapshotBuilder">
+    ///     <para>
+    ///         An <see cref="Action{T}" /> used to configure an <see cref="AkkaPersistenceSnapshotBuilder" /> instance for health checks.
+    ///     </para>
+    ///     <i>Default</i>: <c>null</c>
+    /// </param>
     /// <returns>
     ///     The same <see cref="AkkaConfigurationBuilder"/> instance originally passed in.
     /// </returns>
@@ -182,11 +203,10 @@ public static class AkkaPersistenceRedisHostingExtensions
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         RedisJournalOptions? journalOptions = null,
-        RedisSnapshotOptions? snapshotOptions = null)
+        RedisSnapshotOptions? snapshotOptions = null,
+        Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+        Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null)
     {
-        if (journalOptions is null && snapshotOptions is null)
-            throw new ArgumentException($"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null");
-
         return (journalOptions, snapshotOptions) switch
         {
             (null, null) =>
@@ -195,21 +215,16 @@ public static class AkkaPersistenceRedisHostingExtensions
 
             (_, null) =>
                 builder
-                    .AddHocon(journalOptions.ToConfig(), HoconAddMode.Prepend)
-                    .AddHocon(journalOptions.DefaultConfig, HoconAddMode.Append)
+                    .WithJournal(journalOptions, journalBuilder)
                     .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
 
             (null, _) =>
                 builder
-                    .AddHocon(snapshotOptions.ToConfig(), HoconAddMode.Prepend)
-                    .AddHocon(snapshotOptions.DefaultConfig, HoconAddMode.Append),
+                    .WithSnapshot(snapshotOptions, snapshotBuilder),
 
             (_, _) =>
                 builder
-                    .AddHocon(journalOptions.ToConfig(), HoconAddMode.Prepend)
-                    .AddHocon(snapshotOptions.ToConfig(), HoconAddMode.Prepend)
-                    .AddHocon(journalOptions.DefaultConfig, HoconAddMode.Append)
-                    .AddHocon(snapshotOptions.DefaultConfig, HoconAddMode.Append)
+                    .WithJournalAndSnapshot(journalOptions, snapshotOptions, journalBuilder, snapshotBuilder)
                     .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
         };
     }
