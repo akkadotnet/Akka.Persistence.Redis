@@ -1,3 +1,11 @@
+#### 1.5.53 October 16th 2025 ####
+
+* Upgraded to [Akka.NET 1.5.53](https://github.com/akkadotnet/akka.net/releases/tag/1.5.53)
+* Upgraded to [Akka.Hosting 1.5.53](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.53)
+* [Added Microsoft.Extensions.Diagnostics.HealthChecks integration](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/445)
+* [Bump Akka.Cluster.Sharding to 1.5.51](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/440)
+* [Bump StackExchange.Redis to 2.8.31](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/406)
+
 #### 1.5.42 May 22nd 2025 ####
 
 * Upgraded to [Akka.NET 1.5.42](https://github.com/akkadotnet/akka.net/releases/tag/1.5.37)
