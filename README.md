@@ -182,7 +182,11 @@ await host.RunAsync();
 
 ### Health Checks
 
-The Hosting package includes built-in health check support for monitoring the health of your Redis persistence plugins:
+The Hosting package includes built-in connectivity health check support for verifying Redis availability and accessibility. These liveness checks proactively verify that your Redis instance is accessible and responsive by performing PING commands against the configured Redis instance.
+
+#### Enabling Connectivity Health Checks
+
+Enable connectivity health checks by calling `WithHealthCheck()` on the journal and/or snapshot builder:
 
 ```csharp
 builder
@@ -196,8 +200,59 @@ builder
             ConfigurationString = "your-redis-connection-string",
         },
         journalBuilder: journal => journal.WithHealthCheck(HealthStatus.Degraded),
-        snapshotBuilder: snapshot.WithHealthCheck(HealthStatus.Degraded));
+        snapshotBuilder: snapshot => snapshot.WithHealthCheck(HealthStatus.Degraded));
 ```
+
+When enabled, the connectivity health checks will:
+- Verify connectivity to the Redis instance
+- Test the Redis PING command to ensure responsiveness
+- Report `Healthy` when the Redis instance is accessible
+- Report `Degraded` or `Unhealthy` (configurable) when the instance is unreachable or unresponsive
+
+Health checks are tagged with `akka`, `persistence`, and `redis` for easy filtering and organization in your health check endpoints.
+
+For ASP.NET Core applications, you can expose these health checks via an endpoint:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Add health checks service
+builder.Services.AddHealthChecks();
+
+builder.Services.AddAkka("redisDemo", (configBuilder, provider) =>
+{
+    configBuilder
+        .WithRedisPersistence(
+            journalOptions: new RedisJournalOptions { ConfigurationString = "your-redis-connection-string" },
+            snapshotOptions: new RedisSnapshotOptions { ConfigurationString = "your-redis-connection-string" },
+            journalBuilder: journal => journal.WithHealthCheck(),
+            snapshotBuilder: snapshot => snapshot.WithHealthCheck());
+});
+
+var app = builder.Build();
+
+// Map health check endpoint
+app.MapHealthChecks("/healthz");
+
+app.Run();
+```
+
+#### Customizing Health Check Tags
+
+You can customize the tags applied to health checks by providing an `IEnumerable<string>` to the `WithHealthCheck()` method:
+
+```csharp
+journalBuilder: journal => journal.WithHealthCheck(
+    unHealthyStatus: HealthStatus.Degraded,
+    name: "redis-journal",
+    tags: new[] { "backend", "database", "redis" }),
+snapshotBuilder: snapshot => snapshot.WithHealthCheck(
+    unHealthyStatus: HealthStatus.Degraded,
+    name: "redis-snapshot",
+    tags: new[] { "backend", "database", "redis" })
+```
+
+When tags are not specified, the default tags are used: `["akka", "persistence", "redis"]` for both journals and snapshot stores.
 
 ## Serialization
 Akka Persistence provided serializers wrap the user payload in an envelope containing all persistence-relevant information. Redis Journal uses provided Protobuf serializers for the wrapper types (e.g. `IPersistentRepresentation`), then the payload will be serialized using the user configured serializer. 
