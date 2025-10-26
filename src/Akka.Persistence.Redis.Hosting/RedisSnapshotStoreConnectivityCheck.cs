@@ -34,7 +34,7 @@ public sealed class RedisSnapshotStoreConnectivityCheck : IAkkaHealthCheck
     {
         try
         {
-            var connection = await ConnectionMultiplexer.ConnectAsync(_connectionString);
+            using var connection = await ConnectionMultiplexer.ConnectAsync(_connectionString);
             var server = connection.GetServer(connection.GetEndPoints().First());
             await server.PingAsync();
             return HealthCheckResult.Healthy($"Redis snapshot store '{_snapshotStoreId}' connection successful");

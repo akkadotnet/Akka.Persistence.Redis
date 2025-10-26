@@ -34,7 +34,7 @@ public sealed class RedisJournalConnectivityCheck : IAkkaHealthCheck
     {
         try
         {
-            var connection = await ConnectionMultiplexer.ConnectAsync(_connectionString);
+            using var connection = await ConnectionMultiplexer.ConnectAsync(_connectionString);
             var server = connection.GetServer(connection.GetEndPoints().First());
             await server.PingAsync();
             return HealthCheckResult.Healthy($"Redis journal '{_journalId}' connection successful");
