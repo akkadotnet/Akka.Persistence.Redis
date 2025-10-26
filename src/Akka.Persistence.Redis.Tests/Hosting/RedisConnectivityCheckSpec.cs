@@ -16,17 +16,55 @@ using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests.Hosting;
 
-public class RedisConnectivityCheckSpec
+[Collection("RedisSpec")]
+public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
 {
-    private const string ValidConnectionString = "localhost:6379";
     private const string InvalidConnectionString = "invalid-host:6379";
     private readonly ITestOutputHelper _output;
+    private readonly RedisFixture _fixture;
+    private readonly string _validConnectionString;
 
-    public RedisConnectivityCheckSpec(ITestOutputHelper output)
+    public RedisConnectivityCheckSpec(ITestOutputHelper output, RedisFixture fixture)
     {
         _output = output;
+        _fixture = fixture;
+        _validConnectionString = fixture.ConnectionString;
     }
 
+    // Happy path tests - verify health checks work with real Redis
+    [Fact]
+    public async Task Journal_Connectivity_Check_Should_Return_Healthy_When_Connected()
+    {
+        // Arrange
+        var check = new RedisJournalConnectivityCheck(_validConnectionString, "redis");
+        var context = new AkkaHealthCheckContext(null!);
+
+        // Act
+        var result = await check.CheckHealthAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(HealthStatus.Healthy);
+        result.Exception.Should().BeNull();
+        result.Description.Should().Contain("successful");
+    }
+
+    [Fact]
+    public async Task Snapshot_Connectivity_Check_Should_Return_Healthy_When_Connected()
+    {
+        // Arrange
+        var check = new RedisSnapshotStoreConnectivityCheck(_validConnectionString, "redis");
+        var context = new AkkaHealthCheckContext(null!);
+
+        // Act
+        var result = await check.CheckHealthAsync(context, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(HealthStatus.Healthy);
+        result.Exception.Should().BeNull();
+        result.Description.Should().Contain("successful");
+    }
+
+    // Unhappy path tests - verify health checks detect connection failures
     [Fact]
     public async Task Journal_Connectivity_Check_Should_Return_Unhealthy_When_Disconnected()
     {
