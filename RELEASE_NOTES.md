@@ -1,3 +1,11 @@
+#### 1.5.55 October 26th 2025 ####
+
+* Upgraded to [Akka.NET 1.5.55](https://github.com/akkadotnet/akka.net/releases/tag/1.5.55)
+* Upgraded to [Akka.Hosting 1.5.55](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.55)
+* [Add Redis connectivity health checks](https://github.com/akkadotnet/Akka.Persistence.Redis/pull/447)
+
+Adds new `WithConnectivityCheck()` methods for proactive Redis connectivity verification with customizable tags.
+
 #### 1.5.53 October 16th 2025 ####
 
 * Upgraded to [Akka.NET 1.5.53](https://github.com/akkadotnet/akka.net/releases/tag/1.5.53)
