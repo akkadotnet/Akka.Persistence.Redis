@@ -1,3 +1,30 @@
+#### 1.5.55.1 October 29th 2025 ####
+
+**Improved API**
+
+This release introduces the simplified Akka.Hosting 1.5.55.1 API for connectivity health checks, eliminating redundant parameter passing:
+
+**New Simplified API (Recommended):**
+```csharp
+journalBuilder: journal =>
+{
+    journal.WithConnectivityCheck(); // Options automatically accessed from builder
+}
+```
+
+**Previous API (Still Supported):**
+```csharp
+journalBuilder: journal =>
+{
+    journal.WithConnectivityCheck(journalOptions); // Explicit parameter passing
+}
+```
+
+The new API automatically accesses options from `builder.Options`, making the code cleaner and less error-prone. The previous API is marked as `[Obsolete]` but remains functional for backward compatibility.
+
+* Update `WithConnectivityCheck()` extension methods to use simplified Akka.Hosting 1.5.55.1 API pattern
+* Upgraded to [Akka.Hosting 1.5.55.1](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.55.1)
+
 #### 1.5.55 October 26th 2025 ####
 
 * Upgraded to [Akka.NET 1.5.55](https://github.com/akkadotnet/akka.net/releases/tag/1.5.55)
