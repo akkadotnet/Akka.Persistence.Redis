@@ -117,6 +117,10 @@ namespace Akka.Persistence.Redis.Journal
             
             var writeTasks = messages.Select(WriteBatchAsync).ToArray();
 
+            // Just return immediately if there are no message to persist
+            if (writeTasks.Length == 0)
+                return ImmutableList<Exception>.Empty;
+            
             var result = await Task<IImmutableList<Exception>>
                 .Factory
                 .ContinueWhenAll(
