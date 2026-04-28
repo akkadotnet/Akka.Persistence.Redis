@@ -10,7 +10,6 @@ using Akka.Persistence.Redis.BenchmarkTests.Docker;
 using Akka.Persistence.Redis.Tests;
 using Akka.Persistence.TestKit.Performance;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Benchmark.DockerTests
 {

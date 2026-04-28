@@ -7,7 +7,6 @@
 using Akka.Configuration;
 using Akka.Persistence.TCK.Snapshot;
 using Xunit;
-using Xunit.Abstractions;
 
 #nullable enable
 namespace Akka.Persistence.Redis.Tests;

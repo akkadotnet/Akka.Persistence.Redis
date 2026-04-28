@@ -7,7 +7,6 @@
 using Akka.Configuration;
 using Akka.Persistence.TCK.Serialization;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Cluster.Tests.Serialization
 {

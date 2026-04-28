@@ -8,7 +8,6 @@ using Akka.Configuration;
 using Akka.Persistence.Redis.Cluster.Tests;
 using Akka.Persistence.TestKit.Performance;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests.Perf
 {

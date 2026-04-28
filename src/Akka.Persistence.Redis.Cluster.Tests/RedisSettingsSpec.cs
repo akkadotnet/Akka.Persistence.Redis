@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Akka.Persistence.Redis.Cluster.Tests
 {
-    public class RedisSettingsSpec : Akka.TestKit.Xunit2.TestKit
+    public class RedisSettingsSpec : Akka.TestKit.Xunit.TestKit
     {
         [Fact]
         public void Redis_JournalSettings_must_have_default_values()

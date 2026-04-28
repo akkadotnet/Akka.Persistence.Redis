@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
+        <OutputType>Exe</OutputType>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
@@ -23,7 +24,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="Docker.DotNet" />
-        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.v3" />
         <PackageReference Include="xunit.runner.visualstudio">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,7 +34,7 @@
     <ItemGroup>
         <PackageReference Include="Akka.TestKit" />
         <PackageReference Include="Akka.Persistence.TCK" />
-        <PackageReference Include="Akka.TestKit.Xunit2" />
+        <PackageReference Include="Akka.TestKit.Xunit" />
         <PackageReference Include="Akka.Streams.TestKit" />
     </ItemGroup>
 

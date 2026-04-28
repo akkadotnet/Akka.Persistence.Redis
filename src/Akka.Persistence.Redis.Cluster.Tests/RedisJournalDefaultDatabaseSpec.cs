@@ -13,7 +13,6 @@ using Akka.Persistence.TCK.Journal;
 using FluentAssertions;
 using StackExchange.Redis;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Cluster.Tests
 {

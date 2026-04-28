@@ -12,7 +12,7 @@
     <NetTestVersion>net8.0</NetTestVersion>
     <NetStandardVersion>netstandard2.0</NetStandardVersion>
     <NetVersion>net6.0</NetVersion>
-    <NetFrameworkTestVersion>net471</NetFrameworkTestVersion>
+    <NetFrameworkTestVersion>net48</NetFrameworkTestVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>

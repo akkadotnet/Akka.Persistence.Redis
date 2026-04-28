@@ -21,11 +21,10 @@ using Akka.Util.Internal;
 using JetBrains.dotMemoryUnit;
 using JetBrains.dotMemoryUnit.Kernel;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.BenchmarkTests.Docker
 {
-    public abstract class RedisJournalBenchmarkDefinitions : Akka.TestKit.Xunit2.TestKit
+    public abstract class RedisJournalBenchmarkDefinitions : Akka.TestKit.Xunit.TestKit
     {
         private TestProbe testProbe;
 
