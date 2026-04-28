@@ -1,3 +1,14 @@
+#### 1.5.67 April 28th 2026 ####
+
+* Upgraded to [Akka.NET 1.5.67](https://github.com/akkadotnet/akka.net/releases/tag/1.5.67)
+* Upgraded to [Akka.Hosting 1.5.67](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.67)
+
+#### 1.5.60 February 10th 2026 ####
+
+* Upgraded to [Akka.NET 1.5.60](https://github.com/akkadotnet/akka.net/releases/tag/1.5.60)
+* Upgraded to [Akka.Hosting 1.5.60](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.60)
+* Upgraded `Microsoft.Extensions.Hosting` from 6.0.1 to 8.0.0 to align with Akka.Hosting 1.5.60 requirements
+
 #### 1.5.59 December 18th 2025 ####
 
 * Upgraded to [Akka.NET 1.5.59](https://github.com/akkadotnet/akka.net/releases/tag/1.5.59)
