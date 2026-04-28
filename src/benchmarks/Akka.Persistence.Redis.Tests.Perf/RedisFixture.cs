@@ -46,7 +46,7 @@ namespace Akka.Persistence.Redis.Tests
 
         public string ConnectionString { get; private set; } = string.Empty;
 
-        public async Task InitializeAsync()
+        public async ValueTask InitializeAsync()
         {
             var images = await Client.Images.ListImagesAsync(new ImagesListParameters
             {
@@ -100,7 +100,7 @@ namespace Akka.Persistence.Redis.Tests
             // Provide a 30 second startup delay
             await Task.Delay(TimeSpan.FromSeconds(10));
         }
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (Client != null)
             {

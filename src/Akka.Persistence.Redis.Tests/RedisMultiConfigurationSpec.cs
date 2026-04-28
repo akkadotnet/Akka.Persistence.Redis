@@ -11,7 +11,6 @@ using Akka.Persistence.Redis.Journal;
 using Akka.Persistence.TCK;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests
 {

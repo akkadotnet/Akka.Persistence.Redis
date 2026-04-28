@@ -3,7 +3,8 @@ using Akka.Persistence.Query;
 using Akka.Persistence.Redis.Query;
 using Akka.Persistence.TCK.Query;
 using Xunit;
-using Xunit.Abstractions; //-----------------------------------------------------------------------
+
+//-----------------------------------------------------------------------
 // <copyright file="RedisCurrentEventsByPersistenceIdSpec.cs" company="Akka.NET Project">
 //     Copyright (C) 2017 Akka.NET Contrib <https://github.com/AkkaNetContrib/Akka.Persistence.Redis>
 // </copyright>

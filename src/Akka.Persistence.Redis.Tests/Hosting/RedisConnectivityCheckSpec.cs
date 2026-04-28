@@ -12,7 +12,6 @@ using Akka.Persistence.Redis.Hosting;
 using FluentAssertions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests.Hosting;
 

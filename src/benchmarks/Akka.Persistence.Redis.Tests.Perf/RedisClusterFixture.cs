@@ -44,7 +44,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
 
         public string ConnectionString { get; private set; } = string.Empty;
 
-        public async Task InitializeAsync()
+        public async ValueTask InitializeAsync()
         {
             var images = await Client.Images.ListImagesAsync(new ImagesListParameters
             {
@@ -123,7 +123,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             ConnectionString = $"127.0.0.1:{redisHostPort}";
         }
 
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (Client != null)
             {
