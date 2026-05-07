@@ -49,12 +49,12 @@ namespace Akka.Persistence.Redis.Cluster.Tests
 
             ConnectionString = $"127.0.0.1:{_basePort}";
 
-            // The 6-node cluster bootstraps asynchronously after the container starts. The
-            // per-node "Cluster state changed: ok" log line fires for whichever node settles
-            // first - waiting on it via Testcontainers' first-match log probe lets tests
-            // start while the other nodes are still gossiping and the slot map is still in
-            // flight. Probe the cluster directly until every slot is assigned and ok.
-            await WaitForClusterReadyAsync(TimeSpan.FromSeconds(60));
+            // The 6-node cluster bootstraps asynchronously after the container starts.
+            // Each Redis node computes cluster_state from its own view; a single node
+            // returning "ok" while a peer still has the cluster marked FAIL is enough to
+            // surface CLUSTERDOWN to the journal during its first command. Wait until
+            // every node we know about reports cluster_state:ok with full slot coverage.
+            await WaitForClusterReadyAsync(TimeSpan.FromSeconds(90));
         }
 
         public async ValueTask DisposeAsync()
@@ -71,33 +71,57 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             var probeConnectionString = $"{ConnectionString},abortConnect=false,connectRetry=5,connectTimeout=2000";
             var deadline = DateTime.UtcNow + timeout;
             Exception? lastError = null;
+            string? lastNotReadyReason = null;
 
             while (DateTime.UtcNow < deadline)
             {
                 try
                 {
                     using var probe = await ConnectionMultiplexer.ConnectAsync(probeConnectionString);
-                    var server = probe.GetServer(probe.GetEndPoints().First());
-                    var result = await server.ExecuteAsync("CLUSTER", "INFO");
-                    var kv = ParseClusterInfo(result.ToString());
+                    var endpoints = probe.GetEndPoints();
 
-                    if (kv.TryGetValue("cluster_state", out var state) && state == "ok"
-                        && kv.TryGetValue("cluster_slots_assigned", out var assigned) && assigned == "16384"
-                        && kv.TryGetValue("cluster_slots_ok", out var slotsOk) && slotsOk == "16384")
+                    // SE.Redis discovers topology after connect; until it has found all 6
+                    // grokzen nodes, retry rather than declare ready.
+                    if (endpoints.Length < 6)
                     {
-                        return;
+                        lastNotReadyReason = $"only {endpoints.Length}/6 endpoints discovered";
+                    }
+                    else
+                    {
+                        var allHealthy = true;
+                        foreach (var endpoint in endpoints)
+                        {
+                            var server = probe.GetServer(endpoint);
+                            var result = await server.ExecuteAsync("CLUSTER", "INFO");
+                            var kv = ParseClusterInfo(result.ToString());
+                            kv.TryGetValue("cluster_state", out var state);
+                            kv.TryGetValue("cluster_slots_assigned", out var assigned);
+                            kv.TryGetValue("cluster_slots_ok", out var slotsOk);
+
+                            if (state != "ok" || assigned != "16384" || slotsOk != "16384")
+                            {
+                                allHealthy = false;
+                                lastNotReadyReason = $"endpoint {endpoint} reports cluster_state={state ?? "?"} slots_assigned={assigned ?? "?"} slots_ok={slotsOk ?? "?"}";
+                                break;
+                            }
+                        }
+
+                        if (allHealthy)
+                            return;
                     }
                 }
                 catch (Exception ex)
                 {
                     lastError = ex;
+                    lastNotReadyReason = ex.Message;
                 }
 
                 await Task.Delay(TimeSpan.FromMilliseconds(250));
             }
 
+            var detail = lastNotReadyReason ?? "no probe attempted";
             throw new TimeoutException(
-                $"Redis cluster at {ConnectionString} did not become healthy within {timeout}.",
+                $"Redis cluster at {ConnectionString} did not become healthy within {timeout}. Last status: {detail}.",
                 lastError);
         }
 
