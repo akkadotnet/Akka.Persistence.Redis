@@ -279,3 +279,12 @@ akka.actor {
   }
 }
 ```
+
+## Running the tests locally
+
+The test suites stand up Redis via [Testcontainers for .NET](https://dotnet.testcontainers.org/), so a working Docker host is required (Docker Desktop, Rancher Desktop, Colima, or Podman all work — Testcontainers auto-detects the socket).
+
+* `Akka.Persistence.Redis.Tests` spins up two `redis:latest` containers and connects to them through a comma-separated host list, exercising the standalone-Redis code paths.
+* `Akka.Persistence.Redis.Cluster.Tests` runs the cluster suite against the [`grokzen/redis-cluster:6.0.13`](https://hub.docker.com/r/grokzen/redis-cluster) image. **The image is one Docker container running six `redis-server` processes under supervisord** — three masters + three replicas, on consecutive ports starting from a randomly-chosen base port. The fixture publishes those six ports 1:1 to the host so the cluster's gossiped node addresses match what the SE.Redis client connects to, then probes `CLUSTER INFO` on every endpoint until each node reports `cluster_state:ok` with full 16384-slot coverage before any test runs.
+
+  One implication of the single-container topology: integration tests cannot trigger a real per-node failover by stopping a Docker container, because killing the container kills the whole cluster. Anything that needs to exercise a single primary failover today has to either `docker exec` into the container and signal one of the redis processes (or `supervisorctl stop redis-N`), or use `IServer.Shutdown(...)` against a specific endpoint. A multi-container cluster fixture is the longer-term answer when richer failover coverage is required.
