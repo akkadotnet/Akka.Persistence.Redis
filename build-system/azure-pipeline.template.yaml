@@ -45,24 +45,28 @@ jobs:
         continueOnError: false
 
       - pwsh: |
+          $exitCode = 0
           Get-ChildItem `
             -Recurse `
             -File `
             -Include '*.Tests.csproj' `
             -Exclude '*examples*', '*benchmarks*' `
-          | ForEach-Object { `
-            dotnet test -c Release --no-build --logger:trx --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings $_.FullName `
+          | ForEach-Object {
+            dotnet test -c Release --no-build --logger:trx --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings $_.FullName
+            if ($LASTEXITCODE -ne 0) { $exitCode = $LASTEXITCODE }
           }
+          exit $exitCode
         displayName: 'Run tests'
-        continueOnError: true # Allow continuation even if tests fail
+        # No continueOnError: any failing project bubbles a non-zero exit code from the loop and fails the job.
 
       - task: PublishTestResults@2
+        condition: always()  # publish .trx results even when the test step failed
         inputs:
           testResultsFormat: VSTest
           testResultsFiles: '**/*.trx' #TestResults folder usually
           testRunTitle: ${{ parameters.name }}
           mergeTestResults: true
-          failTaskOnFailedTests: false
+          failTaskOnFailedTests: true
           publishRunAttachments: true
           
       - pwsh: |
@@ -101,8 +105,3 @@ jobs:
           PathtoPublish: '$(Build.ArtifactStagingDirectory)/nuget'
           ArtifactName: 'nuget'
           publishLocation: 'Container'
-
-      - script: 'echo 1>&2'
-        failOnStderr: true
-        displayName: 'If above is partially succeeded, then fail'
-        condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')

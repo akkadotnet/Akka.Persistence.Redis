@@ -10,12 +10,11 @@ using Akka.Actor;
 using Akka.Configuration;
 using Akka.Event;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Akka.Persistence.Redis.Tests;
 
 [Collection("RedisSpec")]
-public class RedisJournalDeferSpec: Akka.TestKit.Xunit2.TestKit
+public class RedisJournalDeferSpec: Akka.TestKit.Xunit.TestKit
 {
     private const int Database = 1;
 
