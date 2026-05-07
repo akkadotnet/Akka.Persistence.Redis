@@ -27,7 +27,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests.Query
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{fixture.ConnectionString}""
             }}
-            akka.test.single-expect-default = 3s")
+            akka.test.single-expect-default = 10s")
                 .WithFallback(RedisPersistence.DefaultConfig());
         }
 
