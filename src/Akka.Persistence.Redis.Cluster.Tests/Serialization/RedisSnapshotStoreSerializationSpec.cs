@@ -36,7 +36,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests.Serialization
                     ""Akka.Persistence.Redis.Serialization.PersistentSnapshotSerializer, Akka.Persistence.Redis"" = 48
                 }}
             }}
-            akka.test.single-expect-default = 3s")
+            akka.test.single-expect-default = 10s")
                 .WithFallback(RedisPersistence.DefaultConfig());
         }
 

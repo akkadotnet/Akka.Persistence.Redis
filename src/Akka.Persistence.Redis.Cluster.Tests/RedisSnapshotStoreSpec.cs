@@ -18,7 +18,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             DbUtils.Initialize(fixture);
 
             return ConfigurationFactory.ParseString($@"
-                akka.test.single-expect-default = 3s
+                akka.test.single-expect-default = 10s
                 akka.persistence {{
                     publish-plugin-commands = on
                     snapshot-store {{

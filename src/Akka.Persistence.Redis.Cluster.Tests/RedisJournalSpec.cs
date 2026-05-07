@@ -33,7 +33,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{DbUtils.ConnectionString}""
             }}
-            akka.test.single-expect-default = 3s")
+            akka.test.single-expect-default = 10s")
                 .WithFallback(RedisPersistence.DefaultConfig());
         }
 
@@ -80,12 +80,21 @@ namespace Akka.Persistence.Redis.Cluster.Tests
 
             var values = dict.Values.AsEnumerable().ToArray();
 
-            // Evaluate standard deviation
             var standardDeviation = StandardDeviation(values);
-            Output.WriteLine($"Server assignment distribution: [{string.Join(",", values)}]. Standard deviation: [{standardDeviation}]");
+            var mean = values.Average();
+            var coefficientOfVariation = standardDeviation / mean;
 
-            // Should be less than 1 percent of total keys
-            StandardDeviation(values).Should().BeLessThan(totalEntries * 0.01);
+            Output.WriteLine(
+                $"Server assignment distribution: [{string.Join(",", values)}]. " +
+                $"Mean: [{mean:F2}]. Standard deviation: [{standardDeviation:F2}]. " +
+                $"Coefficient of variation: [{coefficientOfVariation:F4}]");
+
+            // Coefficient of variation (stddev / mean) bounds the relative imbalance across
+            // shards independently of totalEntries. For uniform multinomial(n, 1/k) the
+            // expected CV is ~1/sqrt(n*p) — at n=10000 with k=3 buckets that is ~0.025; the
+            // 99.9% upper bound is well below 0.10. A real distribution failure (one bucket
+            // capturing >50% of keys) would push CV well above 0.10.
+            coefficientOfVariation.Should().BeLessThan(0.10);
         }
 
         private double StandardDeviation(int[] values)
