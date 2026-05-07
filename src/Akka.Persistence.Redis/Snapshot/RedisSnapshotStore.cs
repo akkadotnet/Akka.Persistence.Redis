@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // <copyright file="RedisSnapshotStore.cs" company="Akka.NET Project">
 //      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
 // </copyright>
@@ -20,35 +20,63 @@ namespace Akka.Persistence.Redis.Snapshot
         protected static readonly RedisPersistence Extension = RedisPersistence.Get(Context.System);
 
         private readonly RedisSettings _settings;
-        private readonly Lazy<IDatabase> _database;
+        private readonly Lazy<RedisConnection> _connection;
         private readonly ActorSystem _system;
-        public IDatabase Database => _database.Value;
+
+        public IDatabase Database => _connection.Value.Database;
 
         public bool IsClustered { get; private set; }
+
+        // Test seam: exposes the underlying multiplexer once the connection has been initialized.
+        // Returns null before the first call to Database to keep PostStop side-effect-free during early termination.
+        internal IConnectionMultiplexer ConnectionMultiplexer => _connection.IsValueCreated ? _connection.Value.Multiplexer : null;
 
         public RedisSnapshotStore(Config snapshotConfig)
         {
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
 
             _system = Context.System;
-            _database = new Lazy<IDatabase>(() =>
+            _connection = new Lazy<RedisConnection>(() =>
             {
-                var redisConnection = ConnectionMultiplexer.Connect(_settings.ConfigurationString);
+                var redisConnection = StackExchange.Redis.ConnectionMultiplexer.Connect(_settings.ConfigurationString);
                 IsClustered = redisConnection.IsClustered();
 
+                IDatabase database;
                 if (_settings.DatabaseFromConnectionString && !IsClustered)
                 {
                     var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
                     if (conf.DefaultDatabase.HasValue)
-                        return redisConnection.GetDatabase(conf.DefaultDatabase.Value);
+                        database = redisConnection.GetDatabase(conf.DefaultDatabase.Value);
+                    else
+                        database = redisConnection.GetDatabase(_settings.Database);
+                }
+                else if (IsClustered)
+                {
+                    // for Redis Cluster, the database is 0 https://redis.io/topics/cluster-spec#implemented-subset
+                    database = redisConnection.GetDatabase(0);
+                }
+                else
+                {
+                    database = redisConnection.GetDatabase(_settings.Database);
                 }
 
-                // for Redis Cluster, the database is 0 https://redis.io/topics/cluster-spec#implemented-subset
-                if (IsClustered)
-                    return redisConnection.GetDatabase(0);
-
-                return redisConnection.GetDatabase(_settings.Database);
+                // PR 1 always owns the multiplexer it creates. A future change introducing
+                // an externally-supplied ConnectionMultiplexerFactory will set this to false
+                // for caller-supplied connections so the plugin doesn't dispose them.
+                return new RedisConnection(redisConnection, database, ownsConnection: true);
             });
+        }
+
+        protected override void PostStop()
+        {
+            if (_connection.IsValueCreated)
+            {
+                var connection = _connection.Value;
+                if (connection.OwnsConnection)
+                    connection.Multiplexer.Dispose();
+            }
+
+            base.PostStop();
         }
 
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId,
@@ -56,7 +84,7 @@ namespace Akka.Persistence.Redis.Snapshot
         {
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             var snapshots = await Database.SortedSetRangeByScoreAsync(
                 GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
@@ -78,27 +106,29 @@ namespace Akka.Persistence.Redis.Snapshot
         {
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             return Database.SortedSetAddAsync(
                 GetSnapshotKey(metadata.PersistenceId, IsClustered),
                 PersistentToBytes(metadata, snapshot),
-                metadata.SequenceNr);
+                metadata.SequenceNr,
+                flags: CommandFlags.DemandMaster);
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata, CancellationToken cancellationToken)
         {
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             if(metadata.Timestamp == DateTime.MinValue)
             {
                 await Database.SortedSetRemoveRangeByScoreAsync(
                     GetSnapshotKey(metadata.PersistenceId, IsClustered),
                     metadata.SequenceNr,
-                    metadata.SequenceNr);
+                    metadata.SequenceNr,
+                    flags: CommandFlags.DemandMaster);
                 return;
             }
-            
+
             var snapshots = await Database.SortedSetRangeByScoreAsync(
                 key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
                 start: metadata.SequenceNr,
@@ -110,10 +140,11 @@ namespace Akka.Persistence.Redis.Snapshot
                 .Select(c => PersistentFromBytes(c))
                 .Where(snapshot => snapshot.Metadata.Timestamp <= metadata.Timestamp &&
                                    snapshot.Metadata.SequenceNr == metadata.SequenceNr)
-                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(
+                .Select(s => Database.SortedSetRemoveRangeByScoreAsync(
                     key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
-                    start: s.Metadata.SequenceNr, 
-                    stop: s.Metadata.SequenceNr))
+                    start: s.Metadata.SequenceNr,
+                    stop: s.Metadata.SequenceNr,
+                    flags: CommandFlags.DemandMaster))
                 .ToArray();
 
             await Task.WhenAll(found);
@@ -123,7 +154,7 @@ namespace Akka.Persistence.Redis.Snapshot
         {
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             var snapshots = await Database.SortedSetRangeByScoreAsync(
                 GetSnapshotKey(persistenceId, IsClustered),
                 criteria.MaxSequenceNr,
@@ -135,8 +166,11 @@ namespace Akka.Persistence.Redis.Snapshot
                 .Select(c => PersistentFromBytes(c))
                 .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
                                    snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
-                .Select(s => _database.Value.SortedSetRemoveRangeByScoreAsync(GetSnapshotKey(persistenceId, IsClustered),
-                    s.Metadata.SequenceNr, s.Metadata.SequenceNr))
+                .Select(s => Database.SortedSetRemoveRangeByScoreAsync(
+                    GetSnapshotKey(persistenceId, IsClustered),
+                    s.Metadata.SequenceNr,
+                    s.Metadata.SequenceNr,
+                    flags: CommandFlags.DemandMaster))
                 .ToArray();
 
             await Task.WhenAll(found);
@@ -162,6 +196,20 @@ namespace Akka.Persistence.Redis.Snapshot
             return withHashTag
                 ? $"{{__{persistenceId}}}.{_settings.KeyPrefix}snapshot:{persistenceId}"
                 : $"{_settings.KeyPrefix}snapshot:{persistenceId}";
+        }
+
+        private sealed class RedisConnection
+        {
+            public RedisConnection(IConnectionMultiplexer multiplexer, IDatabase database, bool ownsConnection)
+            {
+                Multiplexer = multiplexer;
+                Database = database;
+                OwnsConnection = ownsConnection;
+            }
+
+            public IConnectionMultiplexer Multiplexer { get; }
+            public IDatabase Database { get; }
+            public bool OwnsConnection { get; }
         }
     }
 

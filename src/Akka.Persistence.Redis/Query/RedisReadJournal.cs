@@ -31,7 +31,7 @@ namespace Akka.Persistence.Redis.Query
         /// <summary>
         /// The default identifier for <see cref="RedisReadJournal" /> to be used with <see cref="PersistenceQueryExtensions.ReadJournalFor{TJournal}" />.
         /// </summary>
-        public static string Identifier = "akka.persistence.query.journal.redis";
+        public static readonly string Identifier = "akka.persistence.query.journal.redis";
 
         public RedisReadJournal(ExtendedActorSystem system, Config config)
         {
