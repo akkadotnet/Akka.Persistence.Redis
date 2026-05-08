@@ -33,12 +33,11 @@ public static class RedisConnectivityCheckExtensions
             ?? throw new InvalidOperationException(
                 $"Options must be {nameof(RedisJournalOptions)}");
 
-        if (string.IsNullOrWhiteSpace(journalOptions.ConfigurationString))
-            throw new ArgumentException("ConfigurationString must be set on RedisJournalOptions");
+        var check = BuildJournalCheck(journalOptions);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.Journal.{journalOptions.Identifier}.Connectivity",
-            new RedisJournalConnectivityCheck(journalOptions.ConfigurationString!, journalOptions.Identifier),
+            check,
             unHealthyStatus,
             tags ?? new[] { "akka", "persistence", "redis", "journal", "connectivity" });
 
@@ -66,12 +65,11 @@ public static class RedisConnectivityCheckExtensions
         if (journalOptions is null)
             throw new ArgumentNullException(nameof(journalOptions));
 
-        if (string.IsNullOrWhiteSpace(journalOptions.ConfigurationString))
-            throw new ArgumentException("ConfigurationString must be set on RedisJournalOptions", nameof(journalOptions));
+        var check = BuildJournalCheck(journalOptions);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.Journal.{journalOptions.Identifier}.Connectivity",
-            new RedisJournalConnectivityCheck(journalOptions.ConfigurationString, journalOptions.Identifier),
+            check,
             unHealthyStatus,
             tags ?? new[] { "akka", "persistence", "redis", "journal", "connectivity" });
 
@@ -99,12 +97,11 @@ public static class RedisConnectivityCheckExtensions
             ?? throw new InvalidOperationException(
                 $"Options must be {nameof(RedisSnapshotOptions)}");
 
-        if (string.IsNullOrWhiteSpace(snapshotOptions.ConfigurationString))
-            throw new ArgumentException("ConfigurationString must be set on RedisSnapshotOptions");
+        var check = BuildSnapshotStoreCheck(snapshotOptions);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.SnapshotStore.{snapshotOptions.Identifier}.Connectivity",
-            new RedisSnapshotStoreConnectivityCheck(snapshotOptions.ConfigurationString!, snapshotOptions.Identifier),
+            check,
             unHealthyStatus,
             tags ?? new[] { "akka", "persistence", "redis", "snapshot-store", "connectivity" });
 
@@ -132,15 +129,43 @@ public static class RedisConnectivityCheckExtensions
         if (snapshotOptions is null)
             throw new ArgumentNullException(nameof(snapshotOptions));
 
-        if (string.IsNullOrWhiteSpace(snapshotOptions.ConfigurationString))
-            throw new ArgumentException("ConfigurationString must be set on RedisSnapshotOptions", nameof(snapshotOptions));
+        var check = BuildSnapshotStoreCheck(snapshotOptions);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.SnapshotStore.{snapshotOptions.Identifier}.Connectivity",
-            new RedisSnapshotStoreConnectivityCheck(snapshotOptions.ConfigurationString, snapshotOptions.Identifier),
+            check,
             unHealthyStatus,
             tags ?? new[] { "akka", "persistence", "redis", "snapshot-store", "connectivity" });
 
         return builder.WithCustomHealthCheck(registration);
+    }
+
+    // When ConnectionMultiplexerFactory is set on the options, route the health check
+    // through the same factory the journal/snapshot store uses so the probe reuses the
+    // caller-owned multiplexer instead of opening a fresh connection per check. Falls
+    // back to the connection-string ctor (which opens-and-disposes per probe) when no
+    // factory is configured.
+    private static RedisJournalConnectivityCheck BuildJournalCheck(RedisJournalOptions options)
+    {
+        if (options.ConnectionMultiplexerFactory is not null)
+            return new RedisJournalConnectivityCheck(options.ConnectionMultiplexerFactory, options.Identifier);
+
+        if (string.IsNullOrWhiteSpace(options.ConfigurationString))
+            throw new ArgumentException(
+                $"Either {nameof(RedisJournalOptions.ConfigurationString)} or {nameof(RedisJournalOptions.ConnectionMultiplexerFactory)} must be set on {nameof(RedisJournalOptions)}.");
+
+        return new RedisJournalConnectivityCheck(options.ConfigurationString!, options.Identifier);
+    }
+
+    private static RedisSnapshotStoreConnectivityCheck BuildSnapshotStoreCheck(RedisSnapshotOptions options)
+    {
+        if (options.ConnectionMultiplexerFactory is not null)
+            return new RedisSnapshotStoreConnectivityCheck(options.ConnectionMultiplexerFactory, options.Identifier);
+
+        if (string.IsNullOrWhiteSpace(options.ConfigurationString))
+            throw new ArgumentException(
+                $"Either {nameof(RedisSnapshotOptions.ConfigurationString)} or {nameof(RedisSnapshotOptions.ConnectionMultiplexerFactory)} must be set on {nameof(RedisSnapshotOptions)}.");
+
+        return new RedisSnapshotStoreConnectivityCheck(options.ConfigurationString!, options.Identifier);
     }
 }

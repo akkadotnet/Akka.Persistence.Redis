@@ -98,7 +98,7 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     public void Journal_Connectivity_Check_Should_Require_ConnectionString()
     {
         // Act & Assert
-        var action = () => new RedisJournalConnectivityCheck(null!, "redis");
+        var action = () => new RedisJournalConnectivityCheck((string)null!, "redis");
         action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "connectionString");
     }
 
@@ -114,7 +114,7 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     public void Snapshot_Connectivity_Check_Should_Require_ConnectionString()
     {
         // Act & Assert
-        var action = () => new RedisSnapshotStoreConnectivityCheck(null!, "redis");
+        var action = () => new RedisSnapshotStoreConnectivityCheck((string)null!, "redis");
         action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "connectionString");
     }
 
