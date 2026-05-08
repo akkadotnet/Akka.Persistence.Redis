@@ -5,135 +5,59 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Actor.Setup;
 using StackExchange.Redis;
 
+#nullable enable
 namespace Akka.Persistence.Redis
 {
     /// <summary>
-    /// Per-<see cref="ActorSystem"/> setup that supplies a single pre-configured
-    /// <see cref="IConnectionMultiplexer"/> to <i>all</i> Redis journal and snapshot store
-    /// instances in the system. Use this when one Redis instance backs every Redis
-    /// persistence plugin in the application — the common case.
+    /// Per-<see cref="ActorSystem"/> setup that supplies an
+    /// <see cref="IConnectionMultiplexer"/> factory to every Redis journal and snapshot
+    /// store in the system. Use this to inject a multiplexer that needs custom construction
+    /// — Azure Managed Identity / Entra ID, custom retry policies, RESP3 protocol, a
+    /// pre-built instance, etc.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// For applications that run multiple instances of the Redis journal or snapshot store
-    /// against <i>different</i> Redis instances (multi-tenant sharding, journal vs snapshot
-    /// on separate Redis tiers, migration cutovers, etc.), use
-    /// <see cref="MultiRedisConnectionMultiplexerSetup"/> instead — it carries one factory
-    /// per plugin id.
+    /// One Setup applies to every Redis plugin in the <see cref="ActorSystem"/>. Each plugin
+    /// instance invokes <see cref="Factory"/> once during construction. Whether multiple
+    /// plugins receive the same <see cref="IConnectionMultiplexer"/> instance is determined
+    /// entirely by <see cref="Factory"/>: a delegate that caches its result (a closure-
+    /// captured <see cref="Lazy{T}"/> for example) shares the multiplexer; a delegate that
+    /// builds a fresh multiplexer on each call gives every plugin its own.
     /// </para>
     /// <para>
-    /// <b>Lookup order.</b> When both this setup and <see cref="MultiRedisConnectionMultiplexerSetup"/>
-    /// are present on the same <see cref="ActorSystem"/>, the single setup wins for every
-    /// plugin instance. The multi setup is consulted only when the single setup is absent.
+    /// <see cref="OwnedByPlugin"/> controls disposal. When <see langword="false"/> (the
+    /// default), the plugin treats the multiplexer as caller-owned and never disposes it on
+    /// <see cref="UntypedActor.PostStop"/>. When <see langword="true"/>, the plugin disposes
+    /// whatever <see cref="Factory"/> returned — useful when the factory is purely a
+    /// construction hook (e.g. async initialization) and the caller wants the plugin to
+    /// manage lifetime.
     /// </para>
     /// <para>
-    /// <b>Lifetime contract.</b> The plugin treats the multiplexer returned by the factory
-    /// as caller-owned and will <i>not</i> dispose it during <see cref="UntypedActor.PostStop"/>.
-    /// The factory should typically cache and return the same
-    /// <see cref="IConnectionMultiplexer"/> on every invocation.
-    /// </para>
-    /// <para>
-    /// <b>Akka.Hosting users</b> normally do not construct this setup directly; setting
-    /// <see cref="P:Akka.Persistence.Redis.Hosting.RedisJournalOptions.ConnectionMultiplexerFactory"/>
-    /// (and/or its snapshot-store equivalent) on the hosting options causes the hosting
-    /// extension to assemble an appropriate Setup. Construct this class explicitly only
-    /// when bootstrapping an <see cref="ActorSystem"/> outside Akka.Hosting via
+    /// Akka.Hosting users normally do not construct this Setup directly — pass
+    /// <c>multiplexerFactory:</c>, <c>multiplexer:</c>, or use
+    /// <see cref="P:Akka.Persistence.Redis.Hosting.AzureRedisHostingExtensions"/> on the
+    /// <c>WithRedisPersistence</c> overloads instead. Construct this class explicitly only
+    /// when bootstrapping outside Akka.Hosting via
     /// <see cref="ActorSystem.Create(string, ActorSystemSetup)"/>.
     /// </para>
     /// </remarks>
     public sealed class RedisConnectionMultiplexerSetup : Setup
     {
-        public RedisConnectionMultiplexerSetup(Func<Task<IConnectionMultiplexer>> connectionFactory)
+        public RedisConnectionMultiplexerSetup(
+            Func<Task<IConnectionMultiplexer>> factory,
+            bool ownedByPlugin = false)
         {
-            ConnectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
+            Factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            OwnedByPlugin = ownedByPlugin;
         }
 
-        /// <summary>
-        /// Convenience factory method for constructing a setup from a synchronous factory
-        /// (e.g. when the caller already has a fully-constructed multiplexer).
-        /// </summary>
-        public static RedisConnectionMultiplexerSetup Create(Func<IConnectionMultiplexer> connectionFactory)
-        {
-            if (connectionFactory is null) throw new ArgumentNullException(nameof(connectionFactory));
-            return new RedisConnectionMultiplexerSetup(() => Task.FromResult(connectionFactory()));
-        }
+        public Func<Task<IConnectionMultiplexer>> Factory { get; }
 
-        public Func<Task<IConnectionMultiplexer>> ConnectionFactory { get; }
-    }
-
-    /// <summary>
-    /// Per-<see cref="ActorSystem"/> setup that supplies a different
-    /// <see cref="IConnectionMultiplexer"/> factory for each Redis journal or snapshot store
-    /// instance, keyed by plugin id (the full HOCON path, e.g.
-    /// <c>"akka.persistence.journal.redis"</c>).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Use this when an application runs multiple Redis persistence plugin instances against
-    /// different Redis backends — for example: cluster sharding regions backed by different
-    /// Redis clusters, journal events on a fast write-tuned Redis with snapshots on a
-    /// separate durable Redis, or a temporary migration cutover where new writes go to one
-    /// backend while reads still hit another.
-    /// </para>
-    /// <para>
-    /// Plugin ids are the full HOCON paths of the journal or snapshot store configuration
-    /// section — e.g. <c>"akka.persistence.journal.redis"</c> for the default journal,
-    /// <c>"akka.persistence.snapshot-store.redis"</c> for the default snapshot store, or
-    /// <c>"akka.persistence.journal.region-a"</c> for a custom-id journal. The key set is
-    /// independent: a journal at <c>"akka.persistence.journal.redis"</c> and a snapshot
-    /// store at <c>"akka.persistence.snapshot-store.redis"</c> can carry different factories.
-    /// </para>
-    /// <para>
-    /// <b>Lookup order.</b> When both <see cref="RedisConnectionMultiplexerSetup"/> and
-    /// this multi setup are present on the same <see cref="ActorSystem"/>, the single
-    /// setup takes precedence and applies to every plugin instance. This multi setup is
-    /// consulted only when the single setup is absent.
-    /// </para>
-    /// <para>
-    /// <b>Lifetime contract.</b> Same as <see cref="RedisConnectionMultiplexerSetup"/>:
-    /// caller-owned multiplexers, the plugin will not dispose them on
-    /// <see cref="UntypedActor.PostStop"/>.
-    /// </para>
-    /// </remarks>
-    public sealed class MultiRedisConnectionMultiplexerSetup : Setup
-    {
-        private readonly Dictionary<string, Func<Task<IConnectionMultiplexer>>> _factories = new();
-
-        /// <summary>
-        /// Registers <paramref name="connectionFactory"/> for the plugin at
-        /// <paramref name="pluginId"/>. Existing registrations for the same plugin id are
-        /// replaced.
-        /// </summary>
-        /// <param name="pluginId">
-        /// The full HOCON path of the journal or snapshot store plugin (e.g.
-        /// <c>"akka.persistence.journal.redis"</c>).
-        /// </param>
-        /// <param name="connectionFactory">A factory delegate returning a configured multiplexer.</param>
-        public MultiRedisConnectionMultiplexerSetup AddFactory(
-            string pluginId,
-            Func<Task<IConnectionMultiplexer>> connectionFactory)
-        {
-            if (pluginId is null) throw new ArgumentNullException(nameof(pluginId));
-            if (connectionFactory is null) throw new ArgumentNullException(nameof(connectionFactory));
-            _factories[pluginId] = connectionFactory;
-            return this;
-        }
-
-        /// <summary>
-        /// Returns <see langword="true"/> and the registered factory if one exists for
-        /// <paramref name="pluginId"/>; otherwise returns <see langword="false"/> with a
-        /// <see langword="null"/> out parameter.
-        /// </summary>
-        public bool TryGetFactory(string pluginId, out Func<Task<IConnectionMultiplexer>>? connectionFactory)
-        {
-            if (pluginId is null) throw new ArgumentNullException(nameof(pluginId));
-            return _factories.TryGetValue(pluginId, out connectionFactory);
-        }
+        public bool OwnedByPlugin { get; }
     }
 }

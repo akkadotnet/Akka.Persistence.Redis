@@ -16,10 +16,9 @@ using Xunit;
 namespace Akka.Persistence.Redis.Tests.Hosting;
 
 /// <summary>
-/// Covers <see cref="AzureRedisHostingExtensions"/>'s auto-detect behavior and the wiring
-/// it does into the <see cref="MultiRedisConnectionMultiplexerSetup"/> via the existing
-/// <see cref="RedisJournalOptions.ConnectionMultiplexerFactory"/> /
-/// <see cref="RedisSnapshotOptions.ConnectionMultiplexerFactory"/> options.
+/// Covers <see cref="AzureRedisHostingExtensions"/>'s auto-detect behavior and the
+/// <see cref="RedisConnectionMultiplexerSetup"/> it registers when an Azure host is
+/// recognized.
 ///
 /// These tests do not connect to a real Azure Redis instance — they assert the helper's
 /// configuration-time behavior. Acquiring an Azure access token requires a live
@@ -62,36 +61,28 @@ public class AzureRedisHostingExtensionsSpec
     }
 
     [Fact]
-    public void WithAzureRedisPersistence_against_Azure_host_should_register_a_factory_for_journal_and_snapshot()
+    public void WithAzureRedisPersistence_against_Azure_host_should_register_setup()
     {
         var builder = NewBuilder();
 
         builder.WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000");
 
-        var multi = builder.Setups.OfType<MultiRedisConnectionMultiplexerSetup>().FirstOrDefault();
-        multi.Should().NotBeNull(
-            "WithAzureRedisPersistence must wire its factory through the existing per-plugin Setup mechanism");
-
-        multi!.TryGetFactory("akka.persistence.journal.redis", out var journalFactory).Should().BeTrue();
-        journalFactory.Should().NotBeNull();
-
-        multi.TryGetFactory("akka.persistence.snapshot-store.redis", out var snapshotFactory).Should().BeTrue();
-        snapshotFactory.Should().NotBeNull();
-
-        // Same factory instance for both plugins (single connection per app, the common case).
-        ReferenceEquals(journalFactory, snapshotFactory).Should().BeTrue();
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().FirstOrDefault();
+        setup.Should().NotBeNull(
+            "WithAzureRedisPersistence must register a RedisConnectionMultiplexerSetup for the Azure-built factory");
+        setup!.OwnedByPlugin.Should().BeFalse(
+            "Azure-supplied multiplexer is caller-owned (the helper holds a Lazy<Task<>> across plugin lifetimes)");
     }
 
     [Fact]
-    public void WithAzureRedisPersistence_against_non_Azure_host_should_not_register_a_factory()
+    public void WithAzureRedisPersistence_against_non_Azure_host_should_not_register_setup()
     {
         var builder = NewBuilder();
 
-        // localhost falls through to the plain HOCON connection-string path; no factory.
+        // localhost falls through to the plain HOCON connection-string path; no Setup.
         builder.WithAzureRedisPersistence("localhost:6379");
 
-        var multi = builder.Setups.OfType<MultiRedisConnectionMultiplexerSetup>().FirstOrDefault();
-        multi.Should().BeNull(
+        builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Should().BeEmpty(
             "non-Azure hosts must use the HOCON connection-string path, not the factory path");
     }
 

@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Hosting;
@@ -35,20 +36,12 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
     protected override void ConfigureAkka(AkkaConfigurationBuilder builder, IServiceProvider provider)
     {
         _suppliedMultiplexer = ConnectionMultiplexer.Connect(_fixture.ConnectionString);
-        Func<Task<IConnectionMultiplexer>> sharedFactory = () => Task.FromResult(_suppliedMultiplexer!);
 
         builder.WithRedisPersistence(
-            journalOptionConfigurator: opts =>
-            {
-                opts.AutoInitialize = true;
-                opts.ConnectionMultiplexerFactory = sharedFactory;
-            },
-            snapshotOptionConfigurator: opts =>
-            {
-                opts.AutoInitialize = true;
-                // Same delegate reference required by the factory-consistency check.
-                opts.ConnectionMultiplexerFactory = sharedFactory;
-            });
+            _fixture.ConnectionString,
+            multiplexer: _suppliedMultiplexer,
+            ownedByPlugin: false,
+            autoInitialize: true);
     }
 
     protected override async Task AfterAllAsync()
@@ -56,10 +49,9 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
         // Caller-owned multiplexer: the plugin must NOT have disposed it.
         _suppliedMultiplexer.Should().NotBeNull();
         _suppliedMultiplexer!.IsConnected.Should().BeTrue(
-            "the plugin must not dispose multiplexers supplied via ConnectionMultiplexerFactory");
+            "the plugin must not dispose multiplexers supplied via RedisConnectionMultiplexerSetup when ownedByPlugin is false");
 
         _suppliedMultiplexer.Dispose();
-        // The per-system registry entry will be GC'd with Sys; explicit Reset is just hygiene.
 
         await base.AfterAllAsync();
     }
@@ -81,15 +73,12 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
     }
 
     [Fact]
-    public void MultiSetup_should_carry_factories_for_both_journal_and_snapshot_plugin_ids()
+    public void Setup_should_be_registered_when_multiplexer_is_supplied()
     {
-        // Sanity: the hosting extension added a MultiRedisConnectionMultiplexerSetup to
-        // ActorSystemSetup with one entry per plugin id (journal + snapshot here).
-        var setup = Sys.Settings.Setup.Get<MultiRedisConnectionMultiplexerSetup>();
-        setup.HasValue.Should().BeTrue();
-
-        setup.Value.TryGetFactory("akka.persistence.journal.redis", out _).Should().BeTrue();
-        setup.Value.TryGetFactory("akka.persistence.snapshot-store.redis", out _).Should().BeTrue();
+        var setup = Sys.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
+        setup.HasValue.Should().BeTrue(
+            "WithRedisPersistence(multiplexer:) must register a RedisConnectionMultiplexerSetup");
+        setup.Value.OwnedByPlugin.Should().BeFalse();
     }
 
     private sealed class FactoryProbeActor : Akka.Persistence.ReceivePersistentActor

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Hosting;
+using Akka.Persistence.Redis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
 
@@ -17,63 +18,42 @@ namespace Akka.Persistence.Redis.Hosting;
 
 /// <summary>
 /// Health check that verifies connectivity to the Redis instance used by the snapshot store.
-/// This is a liveness check that proactively verifies backend connectivity.
 /// </summary>
 /// <remarks>
-/// When constructed with a connection string, every check opens a fresh
-/// <see cref="ConnectionMultiplexer"/> and disposes it after the ping completes.
-/// That is fine for occasional liveness probes but adds connect-time latency on
-/// every check. When constructed with a factory delegate, the check reuses whatever
-/// <see cref="IConnectionMultiplexer"/> the caller already owns and does <i>not</i>
-/// dispose it — typically the same multiplexer the snapshot store is using, so the probe
-/// is effectively zero-cost.
+/// At probe time the check looks for a <see cref="RedisConnectionMultiplexerSetup"/> on the
+/// <see cref="Akka.Actor.ActorSystem"/>. If present, the check uses that factory (caller-
+/// owned, never disposed) so the probe shares the snapshot store's multiplexer when the
+/// factory caches its result. If absent, the check opens a fresh
+/// <see cref="ConnectionMultiplexer"/> from the configured connection string and disposes
+/// it after the ping completes.
 /// </remarks>
 public sealed class RedisSnapshotStoreConnectivityCheck : IAkkaHealthCheck
 {
-    private readonly Func<Task<IConnectionMultiplexer>> _connectionFactory;
-    private readonly bool _ownsConnection;
+    private readonly string _connectionString;
     private readonly string _snapshotStoreId;
 
-    /// <summary>
-    /// Creates a connectivity check that opens a fresh <see cref="ConnectionMultiplexer"/>
-    /// from <paramref name="connectionString"/> on every probe and disposes it after the
-    /// ping completes.
-    /// </summary>
     public RedisSnapshotStoreConnectivityCheck(string connectionString, string snapshotStoreId)
-        : this(BuildFactoryFromConnectionString(connectionString), ownsConnection: true, snapshotStoreId)
     {
-    }
-
-    /// <summary>
-    /// Creates a connectivity check that reuses a caller-supplied
-    /// <see cref="IConnectionMultiplexer"/> via <paramref name="connectionFactory"/> and
-    /// does not dispose it. The factory should typically be the same delegate registered
-    /// with <see cref="RedisConnectionProvider"/>; opening a separate multiplexer per check
-    /// defeats the point of the extension point.
-    /// </summary>
-    public RedisSnapshotStoreConnectivityCheck(Func<Task<IConnectionMultiplexer>> connectionFactory, string snapshotStoreId)
-        : this(connectionFactory, ownsConnection: false, snapshotStoreId)
-    {
-    }
-
-    private RedisSnapshotStoreConnectivityCheck(
-        Func<Task<IConnectionMultiplexer>> connectionFactory,
-        bool ownsConnection,
-        string snapshotStoreId)
-    {
-        _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
-        _ownsConnection = ownsConnection;
+        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
         _snapshotStoreId = snapshotStoreId ?? throw new ArgumentNullException(nameof(snapshotStoreId));
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(AkkaHealthCheckContext context, CancellationToken cancellationToken = default)
     {
+        Akka.Util.Option<RedisConnectionMultiplexerSetup> setup = default;
+        if (context.ActorSystem is not null)
+            setup = context.ActorSystem.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
+
+        var ownsConnection = !setup.HasValue;
         IConnectionMultiplexer? connection = null;
         try
         {
-            connection = await _connectionFactory().ConfigureAwait(false);
+            connection = setup.HasValue
+                ? await setup.Value.Factory()
+                : await ConnectionMultiplexer.ConnectAsync(_connectionString);
+
             var server = connection.GetServer(connection.GetEndPoints().First());
-            await server.PingAsync().ConfigureAwait(false);
+            await server.PingAsync();
             return HealthCheckResult.Healthy($"Redis snapshot store '{_snapshotStoreId}' connection successful");
         }
         catch (OperationCanceledException)
@@ -86,16 +66,8 @@ public sealed class RedisSnapshotStoreConnectivityCheck : IAkkaHealthCheck
         }
         finally
         {
-            if (_ownsConnection && connection is not null)
+            if (ownsConnection && connection is not null)
                 connection.Dispose();
         }
-    }
-
-    private static Func<Task<IConnectionMultiplexer>> BuildFactoryFromConnectionString(string connectionString)
-    {
-        if (connectionString is null)
-            throw new ArgumentNullException(nameof(connectionString));
-
-        return async () => await ConnectionMultiplexer.ConnectAsync(connectionString).ConfigureAwait(false);
     }
 }
