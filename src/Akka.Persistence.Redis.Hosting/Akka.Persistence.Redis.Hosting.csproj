@@ -6,10 +6,16 @@
 
   <ItemGroup>
     <PackageReference Include="Akka.Persistence.Hosting" />
+    <PackageReference Include="Microsoft.Azure.StackExchangeRedis" />
+    <PackageReference Include="Azure.Identity" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Akka.Persistence.Redis\Akka.Persistence.Redis.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Akka.Persistence.Redis.Tests" />
   </ItemGroup>
 
   <ItemGroup>

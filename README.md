@@ -180,11 +180,30 @@ using var host = new HostBuilder()
 await host.RunAsync();
 ```
 
-### Supplying a Pre-Configured `IConnectionMultiplexer`
+### Azure Managed Redis with Entra ID / Managed Identity
 
-A plain HOCON connection string is enough for most deployments, but some scenarios need an `IConnectionMultiplexer` that has been authored programmatically: Azure Managed Redis with Entra ID / Managed Identity, Redis Sentinel, a custom `ReconnectRetryPolicy` (e.g. `ExponentialRetry`), a tighter `ConfigCheckSeconds` for clustered Redis, or any other `ConfigurationOptions` knob that does not have a connection-string equivalent.
+For Azure Managed Redis (`*.redis.azure.net`) or Azure Cache for Redis (`*.redis.cache.windows.net`) deployments, use `WithAzureRedisPersistence(...)`. It auto-detects the Azure host suffix, configures TLS + RESP3, and authenticates via [`Microsoft.Azure.StackExchangeRedis`](https://github.com/Azure/Microsoft.Azure.StackExchangeRedis)'s `ConfigureForAzureWithTokenCredentialAsync` using a `TokenCredential` from `Azure.Identity` (defaulting to `ManagedIdentityCredential`). For non-Azure hosts (e.g. local-dev `localhost:6379`) it falls through to the plain HOCON connection-string path.
 
-For these cases, set a `ConnectionMultiplexerFactory` on the journal and/or snapshot options. The factory is a `Func<Task<IConnectionMultiplexer>>` that returns the multiplexer the plugin should use. The plugin treats the returned multiplexer as **caller-owned** — it will not dispose it on actor shutdown. Cache the multiplexer in your factory and dispose it yourself when the application terminates.
+```csharp
+// One-liner — system-assigned managed identity is detected automatically.
+builder.WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000");
+
+// Pin a user-assigned managed identity by client id.
+builder.WithAzureRedisPersistence(
+    "your-redis.swedencentral.redis.azure.net:10000",
+    credential: new ManagedIdentityCredential("your-client-id"));
+
+// Local development — no Azure suffix, plain HOCON connection-string auth.
+builder.WithAzureRedisPersistence("localhost:6379");
+```
+
+Add the `Akka.Persistence.Redis.Hosting` package and `using Azure.Identity;` (the package transitively pulls in `Microsoft.Azure.StackExchangeRedis` and `Azure.Identity` for you).
+
+### Supplying a Pre-Configured `IConnectionMultiplexer` (Non-Azure)
+
+For deployments that aren't Azure-managed but still need an `IConnectionMultiplexer` authored programmatically — Redis Sentinel, a custom `ReconnectRetryPolicy` (e.g. `ExponentialRetry`), a tighter `ConfigCheckSeconds` for clustered Redis, or any other `ConfigurationOptions` knob that does not have a connection-string equivalent — set the factory directly via `RedisJournalOptions` / `RedisSnapshotOptions`.
+
+The factory is a `Func<Task<IConnectionMultiplexer>>` that returns the multiplexer the plugin should use. The plugin treats the returned multiplexer as **caller-owned** — it will not dispose it on actor shutdown. Cache the multiplexer in your factory and dispose it yourself when the application terminates.
 
 ```csharp
 // Construct the multiplexer once at app startup with whatever ConfigurationOptions you need.
@@ -196,9 +215,6 @@ var configurationOptions = new ConfigurationOptions
     ConfigCheckSeconds = 10,
     ReconnectRetryPolicy = new ExponentialRetry(deltaBackOffMilliseconds: 1000),
 };
-
-// (Azure Managed Redis with Entra ID example)
-await configurationOptions.ConfigureForAzureWithTokenCredentialAsync(new ManagedIdentityCredential());
 
 var multiplexer = await ConnectionMultiplexer.ConnectAsync(configurationOptions);
 
