@@ -28,49 +28,16 @@ namespace Akka.Persistence.Redis.Snapshot
         public IDatabase Database { get; }
         public bool IsClustered { get; }
 
-        // Test seam.
-        internal IConnectionMultiplexer ConnectionMultiplexer => _connection;
-
         public RedisSnapshotStore(Config snapshotConfig)
         {
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
             _system = Context.System;
 
-            var setup = _system.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
-            if (setup.HasValue)
-            {
-                _connection = setup.Value.Factory().GetAwaiter().GetResult();
-                _ownsConnection = setup.Value.OwnedByPlugin;
-            }
-            else
-            {
-                _connection = StackExchange.Redis.ConnectionMultiplexer.Connect(_settings.ConfigurationString);
-                _ownsConnection = true;
-            }
-
-            IsClustered = _connection.IsClustered();
-            Database = _connection.GetDatabase(ResolveDatabaseNumber());
-        }
-
-        private int ResolveDatabaseNumber()
-        {
-            if (IsClustered)
-            {
-                // Redis Cluster pins everything to db 0 — https://redis.io/topics/cluster-spec#implemented-subset
-                return 0;
-            }
-
-            // DatabaseFromConnectionString is only meaningful when we own the connection
-            // string ourselves; an injected multiplexer is opaque so fall back to the
-            // explicitly configured _settings.Database.
-            if (_ownsConnection && _settings.DatabaseFromConnectionString)
-            {
-                var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
-                if (conf.DefaultDatabase.HasValue)
-                    return conf.DefaultDatabase.Value;
-            }
-
-            return _settings.Database;
+            var resolved = RedisConnectionResolver.Resolve(_system, _settings);
+            _connection = resolved.Connection;
+            _ownsConnection = resolved.OwnsConnection;
+            Database = resolved.Database;
+            IsClustered = resolved.IsClustered;
         }
 
         protected override void PostStop()

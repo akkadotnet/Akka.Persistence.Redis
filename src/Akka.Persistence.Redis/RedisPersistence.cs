@@ -72,9 +72,8 @@ namespace Akka.Persistence.Redis
             DefaultJournalConfig = defaultConfig.GetConfig(JournalConfigPath);
             DefaultSnapshotConfig = defaultConfig.GetConfig(SnapshotConfigPath);
 
-            JournalSettings = RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.journal.redis"));
-            SnapshotStoreSettings =
-                RedisSettings.Create(system.Settings.Config.GetConfig("akka.persistence.snapshot-store.redis"));
+            JournalSettings = RedisSettings.Create(system.Settings.Config.GetConfig(JournalConfigPath));
+            SnapshotStoreSettings = RedisSettings.Create(system.Settings.Config.GetConfig(SnapshotConfigPath));
         }
     }
 

@@ -159,7 +159,7 @@ public static class AkkaPersistenceRedisHostingExtensions
         };
     }
 
-    internal static void RegisterMultiplexerSetup(
+    private static void RegisterMultiplexerSetup(
         AkkaConfigurationBuilder builder,
         IConnectionMultiplexer? multiplexer,
         Func<Task<IConnectionMultiplexer>>? multiplexerFactory,
@@ -175,9 +175,12 @@ public static class AkkaPersistenceRedisHostingExtensions
         if (factory is null)
             return;
 
-        // First-write-wins: don't clobber a Setup the caller already registered explicitly.
         if (builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Any())
-            return;
+            throw new InvalidOperationException(
+                "A RedisConnectionMultiplexerSetup is already registered on the builder. " +
+                "Pass at most one source of multiplexer configuration: either register the " +
+                "Setup directly via builder.AddSetup(...), or use the multiplexer/" +
+                "multiplexerFactory parameter on WithRedisPersistence — not both.");
 
         builder.Setups.Add(new RedisConnectionMultiplexerSetup(factory, ownedByPlugin));
     }
