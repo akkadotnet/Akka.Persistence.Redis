@@ -10,14 +10,15 @@ namespace Akka.Persistence.Redis.Hosting;
 /// <summary>
 /// Extension methods for Redis persistence connectivity checks.
 /// </summary>
+/// <remarks>
+/// At probe time the check resolves a <see cref="RedisConnectionMultiplexerSetup"/> from
+/// the <see cref="Akka.Actor.ActorSystem"/> when present (so it shares the plugin's
+/// multiplexer), and falls back to <see cref="RedisJournalOptions.ConfigurationString"/> /
+/// <see cref="RedisSnapshotOptions.ConfigurationString"/> otherwise. Any valid path that
+/// successfully configures the plugin will also successfully drive the check.
+/// </remarks>
 public static class RedisConnectivityCheckExtensions
 {
-    /// <summary>
-    /// Adds a connectivity check for the Redis journal. The check uses the
-    /// <see cref="RedisConnectionMultiplexerSetup"/> registered on the
-    /// <see cref="Akka.Actor.ActorSystem"/> when present, otherwise opens a fresh
-    /// connection per probe from <see cref="RedisJournalOptions.ConfigurationString"/>.
-    /// </summary>
     public static AkkaPersistenceJournalBuilder WithConnectivityCheck(
         this AkkaPersistenceJournalBuilder builder,
         HealthStatus unHealthyStatus = HealthStatus.Unhealthy,
@@ -31,9 +32,6 @@ public static class RedisConnectivityCheckExtensions
         return RegisterJournalCheck(builder, journalOptions, unHealthyStatus, name, tags);
     }
 
-    /// <summary>
-    /// Legacy overload retained for source compatibility with pre-1.5.55 Akka.Hosting.
-    /// </summary>
     [Obsolete("Use the overload without journalOptions; options are read from builder.Options. This overload will be removed in a future version.")]
     public static AkkaPersistenceJournalBuilder WithConnectivityCheck(
         this AkkaPersistenceJournalBuilder builder,
@@ -48,10 +46,6 @@ public static class RedisConnectivityCheckExtensions
         return RegisterJournalCheck(builder, journalOptions, unHealthyStatus, name, tags);
     }
 
-    /// <summary>
-    /// Adds a connectivity check for the Redis snapshot store. Same Setup-aware behavior
-    /// as the journal check.
-    /// </summary>
     public static AkkaPersistenceSnapshotBuilder WithConnectivityCheck(
         this AkkaPersistenceSnapshotBuilder builder,
         HealthStatus unHealthyStatus = HealthStatus.Unhealthy,
@@ -65,9 +59,6 @@ public static class RedisConnectivityCheckExtensions
         return RegisterSnapshotCheck(builder, snapshotOptions, unHealthyStatus, name, tags);
     }
 
-    /// <summary>
-    /// Legacy overload retained for source compatibility with pre-1.5.55 Akka.Hosting.
-    /// </summary>
     [Obsolete("Use the overload without snapshotOptions; options are read from builder.Options. This overload will be removed in a future version.")]
     public static AkkaPersistenceSnapshotBuilder WithConnectivityCheck(
         this AkkaPersistenceSnapshotBuilder builder,
@@ -89,11 +80,10 @@ public static class RedisConnectivityCheckExtensions
         string? name,
         IEnumerable<string>? tags)
     {
-        if (string.IsNullOrWhiteSpace(options.ConfigurationString))
-            throw new ArgumentException(
-                $"{nameof(RedisJournalOptions.ConfigurationString)} must be set on {nameof(RedisJournalOptions)}.");
-
-        var check = new RedisJournalConnectivityCheck(options.ConfigurationString, options.Identifier);
+        // ConfigurationString may be empty when the caller supplied a multiplexer or
+        // factory via WithRedisPersistence — at probe time the check resolves the Setup
+        // first and only falls back to the connection string when none is registered.
+        var check = new RedisJournalConnectivityCheck(options.ConfigurationString ?? string.Empty, options.Identifier);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.Journal.{options.Identifier}.Connectivity",
@@ -111,11 +101,7 @@ public static class RedisConnectivityCheckExtensions
         string? name,
         IEnumerable<string>? tags)
     {
-        if (string.IsNullOrWhiteSpace(options.ConfigurationString))
-            throw new ArgumentException(
-                $"{nameof(RedisSnapshotOptions.ConfigurationString)} must be set on {nameof(RedisSnapshotOptions)}.");
-
-        var check = new RedisSnapshotStoreConnectivityCheck(options.ConfigurationString, options.Identifier);
+        var check = new RedisSnapshotStoreConnectivityCheck(options.ConfigurationString ?? string.Empty, options.Identifier);
 
         var registration = new AkkaHealthCheckRegistration(
             name ?? $"Akka.Persistence.Redis.SnapshotStore.{options.Identifier}.Connectivity",

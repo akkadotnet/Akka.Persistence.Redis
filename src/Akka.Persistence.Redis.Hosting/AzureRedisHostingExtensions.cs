@@ -56,17 +56,23 @@ public static class AzureRedisHostingExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("Connection string must not be empty.", nameof(connectionString));
 
-        Func<Task<IConnectionMultiplexer>>? factory = null;
         if (IsAzureRedisHost(connectionString))
         {
             var resolvedCredential = credential ?? new ManagedIdentityCredential();
-            factory = CreateAzureConnectionFactory(connectionString, resolvedCredential);
+            var factory = CreateAzureConnectionFactory(connectionString, resolvedCredential);
+            return builder.WithRedisPersistence(
+                multiplexerFactory: factory,
+                ownedByPlugin: false,
+                mode: mode,
+                autoInitialize: autoInitialize,
+                journalBuilder: journalBuilder,
+                snapshotBuilder: snapshotBuilder,
+                pluginIdentifier: pluginIdentifier,
+                isDefaultPlugin: isDefaultPlugin);
         }
 
         return builder.WithRedisPersistence(
             connectionString,
-            multiplexerFactory: factory,
-            ownedByPlugin: false,
             mode: mode,
             autoInitialize: autoInitialize,
             journalBuilder: journalBuilder,

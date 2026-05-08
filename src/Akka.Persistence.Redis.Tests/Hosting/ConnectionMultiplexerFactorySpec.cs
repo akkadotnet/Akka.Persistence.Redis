@@ -38,7 +38,6 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
         _suppliedMultiplexer = ConnectionMultiplexer.Connect(_fixture.ConnectionString);
 
         builder.WithRedisPersistence(
-            _fixture.ConnectionString,
             multiplexer: _suppliedMultiplexer,
             ownedByPlugin: false,
             autoInitialize: true);
