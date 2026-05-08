@@ -30,6 +30,7 @@ namespace Akka.Persistence.Redis.Tests.Query
                 configuration-string = ""{fixture.ConnectionString}""
                 database = {id}
             }}
+            akka.persistence.query.journal.redis.refresh-interval = 250ms
             akka.test.single-expect-default = 3s")
                 .WithFallback(RedisPersistence.DefaultConfig());
         }

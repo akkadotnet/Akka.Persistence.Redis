@@ -27,6 +27,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests.Query
                 plugin-dispatcher = ""akka.actor.default-dispatcher""
                 configuration-string = ""{fixture.ConnectionString}""
             }}
+            akka.persistence.query.journal.redis.refresh-interval = 250ms
             akka.test.single-expect-default = 10s")
                 .WithFallback(RedisPersistence.DefaultConfig());
         }

@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Persistence.Journal;
-using Akka.Persistence.Redis.Query;
 using Akka.Util.Internal;
 using StackExchange.Redis;
 
@@ -22,7 +21,6 @@ namespace Akka.Persistence.Redis.Journal
     public class RedisJournal : AsyncWriteJournal
     {
         protected static readonly RedisPersistence Extension = RedisPersistence.Get(Context.System);
-        private readonly HashSet<IActorRef> _newEventsSubscriber = new HashSet<IActorRef>();
 
         private readonly RedisSettings _settings;
         private readonly JournalHelper _journalHelper;
@@ -35,8 +33,6 @@ namespace Akka.Persistence.Redis.Journal
         // Test seam: exposes the underlying multiplexer once the connection has been initialized.
         // Returns null before the first call to Database to keep PostStop side-effect-free during early termination.
         internal IConnectionMultiplexer ConnectionMultiplexer => _connection.IsValueCreated ? _connection.Value.Multiplexer : null;
-
-        protected bool HasNewEventSubscribers => _newEventsSubscriber.Count != 0;
 
         public RedisJournal(Config journalConfig)
         {
@@ -110,19 +106,6 @@ namespace Akka.Persistence.Redis.Journal
             return null;
         }
 
-        protected override bool ReceivePluginInternal(object message)
-        {
-            switch (message)
-            {
-                case SubscribeNewEvents _:
-                    _newEventsSubscriber.Add(Sender);
-                    Context.Watch(Sender);
-                    return true;
-            }
-
-            return false;
-        }
-
         protected override void PostStop()
         {
             if (_connection.IsValueCreated)
@@ -193,10 +176,6 @@ namespace Akka.Persistence.Redis.Journal
                     writeTasks,
                     tasks => tasks.Select(t => t.IsFaulted ? TryUnwrapException(t.Exception) : null)
                         .ToImmutableList(), cancellationToken);
-
-            if (HasNewEventSubscribers)
-                foreach (var subscriber in _newEventsSubscriber)
-                    subscriber.Tell(NewEventAppended.Instance);
 
             return result;
         }
