@@ -38,12 +38,30 @@ namespace Akka.Persistence.Redis.Snapshot
             _system = Context.System;
             _connection = new Lazy<RedisConnection>(() =>
             {
-                var redisConnection = StackExchange.Redis.ConnectionMultiplexer.Connect(_settings.ConfigurationString);
+                IConnectionMultiplexer redisConnection;
+                bool ownsConnection;
+                var supplied = TryResolveCallerSuppliedMultiplexer();
+                if (supplied is not null)
+                {
+                    // Caller supplied a pre-configured multiplexer via ActorSystemSetup.
+                    // Reuse it and leave its lifetime to the caller; never dispose from PostStop.
+                    redisConnection = supplied;
+                    ownsConnection = false;
+                }
+                else
+                {
+                    redisConnection = StackExchange.Redis.ConnectionMultiplexer.Connect(_settings.ConfigurationString);
+                    ownsConnection = true;
+                }
+
                 IsClustered = redisConnection.IsClustered();
 
                 IDatabase database;
-                if (_settings.DatabaseFromConnectionString && !IsClustered)
+                if (ownsConnection && _settings.DatabaseFromConnectionString && !IsClustered)
                 {
+                    // DatabaseFromConnectionString is only meaningful when we own the connection
+                    // string ourselves; an injected multiplexer is opaque to us so we fall back
+                    // to the explicitly configured _settings.Database.
                     var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
                     if (conf.DefaultDatabase.HasValue)
                         database = redisConnection.GetDatabase(conf.DefaultDatabase.Value);
@@ -60,11 +78,29 @@ namespace Akka.Persistence.Redis.Snapshot
                     database = redisConnection.GetDatabase(_settings.Database);
                 }
 
-                // PR 1 always owns the multiplexer it creates. A future change introducing
-                // an externally-supplied ConnectionMultiplexerFactory will set this to false
-                // for caller-supplied connections so the plugin doesn't dispose them.
-                return new RedisConnection(redisConnection, database, ownsConnection: true);
+                return new RedisConnection(redisConnection, database, ownsConnection);
             });
+        }
+
+        // Looks up a caller-supplied multiplexer via ActorSystemSetup. Single-instance
+        // RedisConnectionMultiplexerSetup applies to every plugin and takes precedence;
+        // MultiRedisConnectionMultiplexerSetup is consulted as a fallback, keyed by this
+        // plugin's full HOCON path (which equals Self.Path.Name for system plugin actors).
+        // Returns null when neither setup applies, in which case the plugin opens its own
+        // multiplexer from the HOCON connection-string.
+        private IConnectionMultiplexer? TryResolveCallerSuppliedMultiplexer()
+        {
+            var setup = _system.Settings.Setup;
+
+            var single = setup.Get<RedisConnectionMultiplexerSetup>();
+            if (single.HasValue)
+                return single.Value.ConnectionFactory().GetAwaiter().GetResult();
+
+            var multi = setup.Get<MultiRedisConnectionMultiplexerSetup>();
+            if (multi.HasValue && multi.Value.TryGetFactory(Self.Path.Name, out var factory) && factory is not null)
+                return factory().GetAwaiter().GetResult();
+
+            return null;
         }
 
         protected override void PostStop()

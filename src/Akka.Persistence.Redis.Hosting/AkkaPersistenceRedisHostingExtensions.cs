@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 using System.Text;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Hosting;
 using Akka.Persistence.Hosting;
+using Akka.Persistence.Redis;
 
 #nullable enable
 namespace Akka.Persistence.Redis.Hosting;
@@ -212,6 +214,32 @@ public static class AkkaPersistenceRedisHostingExtensions
         Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
         Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null)
     {
+        // Carry per-plugin factories through ActorSystemSetup, mirroring how Akka.Persistence.Sql
+        // ships DataOptions via MultiDataOptionsSetup. Each plugin's options can supply its own
+        // factory (the common case is one shared factory across journal+snapshot, but multiple
+        // plugin instances against different Redis backends — e.g. Cluster.Sharding regions —
+        // are supported by setting different delegates per options object). The journal and
+        // snapshot store actors read this back via
+        // Context.System.Settings.Setup.Get<MultiRedisConnectionMultiplexerSetup>(), keyed by
+        // their own plugin path.
+        var journalFactory = journalOptions?.ConnectionMultiplexerFactory;
+        var snapshotFactory = snapshotOptions?.ConnectionMultiplexerFactory;
+        if (journalFactory is not null || snapshotFactory is not null)
+        {
+            var multi = builder.Setups.OfType<MultiRedisConnectionMultiplexerSetup>().FirstOrDefault();
+            if (multi is null)
+            {
+                multi = new MultiRedisConnectionMultiplexerSetup();
+                builder.Setups.Add(multi);
+            }
+
+            if (journalFactory is not null && journalOptions is not null)
+                multi.AddFactory(journalOptions.PluginId, journalFactory);
+
+            if (snapshotFactory is not null && snapshotOptions is not null)
+                multi.AddFactory(snapshotOptions.PluginId, snapshotFactory);
+        }
+
         return (journalOptions, snapshotOptions) switch
         {
             (null, null) =>
@@ -225,7 +253,8 @@ public static class AkkaPersistenceRedisHostingExtensions
 
             (null, _) =>
                 builder
-                    .WithSnapshot(snapshotOptions, snapshotBuilder),
+                    .WithSnapshot(snapshotOptions, snapshotBuilder)
+                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
 
             (_, _) =>
                 builder
