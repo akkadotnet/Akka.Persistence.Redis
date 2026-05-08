@@ -89,9 +89,6 @@ namespace Akka.Persistence.Redis.Query
                 case EventsByPersistenceIdPublisher.Continue _:
                     if (IsTimeForReplay) Replay();
                     return true;
-                case NewEventAppended _:
-                    if (IsTimeForReplay) Replay();
-                    return true;
                 case Request _:
                     ReceiveIdleRequest();
                     return true;
@@ -141,9 +138,6 @@ namespace Akka.Persistence.Redis.Query
                 case EventsByPersistenceIdPublisher.Continue _:
                     // skip during replay
                     return true;
-                case NewEventAppended _:
-                    // skip during replay
-                    return true;
                 case Cancel _:
                     Context.Stop(Self);
                     return true;
@@ -171,7 +165,10 @@ namespace Akka.Persistence.Redis.Query
 
         protected override void ReceiveInitialRequest()
         {
-            JournalRef.Tell(SubscribeNewEvents.Instance);
+            // The publisher discovers new events by polling the journal at refreshInterval
+            // (configured via akka.persistence.query.journal.redis.refresh-interval, default
+            // 3s). Live-query latency is bounded by that interval; tune it down if you need
+            // faster turnaround.
             Replay();
         }
 
