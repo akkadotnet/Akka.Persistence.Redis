@@ -7,10 +7,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Akka.Actor;
+using Akka.Actor.Setup;
 using Akka.Hosting;
+using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
 using FluentAssertions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StackExchange.Redis;
 using Xunit;
 
 namespace Akka.Persistence.Redis.Tests.Hosting;
@@ -124,5 +128,87 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
         // Act & Assert
         var action = () => new RedisSnapshotStoreConnectivityCheck("localhost:6379", null!);
         action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "snapshotStoreId");
+    }
+
+    [Fact]
+    public async Task Journal_Connectivity_Check_Should_Use_Plugin_Scoped_Setup_When_Present()
+    {
+        using var multiplexer = ConnectionMultiplexer.Connect(_validConnectionString);
+        var setup = ActorSystemSetup.Create(
+            new RedisConnectionMultiplexerSetup()
+                .Add(
+                    "akka.persistence.journal.redis",
+                    () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+                    RedisConnectionOwnership.CallerOwned));
+        var system = ActorSystem.Create($"redis-health-{Guid.NewGuid():N}", setup);
+        try
+        {
+            var check = new RedisJournalConnectivityCheck(InvalidConnectionString, "redis");
+            var context = new AkkaHealthCheckContext(system);
+
+            var result = await check.CheckHealthAsync(context, CancellationToken.None);
+
+            result.Status.Should().Be(HealthStatus.Healthy,
+                "the health check should use the registered journal source instead of the fallback connection string");
+        }
+        finally
+        {
+            await system.Terminate();
+        }
+    }
+
+    [Fact]
+    public async Task Snapshot_Connectivity_Check_Should_Use_Plugin_Scoped_Setup_When_Present()
+    {
+        using var multiplexer = ConnectionMultiplexer.Connect(_validConnectionString);
+        var setup = ActorSystemSetup.Create(
+            new RedisConnectionMultiplexerSetup()
+                .Add(
+                    "akka.persistence.snapshot-store.redis",
+                    () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+                    RedisConnectionOwnership.CallerOwned));
+        var system = ActorSystem.Create($"redis-snapshot-health-{Guid.NewGuid():N}", setup);
+        try
+        {
+            var check = new RedisSnapshotStoreConnectivityCheck(InvalidConnectionString, "redis");
+            var context = new AkkaHealthCheckContext(system);
+
+            var result = await check.CheckHealthAsync(context, CancellationToken.None);
+
+            result.Status.Should().Be(HealthStatus.Healthy,
+                "the health check should use the registered snapshot source instead of the fallback connection string");
+        }
+        finally
+        {
+            await system.Terminate();
+        }
+    }
+
+    [Fact]
+    public async Task Connectivity_Check_Should_Not_Use_Setup_For_Different_Plugin_Id()
+    {
+        using var multiplexer = ConnectionMultiplexer.Connect(_validConnectionString);
+        var setup = ActorSystemSetup.Create(
+            new RedisConnectionMultiplexerSetup()
+                .Add(
+                    "akka.persistence.journal.redis",
+                    () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+                    RedisConnectionOwnership.CallerOwned));
+        var system = ActorSystem.Create($"redis-health-mismatch-{Guid.NewGuid():N}", setup);
+        try
+        {
+            var check = new RedisJournalConnectivityCheck(InvalidConnectionString, "custom");
+            var context = new AkkaHealthCheckContext(system);
+
+            var result = await check.CheckHealthAsync(context, CancellationToken.None);
+
+            result.Status.Should().Be(HealthStatus.Unhealthy,
+                "a setup source for akka.persistence.journal.redis must not be reused for akka.persistence.journal.custom");
+            result.Exception.Should().NotBeNull();
+        }
+        finally
+        {
+            await system.Terminate();
+        }
     }
 }

@@ -13,6 +13,7 @@ using Akka.Configuration;
 using Akka.Persistence.Snapshot;
 using StackExchange.Redis;
 
+#nullable enable
 namespace Akka.Persistence.Redis.Snapshot
 {
     public class RedisSnapshotStore : SnapshotStore
@@ -20,98 +21,29 @@ namespace Akka.Persistence.Redis.Snapshot
         protected static readonly RedisPersistence Extension = RedisPersistence.Get(Context.System);
 
         private readonly RedisSettings _settings;
-        private readonly Lazy<RedisConnection> _connection;
         private readonly ActorSystem _system;
+        private readonly IConnectionMultiplexer _connection;
+        private readonly bool _ownsConnection;
 
-        public IDatabase Database => _connection.Value.Database;
-
-        public bool IsClustered { get; private set; }
-
-        // Test seam: exposes the underlying multiplexer once the connection has been initialized.
-        // Returns null before the first call to Database to keep PostStop side-effect-free during early termination.
-        internal IConnectionMultiplexer ConnectionMultiplexer => _connection.IsValueCreated ? _connection.Value.Multiplexer : null;
+        public IDatabase Database { get; }
+        public bool IsClustered { get; }
 
         public RedisSnapshotStore(Config snapshotConfig)
         {
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
-
             _system = Context.System;
-            _connection = new Lazy<RedisConnection>(() =>
-            {
-                IConnectionMultiplexer redisConnection;
-                bool ownsConnection;
-                var supplied = TryResolveCallerSuppliedMultiplexer();
-                if (supplied is not null)
-                {
-                    // Caller supplied a pre-configured multiplexer via ActorSystemSetup.
-                    // Reuse it and leave its lifetime to the caller; never dispose from PostStop.
-                    redisConnection = supplied;
-                    ownsConnection = false;
-                }
-                else
-                {
-                    redisConnection = StackExchange.Redis.ConnectionMultiplexer.Connect(_settings.ConfigurationString);
-                    ownsConnection = true;
-                }
 
-                IsClustered = redisConnection.IsClustered();
-
-                IDatabase database;
-                if (ownsConnection && _settings.DatabaseFromConnectionString && !IsClustered)
-                {
-                    // DatabaseFromConnectionString is only meaningful when we own the connection
-                    // string ourselves; an injected multiplexer is opaque to us so we fall back
-                    // to the explicitly configured _settings.Database.
-                    var conf = ConfigurationOptions.Parse(_settings.ConfigurationString);
-                    if (conf.DefaultDatabase.HasValue)
-                        database = redisConnection.GetDatabase(conf.DefaultDatabase.Value);
-                    else
-                        database = redisConnection.GetDatabase(_settings.Database);
-                }
-                else if (IsClustered)
-                {
-                    // for Redis Cluster, the database is 0 https://redis.io/topics/cluster-spec#implemented-subset
-                    database = redisConnection.GetDatabase(0);
-                }
-                else
-                {
-                    database = redisConnection.GetDatabase(_settings.Database);
-                }
-
-                return new RedisConnection(redisConnection, database, ownsConnection);
-            });
-        }
-
-        // Looks up a caller-supplied multiplexer via ActorSystemSetup. Single-instance
-        // RedisConnectionMultiplexerSetup applies to every plugin and takes precedence;
-        // MultiRedisConnectionMultiplexerSetup is consulted as a fallback, keyed by this
-        // plugin's full HOCON path (which equals Self.Path.Name for system plugin actors).
-        // Returns null when neither setup applies, in which case the plugin opens its own
-        // multiplexer from the HOCON connection-string.
-        private IConnectionMultiplexer? TryResolveCallerSuppliedMultiplexer()
-        {
-            var setup = _system.Settings.Setup;
-
-            var single = setup.Get<RedisConnectionMultiplexerSetup>();
-            if (single.HasValue)
-                return single.Value.ConnectionFactory().GetAwaiter().GetResult();
-
-            var multi = setup.Get<MultiRedisConnectionMultiplexerSetup>();
-            if (multi.HasValue && multi.Value.TryGetFactory(Self.Path.Name, out var factory) && factory is not null)
-                return factory().GetAwaiter().GetResult();
-
-            return null;
+            var resolved = RedisConnectionResolver.Resolve(_system, _settings, Self.Path.Name);
+            _connection = resolved.Connection;
+            _ownsConnection = resolved.OwnsConnection;
+            Database = resolved.Database;
+            IsClustered = resolved.IsClustered;
         }
 
         protected override void PostStop()
         {
-            if (_connection.IsValueCreated)
-            {
-                var connection = _connection.Value;
-                if (connection.OwnsConnection)
-                    connection.Multiplexer.Dispose();
-            }
-
+            if (_ownsConnection)
+                _connection.Dispose();
             base.PostStop();
         }
 
@@ -232,20 +164,6 @@ namespace Akka.Persistence.Redis.Snapshot
             return withHashTag
                 ? $"{{__{persistenceId}}}.{_settings.KeyPrefix}snapshot:{persistenceId}"
                 : $"{_settings.KeyPrefix}snapshot:{persistenceId}";
-        }
-
-        private sealed class RedisConnection
-        {
-            public RedisConnection(IConnectionMultiplexer multiplexer, IDatabase database, bool ownsConnection)
-            {
-                Multiplexer = multiplexer;
-                Database = database;
-                OwnsConnection = ownsConnection;
-            }
-
-            public IConnectionMultiplexer Multiplexer { get; }
-            public IDatabase Database { get; }
-            public bool OwnsConnection { get; }
         }
     }
 

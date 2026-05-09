@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
-using System.Text;
+using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.Configuration;
 using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis;
+using StackExchange.Redis;
 
 #nullable enable
 namespace Akka.Persistence.Redis.Hosting;
@@ -13,68 +13,9 @@ namespace Akka.Persistence.Redis.Hosting;
 public static class AkkaPersistenceRedisHostingExtensions
 {
     /// <summary>
-    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/> with optional support
-    ///     for health checks on both journal and snapshot store.
+    /// Adds Akka.Persistence.Redis using a HOCON connection string. The plugin opens its
+    /// own <see cref="IConnectionMultiplexer"/> and disposes it when the actor stops.
     /// </summary>
-    /// <param name="builder">
-    ///     The builder instance being configured.
-    /// </param>
-    /// <param name="configurationString">
-    ///     Connection string as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings.
-    /// </param>
-    /// <param name="mode">
-    ///     <para>
-    ///         Determines which settings should be added by this method call.
-    ///     </para>
-    ///     <i>Default</i>: <see cref="PersistenceMode.Both"/>
-    /// </param>
-    /// <param name="autoInitialize">
-    ///     <para>
-    ///         Should the redis store table be initialized automatically.
-    ///     </para>
-    ///     <i>Default</i>: <c>false</c>
-    /// </param>
-    /// <param name="journalBuilder">
-    ///     <para>
-    ///         An <see cref="Action"/> used to configure an <see cref="AkkaPersistenceJournalBuilder"/> instance.
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="snapshotBuilder">
-    ///     <para>
-    ///         An <see cref="Action{T}"/> used to configure an <see cref="AkkaPersistenceSnapshotBuilder"/> instance.
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="pluginIdentifier">
-    ///     <para>
-    ///         The configuration identifier for the plugins
-    ///     </para>
-    ///     <i>Default</i>: <c>"redis"</c>
-    /// </param>
-    /// <param name="isDefaultPlugin">
-    ///     <para>
-    ///         A <c>bool</c> flag to set the plugin as the default persistence plugin for the <see cref="ActorSystem"/>
-    ///     </para>
-    ///     <b>Default</b>: <c>true</c>
-    /// </param>
-    /// <returns>
-    ///     The same <see cref="AkkaConfigurationBuilder"/> instance originally passed in.
-    /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    ///     Thrown when <see cref="journalBuilder"/> is set and <see cref="mode"/> is set to
-    ///     <see cref="PersistenceMode.SnapshotStore"/>
-    /// </exception>
-    /// <example>
-    /// <code>
-    /// builder.WithRedisPersistence(
-    ///     configurationString: "...",
-    ///     journalBuilder: journal => journal
-    ///         .WithHealthCheck(HealthStatus.Degraded),
-    ///     snapshotBuilder: snapshot => snapshot
-    ///         .WithHealthCheck(HealthStatus.Degraded));
-    /// </code>
-    /// </example>
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         string configurationString,
@@ -85,64 +26,71 @@ public static class AkkaPersistenceRedisHostingExtensions
         string pluginIdentifier = "redis",
         bool isDefaultPlugin = true)
     {
-        if (mode == PersistenceMode.SnapshotStore && journalBuilder is { })
-            throw new Exception(
-                $"{nameof(journalBuilder)} can only be set when {nameof(mode)} is set to either {PersistenceMode.Both} or {PersistenceMode.Journal}");
+        if (string.IsNullOrWhiteSpace(configurationString))
+            throw new ArgumentException("Connection string must not be empty.", nameof(configurationString));
 
-        var journalOpt = new RedisJournalOptions(isDefaultPlugin, pluginIdentifier)
-        {
-            ConfigurationString = configurationString,
-            AutoInitialize = autoInitialize,
-        };
-
-        var snapshotOpt = new RedisSnapshotOptions(isDefaultPlugin, pluginIdentifier)
-        {
-            ConfigurationString = configurationString,
-            AutoInitialize = autoInitialize,
-        };
-
-        return mode switch
-        {
-            PersistenceMode.Journal => builder.WithRedisPersistence(journalOpt, null, journalBuilder, snapshotBuilder),
-            PersistenceMode.SnapshotStore => builder.WithRedisPersistence(null, snapshotOpt, journalBuilder, snapshotBuilder),
-            PersistenceMode.Both => builder.WithRedisPersistence(journalOpt, snapshotOpt, journalBuilder, snapshotBuilder),
-            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid PersistenceMode defined.")
-        };
+        var (journalOpt, snapshotOpt) = BuildOptions(configurationString, autoInitialize, pluginIdentifier, isDefaultPlugin);
+        return ApplyMode(builder, mode, journalOpt, snapshotOpt, journalBuilder, snapshotBuilder);
     }
 
     /// <summary>
-    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/>. At least one of the
-    ///     configurator delegate needs to be populated else this method will throw an exception.
+    /// Adds Akka.Persistence.Redis using a pre-built <see cref="IConnectionMultiplexer"/>.
+    /// Caller-owned by default — set <paramref name="ownership"/> to
+    /// <see cref="RedisConnectionOwnership.PluginOwned"/> to hand off disposal to the plugin.
     /// </summary>
-    /// <param name="builder">
-    ///     The builder instance being configured.
-    /// </param>
-    /// <param name="journalOptionConfigurator">
-    ///     <para>
-    ///         An <see cref="Action{T}"/> that modifies an instance of <see cref="RedisJournalOptions"/>,
-    ///         used to configure the journal plugin
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="snapshotOptionConfigurator">
-    ///     <para>
-    ///         An <see cref="Action{T}"/> that modifies an instance of <see cref="RedisSnapshotOptions"/>,
-    ///         used to configure the snapshot store plugin
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="isDefaultPlugin">
-    ///     <para>
-    ///         A <c>bool</c> flag to set the plugin as the default persistence plugin for the <see cref="ActorSystem"/>
-    ///     </para>
-    ///     <b>Default</b>: <c>true</c>
-    /// </param>
-    /// <returns>
-    ///     The same <see cref="AkkaConfigurationBuilder"/> instance originally passed in.
-    /// </returns>
-    /// <exception cref="ArgumentException">
-    ///     Thrown when both <paramref name="journalOptionConfigurator"/> and <paramref name="snapshotOptionConfigurator"/> are null.
-    /// </exception>
+    public static AkkaConfigurationBuilder WithRedisPersistence(
+        this AkkaConfigurationBuilder builder,
+        IConnectionMultiplexer multiplexer,
+        RedisConnectionOwnership ownership = RedisConnectionOwnership.CallerOwned,
+        int database = 0,
+        string? keyPrefix = null,
+        PersistenceMode mode = PersistenceMode.Both,
+        bool autoInitialize = true,
+        Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+        Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null,
+        string pluginIdentifier = "redis",
+        bool isDefaultPlugin = true)
+    {
+        if (multiplexer is null) throw new ArgumentNullException(nameof(multiplexer));
+
+        var (journalOpt, snapshotOpt) = BuildOptions(connectionString: string.Empty, autoInitialize, pluginIdentifier, isDefaultPlugin, database, keyPrefix);
+        RegisterMultiplexerSetup(builder, mode, journalOpt, snapshotOpt, () => Task.FromResult(multiplexer), ownership);
+        return ApplyMode(builder, mode, journalOpt, snapshotOpt, journalBuilder, snapshotBuilder);
+    }
+
+    /// <summary>
+    /// Adds Akka.Persistence.Redis using an async factory for the
+    /// <see cref="IConnectionMultiplexer"/>. Caller-owned by default. The plugin invokes
+    /// the factory once at construction; whether multiple plugins share a multiplexer is
+    /// determined entirely by what the factory returns.
+    /// </summary>
+    public static AkkaConfigurationBuilder WithRedisPersistence(
+        this AkkaConfigurationBuilder builder,
+        Func<Task<IConnectionMultiplexer>> multiplexerFactory,
+        RedisConnectionOwnership ownership = RedisConnectionOwnership.CallerOwned,
+        int database = 0,
+        string? keyPrefix = null,
+        PersistenceMode mode = PersistenceMode.Both,
+        bool autoInitialize = true,
+        Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
+        Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null,
+        string pluginIdentifier = "redis",
+        bool isDefaultPlugin = true)
+    {
+        if (multiplexerFactory is null) throw new ArgumentNullException(nameof(multiplexerFactory));
+
+        var (journalOpt, snapshotOpt) = BuildOptions(connectionString: string.Empty, autoInitialize, pluginIdentifier, isDefaultPlugin, database, keyPrefix);
+        RegisterMultiplexerSetup(builder, mode, journalOpt, snapshotOpt, multiplexerFactory, ownership);
+        return ApplyMode(builder, mode, journalOpt, snapshotOpt, journalBuilder, snapshotBuilder);
+    }
+
+    /// <summary>
+    /// Adds Akka.Persistence.Redis using configurator delegates. Useful when callers need
+    /// to set options that aren't surfaced as named parameters on the other overloads
+    /// (e.g. <see cref="RedisJournalOptions.UseDatabaseFromConnectionString"/>). To inject a
+    /// multiplexer, register a <see cref="RedisConnectionMultiplexerSetup"/> on the builder
+    /// before calling this overload.
+    /// </summary>
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         Action<RedisJournalOptions>? journalOptionConfigurator = null,
@@ -171,42 +119,10 @@ public static class AkkaPersistenceRedisHostingExtensions
     }
 
     /// <summary>
-    ///     Adds Akka.Persistence.Redis support to this <see cref="ActorSystem"/>. At least one of the options
-    ///     have to be populated else this method will throw an exception.
+    /// Adds Akka.Persistence.Redis using pre-built option objects. To inject a multiplexer,
+    /// register a <see cref="RedisConnectionMultiplexerSetup"/> on the builder before calling
+    /// this overload.
     /// </summary>
-    /// <param name="builder">
-    ///     The builder instance being configured.
-    /// </param>
-    /// <param name="journalOptions">
-    ///     <para>
-    ///         An instance of <see cref="RedisJournalOptions"/>, used to configure the journal plugin
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="snapshotOptions">
-    ///     <para>
-    ///         An instance of <see cref="RedisSnapshotOptions"/>, used to configure the snapshot store plugin
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="journalBuilder">
-    ///     <para>
-    ///         An <see cref="Action{T}" /> used to configure an <see cref="AkkaPersistenceJournalBuilder" /> instance for event adapters and health checks.
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <param name="snapshotBuilder">
-    ///     <para>
-    ///         An <see cref="Action{T}" /> used to configure an <see cref="AkkaPersistenceSnapshotBuilder" /> instance for health checks.
-    ///     </para>
-    ///     <i>Default</i>: <c>null</c>
-    /// </param>
-    /// <returns>
-    ///     The same <see cref="AkkaConfigurationBuilder"/> instance originally passed in.
-    /// </returns>
-    /// <exception cref="ArgumentException">
-    ///     Thrown when both <paramref name="journalOptions"/> and <paramref name="snapshotOptions"/> are null.
-    /// </exception>
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         RedisJournalOptions? journalOptions = null,
@@ -214,52 +130,128 @@ public static class AkkaPersistenceRedisHostingExtensions
         Action<AkkaPersistenceJournalBuilder>? journalBuilder = null,
         Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder = null)
     {
-        // Carry per-plugin factories through ActorSystemSetup, mirroring how Akka.Persistence.Sql
-        // ships DataOptions via MultiDataOptionsSetup. Each plugin's options can supply its own
-        // factory (the common case is one shared factory across journal+snapshot, but multiple
-        // plugin instances against different Redis backends — e.g. Cluster.Sharding regions —
-        // are supported by setting different delegates per options object). The journal and
-        // snapshot store actors read this back via
-        // Context.System.Settings.Setup.Get<MultiRedisConnectionMultiplexerSetup>(), keyed by
-        // their own plugin path.
-        var journalFactory = journalOptions?.ConnectionMultiplexerFactory;
-        var snapshotFactory = snapshotOptions?.ConnectionMultiplexerFactory;
-        if (journalFactory is not null || snapshotFactory is not null)
+        if (journalOptions is null && snapshotOptions is null)
+            throw new ArgumentException(
+                $"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null");
+
+        if (!HasConnectionSource(builder, journalOptions) || !HasConnectionSource(builder, snapshotOptions))
+            throw new ArgumentException(
+                "Each Redis persistence plugin requires a connection source: set ConfigurationString " +
+                "on the options object, or register a RedisConnectionMultiplexerSetup entry for " +
+                "that plugin id before calling this overload.");
+
+        if (snapshotOptions is null)
+            return builder
+                .WithJournal(journalOptions!, journalBuilder)
+                .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
+
+        if (journalOptions is null)
+            return builder
+                .WithSnapshot(snapshotOptions, snapshotBuilder)
+                .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
+
+        return builder
+            .WithJournalAndSnapshot(journalOptions, snapshotOptions, journalBuilder, snapshotBuilder)
+            .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
+    }
+
+    private static (RedisJournalOptions Journal, RedisSnapshotOptions Snapshot) BuildOptions(
+        string connectionString,
+        bool autoInitialize,
+        string pluginIdentifier,
+        bool isDefaultPlugin,
+        int? database = null,
+        string? keyPrefix = null)
+    {
+        var journal = new RedisJournalOptions(isDefaultPlugin, pluginIdentifier)
         {
-            var multi = builder.Setups.OfType<MultiRedisConnectionMultiplexerSetup>().FirstOrDefault();
-            if (multi is null)
-            {
-                multi = new MultiRedisConnectionMultiplexerSetup();
-                builder.Setups.Add(multi);
-            }
-
-            if (journalFactory is not null && journalOptions is not null)
-                multi.AddFactory(journalOptions.PluginId, journalFactory);
-
-            if (snapshotFactory is not null && snapshotOptions is not null)
-                multi.AddFactory(snapshotOptions.PluginId, snapshotFactory);
-        }
-
-        return (journalOptions, snapshotOptions) switch
-        {
-            (null, null) =>
-                throw new ArgumentException(
-                    $"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null"),
-
-            (_, null) =>
-                builder
-                    .WithJournal(journalOptions, journalBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
-
-            (null, _) =>
-                builder
-                    .WithSnapshot(snapshotOptions, snapshotBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
-
-            (_, _) =>
-                builder
-                    .WithJournalAndSnapshot(journalOptions, snapshotOptions, journalBuilder, snapshotBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
+            ConfigurationString = connectionString,
+            AutoInitialize = autoInitialize,
+            Database = database,
+            KeyPrefix = keyPrefix,
         };
+
+        var snapshot = new RedisSnapshotOptions(isDefaultPlugin, pluginIdentifier)
+        {
+            ConfigurationString = connectionString,
+            AutoInitialize = autoInitialize,
+            Database = database,
+            KeyPrefix = keyPrefix,
+        };
+
+        return (journal, snapshot);
+    }
+
+    private static AkkaConfigurationBuilder ApplyMode(
+        AkkaConfigurationBuilder builder,
+        PersistenceMode mode,
+        RedisJournalOptions journalOpt,
+        RedisSnapshotOptions snapshotOpt,
+        Action<AkkaPersistenceJournalBuilder>? journalBuilder,
+        Action<AkkaPersistenceSnapshotBuilder>? snapshotBuilder)
+    {
+        if (mode == PersistenceMode.SnapshotStore && journalBuilder is { })
+            throw new ArgumentException(
+                $"{nameof(journalBuilder)} can only be set when {nameof(mode)} is set to either {PersistenceMode.Both} or {PersistenceMode.Journal}");
+
+        return mode switch
+        {
+            PersistenceMode.Journal => builder.WithRedisPersistence(journalOpt, null, journalBuilder, snapshotBuilder),
+            PersistenceMode.SnapshotStore => builder.WithRedisPersistence(null, snapshotOpt, journalBuilder, snapshotBuilder),
+            PersistenceMode.Both => builder.WithRedisPersistence(journalOpt, snapshotOpt, journalBuilder, snapshotBuilder),
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Invalid PersistenceMode defined.")
+        };
+    }
+
+    internal static void RegisterMultiplexerSetup(
+        AkkaConfigurationBuilder builder,
+        PersistenceMode mode,
+        RedisJournalOptions journalOptions,
+        RedisSnapshotOptions snapshotOptions,
+        Func<Task<IConnectionMultiplexer>> factory,
+        RedisConnectionOwnership ownership)
+    {
+        var setup = GetOrCreateSetup(builder);
+
+        if (mode is PersistenceMode.Journal or PersistenceMode.Both)
+            setup.Add(journalOptions.PluginId, factory, ownership);
+
+        if (mode is PersistenceMode.SnapshotStore or PersistenceMode.Both)
+            setup.Add(snapshotOptions.PluginId, factory, ownership);
+    }
+
+    private static RedisConnectionMultiplexerSetup GetOrCreateSetup(AkkaConfigurationBuilder builder)
+    {
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().FirstOrDefault();
+        if (setup is not null)
+            return setup;
+
+        setup = new RedisConnectionMultiplexerSetup();
+        builder.Setups.Add(setup);
+        return setup;
+    }
+
+    private static bool HasConnectionSource(AkkaConfigurationBuilder builder, RedisJournalOptions? options)
+    {
+        if (options is null)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(options.ConfigurationString))
+            return true;
+
+        return builder.Setups.OfType<RedisConnectionMultiplexerSetup>()
+            .Any(setup => setup.TryGetSource(options.PluginId, out _));
+    }
+
+    private static bool HasConnectionSource(AkkaConfigurationBuilder builder, RedisSnapshotOptions? options)
+    {
+        if (options is null)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(options.ConfigurationString))
+            return true;
+
+        return builder.Setups.OfType<RedisConnectionMultiplexerSetup>()
+            .Any(setup => setup.TryGetSource(options.PluginId, out _));
     }
 }

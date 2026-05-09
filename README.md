@@ -180,99 +180,97 @@ using var host = new HostBuilder()
 await host.RunAsync();
 ```
 
-### Supplying a Pre-Configured `IConnectionMultiplexer`
+### Azure Managed Redis with Entra ID / Managed Identity
 
-A plain HOCON connection string is enough for most deployments, but some scenarios need an `IConnectionMultiplexer` that has been authored programmatically: Azure Managed Redis with Entra ID / Managed Identity, Redis Sentinel, a custom `ReconnectRetryPolicy` (e.g. `ExponentialRetry`), a tighter `ConfigCheckSeconds` for clustered Redis, or any other `ConfigurationOptions` knob that does not have a connection-string equivalent.
-
-For these cases, set a `ConnectionMultiplexerFactory` on the journal and/or snapshot options. The factory is a `Func<Task<IConnectionMultiplexer>>` that returns the multiplexer the plugin should use. The plugin treats the returned multiplexer as **caller-owned** — it will not dispose it on actor shutdown. Cache the multiplexer in your factory and dispose it yourself when the application terminates.
+For Azure Managed Redis (`*.redis.azure.net`) or Azure Cache for Redis (`*.redis.cache.windows.net`) deployments, use `WithAzureRedisPersistence(...)`. It auto-detects the Azure host suffix, configures TLS + RESP3, and authenticates via [`Microsoft.Azure.StackExchangeRedis`](https://github.com/Azure/Microsoft.Azure.StackExchangeRedis)'s `ConfigureForAzureWithTokenCredentialAsync` using a `TokenCredential` from `Azure.Identity` (defaulting to `ManagedIdentityCredential`). For non-Azure hosts (e.g. local-dev `localhost:6379`) it falls through to the plain HOCON connection-string path.
 
 ```csharp
-// Construct the multiplexer once at app startup with whatever ConfigurationOptions you need.
-var configurationOptions = new ConfigurationOptions
+// One-liner — system-assigned managed identity is detected automatically.
+builder.WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000");
+
+// Pin a user-assigned managed identity by client id.
+builder.WithAzureRedisPersistence(
+    "your-redis.swedencentral.redis.azure.net:10000",
+    credential: new ManagedIdentityCredential("your-client-id"));
+
+// Local development — no Azure suffix, plain HOCON connection-string auth.
+builder.WithAzureRedisPersistence("localhost:6379");
+```
+
+Add the `Akka.Persistence.Redis.Hosting` package and `using Azure.Identity;` (the package transitively pulls in `Microsoft.Azure.StackExchangeRedis` and `Azure.Identity` for you).
+
+### Supplying a Pre-Configured `IConnectionMultiplexer` (Non-Azure)
+
+For deployments that aren't Azure-managed but still need an `IConnectionMultiplexer` authored programmatically — Redis Sentinel, a custom `ReconnectRetryPolicy` (e.g. `ExponentialRetry`), a tighter `ConfigCheckSeconds` for clustered Redis, or any other `ConfigurationOptions` knob that does not have a connection-string equivalent — pass the multiplexer or factory directly to `WithRedisPersistence`.
+
+`WithRedisPersistence` has three connection-source overloads. Each takes its connection source as a non-optional positional argument, so the compiler enforces that you always provide one:
+
+```csharp
+// 1) HOCON connection string. The plugin opens, owns, and disposes the multiplexer.
+builder.WithRedisPersistence("your-redis-connection-string");
+
+// 2) Pre-built IConnectionMultiplexer. Caller-owned by default — the plugin will not
+//    dispose it on actor shutdown. Use PluginOwned to hand off disposal.
+var multiplexer = await ConnectionMultiplexer.ConnectAsync(new ConfigurationOptions
 {
     EndPoints = { { "your-redis-host", 6380 } },
     Ssl = true,
     AbortOnConnectFail = false,
     ConfigCheckSeconds = 10,
     ReconnectRetryPolicy = new ExponentialRetry(deltaBackOffMilliseconds: 1000),
-};
+});
+builder.WithRedisPersistence(multiplexer);
 
-// (Azure Managed Redis with Entra ID example)
-await configurationOptions.ConfigureForAzureWithTokenCredentialAsync(new ManagedIdentityCredential());
-
-var multiplexer = await ConnectionMultiplexer.ConnectAsync(configurationOptions);
-
-// Most apps share one multiplexer across journal + snapshot store. Pass the same factory
-// delegate to both options.
-Func<Task<IConnectionMultiplexer>> factory = () => Task.FromResult<IConnectionMultiplexer>(multiplexer);
-
-builder.WithRedisPersistence(
-    journalOptions: new RedisJournalOptions
-    {
-        ConnectionMultiplexerFactory = factory,
-    },
-    snapshotOptions: new RedisSnapshotOptions
-    {
-        ConnectionMultiplexerFactory = factory,
-    });
+// 3) Async factory. Useful when construction itself is async (custom auth handshakes,
+//    deferred bootstrap, etc.). Cache the result in your closure if you want sharing
+//    across plugins; an uncached factory gives every plugin its own multiplexer.
+var shared = new Lazy<Task<IConnectionMultiplexer>>(
+    () => ConnectionMultiplexer.ConnectAsync(configurationOptions),
+    LazyThreadSafetyMode.ExecutionAndPublication);
+builder.WithRedisPersistence(multiplexerFactory: () => shared.Value);
 ```
 
 #### Different Redis backends per plugin
 
-The journal and snapshot store can also point at *different* Redis instances by giving each options object its own factory delegate. This is useful when journal events live on a write-tuned cluster while snapshots live on a separate durable store, or when cluster-sharding regions need different persistence backends, or during a migration cutover where new writes go to one Redis while existing snapshots are still served from another.
+When the journal and snapshot store should point at *different* Redis instances — journal events on a write-tuned cluster, snapshots on a separate durable store, or cluster-sharding regions backed by different persistence — give each plugin its own HOCON connection string with a distinct `pluginIdentifier`. Each plugin opens its own multiplexer:
 
 ```csharp
-var journalMultiplexer  = await ConnectionMultiplexer.ConnectAsync(journalConfigOptions);
-var snapshotMultiplexer = await ConnectionMultiplexer.ConnectAsync(snapshotConfigOptions);
-
-builder.WithRedisPersistence(
-    journalOptions: new RedisJournalOptions
-    {
-        ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(journalMultiplexer),
-    },
-    snapshotOptions: new RedisSnapshotOptions
-    {
-        ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(snapshotMultiplexer),
-    });
+builder
+    .WithRedisPersistence("redis-events.example.com:6379",
+        pluginIdentifier: "events", isDefaultPlugin: false, mode: PersistenceMode.Journal)
+    .WithRedisPersistence("redis-snapshots.example.com:6379",
+        pluginIdentifier: "snapshots", isDefaultPlugin: false, mode: PersistenceMode.SnapshotStore);
 ```
 
-Each plugin instance is identified by its plugin id (the full HOCON path, e.g. `akka.persistence.journal.redis`), and factories are routed to the matching plugin at construction time.
+Connection injection is plugin-scoped. A source registered for `akka.persistence.journal.events` does not affect `akka.persistence.journal.redis` or any other Redis plugin unless that plugin id is explicitly registered to the same source. Plugins without a registered source fall back to their own HOCON connection string.
 
 #### How it works under the hood
 
-The hosting extension carries factories through Akka.NET's typed `ActorSystemSetup` container. When `journalOptions.ConnectionMultiplexerFactory` and/or `snapshotOptions.ConnectionMultiplexerFactory` is set, `WithRedisPersistence` adds a `MultiRedisConnectionMultiplexerSetup` to the builder's `Setups` list, with one entry per plugin id. The journal and snapshot store actors read this back via `Context.System.Settings.Setup.Get<MultiRedisConnectionMultiplexerSetup>()` and look up the factory keyed by their own `Self.Path.Name` when they first need to connect. Each `ActorSystem` carries its own setup, so multiple systems in the same process can each have their own factory configurations without interfering.
-
-A simpler `RedisConnectionMultiplexerSetup` (single-factory) is also available. When present, it applies to every Redis plugin instance in the system and takes precedence over `MultiRedisConnectionMultiplexerSetup`. The hosting extension always uses the multi-keyed variant; the single variant is intended for code that bootstraps an `ActorSystem` directly without Akka.Hosting (see below).
+The hosting extension carries multiplexer factories through Akka.NET's typed `ActorSystemSetup` container. The `multiplexer:` and `multiplexerFactory:` overloads register entries in `RedisConnectionMultiplexerSetup` for the journal and/or snapshot plugin ids configured by the call. The journal and snapshot store actors read their plugin-specific entry once at construction. When no entry exists for that plugin id, the plugin opens its own multiplexer from the HOCON connection string and disposes it on `PostStop`. The connectivity health check resolves the same plugin-specific setup entry at probe time, so a single source of configuration drives both the plugin and its liveness probe.
 
 #### Without Akka.Hosting
 
-If you bootstrap the `ActorSystem` directly via `ActorSystem.Create(...)`, build the setup yourself and pass it to the system. For one shared multiplexer across all Redis plugins:
+If you bootstrap the `ActorSystem` directly via `ActorSystem.Create(...)`, build the setup yourself and pass it to the system:
 
 ```csharp
 var multiplexer = await ConnectionMultiplexer.ConnectAsync(configurationOptions);
 
 var setup = ActorSystemSetup.Create(
     BootstrapSetup.Create().WithConfig(redisHocon),
-    new RedisConnectionMultiplexerSetup(() => Task.FromResult<IConnectionMultiplexer>(multiplexer)));
+    new RedisConnectionMultiplexerSetup()
+        .Add(
+            "akka.persistence.journal.redis",
+            () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+            RedisConnectionOwnership.CallerOwned)
+        .Add(
+            "akka.persistence.snapshot-store.redis",
+            () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+            RedisConnectionOwnership.CallerOwned));
 
 var system = ActorSystem.Create("my-system", setup);
 ```
 
-For per-plugin factories, use `MultiRedisConnectionMultiplexerSetup` and add an entry per plugin id:
-
-```csharp
-var multi = new MultiRedisConnectionMultiplexerSetup()
-    .AddFactory("akka.persistence.journal.redis",        () => Task.FromResult<IConnectionMultiplexer>(journalMultiplexer))
-    .AddFactory("akka.persistence.snapshot-store.redis", () => Task.FromResult<IConnectionMultiplexer>(snapshotMultiplexer));
-
-var setup = ActorSystemSetup.Create(
-    BootstrapSetup.Create().WithConfig(redisHocon),
-    multi);
-
-var system = ActorSystem.Create("my-system", setup);
-```
-
-The journal and snapshot store actors will pick up the setup the moment they need to connect.
+`RedisConnectionOwnership.CallerOwned` means the plugin will not dispose the multiplexer. Use `RedisConnectionOwnership.PluginOwned` when the factory is purely a construction hook and each plugin should dispose the connection it receives.
 
 ### Health Checks
 
