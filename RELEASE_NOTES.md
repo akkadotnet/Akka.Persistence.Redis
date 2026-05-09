@@ -1,3 +1,29 @@
+#### 1.5.68 TBD ####
+
+**Behavior Changes / Compatibility Notes**
+
+* Removed the legacy query subscriber notification protocol (`ISubscriptionCommand`, `SubscribeNewEvents`, and `NewEventAppended`). Live persistence queries now rely exclusively on polling via `akka.persistence.query.journal.redis.refresh-interval`. This removes a dead actor-local optimization that could leak subscribers and race with journal writes. Users that need lower live-query latency can reduce the Redis query `refresh-interval`.
+* Redis journal and snapshot-store connections are now created during plugin actor construction instead of lazily on first database access. This fixes a `ConnectionMultiplexer` lifecycle leak and allows plugin-owned connections to be disposed when the actor stops, but connection failures may now surface earlier during plugin startup.
+* Akka.Hosting Redis configuration now validates missing connection sources earlier. Each configured Redis journal or snapshot store must have either a HOCON connection string or a matching `RedisConnectionMultiplexerSetup` entry.
+
+**Improvements**
+
+* Added `WithAzureRedisPersistence(...)` for Azure Managed Redis and Azure Cache for Redis using Entra ID / Managed Identity authentication. The helper configures TLS, RESP3, `SslHost`, and token authentication via `Microsoft.Azure.StackExchangeRedis`.
+* Added plugin-scoped `RedisConnectionMultiplexerSetup` support for caller-supplied multiplexers and multiplexer factories. Setup entries are keyed by Redis plugin id, so one Redis plugin's injected connection source does not override another plugin's HOCON connection string.
+* Added explicit Redis connection ownership semantics via `RedisConnectionOwnership`: caller-owned, plugin-owned, and actor-system-owned.
+* Updated Redis health checks so setup-backed plugins reuse the configured connection source, while HOCON-only plugins open a temporary multiplexer for the probe and dispose it after `PING`.
+* Fixed snapshot-only Akka.Hosting configuration so Redis default HOCON is still loaded when only the snapshot store is configured.
+* Fixed `DeferAsync` with an empty write batch, which previously could throw from `ContinueWhenAll`.
+* Added `CommandFlags.DemandMaster` to Redis write operations as defense-in-depth for primary-only writes.
+* Removed the `ConnectionMultiplexer` leak in journal and snapshot actors by tracking connection ownership and disposing plugin-owned connections from `PostStop`.
+* Reworked Redis test fixtures to use Testcontainers and hardened cluster readiness / CI failure behavior.
+
+**Dependencies**
+
+* Upgraded `StackExchange.Redis` to 2.12.14.
+* Added `Microsoft.Azure.StackExchangeRedis` 3.3.1 and `Azure.Identity` 1.17.1 to `Akka.Persistence.Redis.Hosting`.
+* Updated test/build dependencies including `Microsoft.NET.Test.Sdk`, `coverlet.collector`, `Testcontainers`, and `Microsoft.SourceLink.GitHub`.
+
 #### 1.5.67 April 28th 2026 ####
 
 * Upgraded to [Akka.NET 1.5.67](https://github.com/akkadotnet/akka.net/releases/tag/1.5.67)
