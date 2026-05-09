@@ -48,6 +48,10 @@ public abstract class RedisConnectivityCheckBase : IAkkaHealthCheck
         IConnectionMultiplexer? connection = null;
         try
         {
+            // Setup-backed plugins reuse the same caller / ActorSystem-owned source as the
+            // journal or snapshot store. HOCON-only plugins do not expose their actor-owned
+            // multiplexer, so the health check opens a temporary connection and disposes it
+            // after the ping.
             connection = hasRegisteredSource
                 ? await registeredSource!.Factory()
                 : await ConnectionMultiplexer.ConnectAsync(_connectionString);
