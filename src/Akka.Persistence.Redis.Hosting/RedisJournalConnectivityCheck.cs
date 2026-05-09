@@ -15,7 +15,11 @@ namespace Akka.Persistence.Redis.Hosting;
 public sealed class RedisJournalConnectivityCheck : RedisConnectivityCheckBase
 {
     public RedisJournalConnectivityCheck(string connectionString, string journalId)
-        : base(connectionString, "journal", journalId ?? throw new ArgumentNullException(nameof(journalId)))
+        : base(
+            connectionString,
+            "journal",
+            journalId ?? throw new ArgumentNullException(nameof(journalId)),
+            $"akka.persistence.journal.{journalId}")
     {
     }
 }

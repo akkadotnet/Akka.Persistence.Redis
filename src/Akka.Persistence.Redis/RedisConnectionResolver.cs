@@ -19,16 +19,16 @@ namespace Akka.Persistence.Redis
     internal static class RedisConnectionResolver
     {
         public static (IConnectionMultiplexer Connection, IDatabase Database, bool IsClustered, bool OwnsConnection)
-            Resolve(ActorSystem system, RedisSettings settings)
+            Resolve(ActorSystem system, RedisSettings settings, string pluginId)
         {
             IConnectionMultiplexer connection;
             bool ownsConnection;
 
             var setup = system.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
-            if (setup.HasValue)
+            if (setup.HasValue && setup.Value.TryGetSource(pluginId, out var source))
             {
-                connection = setup.Value.Factory().GetAwaiter().GetResult();
-                ownsConnection = setup.Value.OwnedByPlugin;
+                connection = source!.Factory().GetAwaiter().GetResult();
+                ownsConnection = source.Ownership == RedisConnectionOwnership.PluginOwned;
             }
             else
             {

@@ -19,6 +19,7 @@ using Microsoft.Extensions.Hosting;
 using StackExchange.Redis;
 using Xunit;
 
+#nullable enable
 namespace Akka.Persistence.Redis.Tests.Hosting;
 
 [Collection("RedisSpec")]
@@ -39,7 +40,7 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
 
         builder.WithRedisPersistence(
             multiplexer: _suppliedMultiplexer,
-            ownedByPlugin: false,
+            ownership: RedisConnectionOwnership.CallerOwned,
             autoInitialize: true);
     }
 
@@ -48,7 +49,7 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
         // Caller-owned multiplexer: the plugin must NOT have disposed it.
         _suppliedMultiplexer.Should().NotBeNull();
         _suppliedMultiplexer!.IsConnected.Should().BeTrue(
-            "the plugin must not dispose multiplexers supplied via RedisConnectionMultiplexerSetup when ownedByPlugin is false");
+            "the plugin must not dispose caller-owned multiplexers supplied via RedisConnectionMultiplexerSetup");
 
         _suppliedMultiplexer.Dispose();
 
@@ -77,7 +78,10 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
         var setup = Sys.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
         setup.HasValue.Should().BeTrue(
             "WithRedisPersistence(multiplexer:) must register a RedisConnectionMultiplexerSetup");
-        setup.Value.OwnedByPlugin.Should().BeFalse();
+        setup.Value.TryGetSource("akka.persistence.journal.redis", out var journalSource).Should().BeTrue();
+        journalSource!.Ownership.Should().Be(RedisConnectionOwnership.CallerOwned);
+        setup.Value.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource).Should().BeTrue();
+        snapshotSource!.Ownership.Should().Be(RedisConnectionOwnership.CallerOwned);
     }
 
     private sealed class FactoryProbeActor : Akka.Persistence.ReceivePersistentActor

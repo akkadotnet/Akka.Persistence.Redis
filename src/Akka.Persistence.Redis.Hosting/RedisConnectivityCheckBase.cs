@@ -28,24 +28,28 @@ public abstract class RedisConnectivityCheckBase : IAkkaHealthCheck
     private readonly string _connectionString;
     private readonly string _componentLabel;
     private readonly string _componentId;
+    private readonly string _pluginId;
 
-    protected RedisConnectivityCheckBase(string connectionString, string componentLabel, string componentId)
+    protected RedisConnectivityCheckBase(string connectionString, string componentLabel, string componentId, string pluginId)
     {
         _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
         _componentLabel = componentLabel;
         _componentId = componentId;
+        _pluginId = pluginId;
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(AkkaHealthCheckContext context, CancellationToken cancellationToken = default)
     {
         var setup = context.ActorSystem?.Settings.Setup.Get<RedisConnectionMultiplexerSetup>()
             ?? Option<RedisConnectionMultiplexerSetup>.None;
-        var ownsConnection = !setup.HasValue;
+        RedisConnectionSource? registeredSource = null;
+        var hasRegisteredSource = setup.HasValue && setup.Value.TryGetSource(_pluginId, out registeredSource);
+        var ownsConnection = !hasRegisteredSource;
         IConnectionMultiplexer? connection = null;
         try
         {
-            connection = setup.HasValue
-                ? await setup.Value.Factory()
+            connection = hasRegisteredSource
+                ? await registeredSource!.Factory()
                 : await ConnectionMultiplexer.ConnectAsync(_connectionString);
 
             var server = connection.GetServer(connection.GetEndPoints().First());

@@ -35,13 +35,13 @@ public static class AkkaPersistenceRedisHostingExtensions
 
     /// <summary>
     /// Adds Akka.Persistence.Redis using a pre-built <see cref="IConnectionMultiplexer"/>.
-    /// Caller-owned by default — set <paramref name="ownedByPlugin"/> to <see langword="true"/>
-    /// to hand off disposal to the plugin.
+    /// Caller-owned by default — set <paramref name="ownership"/> to
+    /// <see cref="RedisConnectionOwnership.PluginOwned"/> to hand off disposal to the plugin.
     /// </summary>
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         IConnectionMultiplexer multiplexer,
-        bool ownedByPlugin = false,
+        RedisConnectionOwnership ownership = RedisConnectionOwnership.CallerOwned,
         int database = 0,
         string? keyPrefix = null,
         PersistenceMode mode = PersistenceMode.Both,
@@ -53,9 +53,8 @@ public static class AkkaPersistenceRedisHostingExtensions
     {
         if (multiplexer is null) throw new ArgumentNullException(nameof(multiplexer));
 
-        RegisterMultiplexerSetup(builder, () => Task.FromResult(multiplexer), ownedByPlugin);
-
         var (journalOpt, snapshotOpt) = BuildOptions(connectionString: string.Empty, autoInitialize, pluginIdentifier, isDefaultPlugin, database, keyPrefix);
+        RegisterMultiplexerSetup(builder, mode, journalOpt, snapshotOpt, () => Task.FromResult(multiplexer), ownership);
         return ApplyMode(builder, mode, journalOpt, snapshotOpt, journalBuilder, snapshotBuilder);
     }
 
@@ -68,7 +67,7 @@ public static class AkkaPersistenceRedisHostingExtensions
     public static AkkaConfigurationBuilder WithRedisPersistence(
         this AkkaConfigurationBuilder builder,
         Func<Task<IConnectionMultiplexer>> multiplexerFactory,
-        bool ownedByPlugin = false,
+        RedisConnectionOwnership ownership = RedisConnectionOwnership.CallerOwned,
         int database = 0,
         string? keyPrefix = null,
         PersistenceMode mode = PersistenceMode.Both,
@@ -80,9 +79,8 @@ public static class AkkaPersistenceRedisHostingExtensions
     {
         if (multiplexerFactory is null) throw new ArgumentNullException(nameof(multiplexerFactory));
 
-        RegisterMultiplexerSetup(builder, multiplexerFactory, ownedByPlugin);
-
         var (journalOpt, snapshotOpt) = BuildOptions(connectionString: string.Empty, autoInitialize, pluginIdentifier, isDefaultPlugin, database, keyPrefix);
+        RegisterMultiplexerSetup(builder, mode, journalOpt, snapshotOpt, multiplexerFactory, ownership);
         return ApplyMode(builder, mode, journalOpt, snapshotOpt, journalBuilder, snapshotBuilder);
     }
 
@@ -136,39 +134,25 @@ public static class AkkaPersistenceRedisHostingExtensions
             throw new ArgumentException(
                 $"{nameof(journalOptions)} and {nameof(snapshotOptions)} could not both be null");
 
-        // Builder-stage guard: fail before the user moves on if no connection source is
-        // available. Either the options carry a HOCON connection string, or the caller
-        // already registered a RedisConnectionMultiplexerSetup with builder.AddSetup(...).
-        // Without one or the other the plugin has no way to talk to Redis.
-        var hasConnectionString =
-            !string.IsNullOrWhiteSpace(journalOptions?.ConfigurationString) ||
-            !string.IsNullOrWhiteSpace(snapshotOptions?.ConfigurationString);
-        var hasSetup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Any();
-        if (!hasConnectionString && !hasSetup)
+        if (!HasConnectionSource(builder, journalOptions) || !HasConnectionSource(builder, snapshotOptions))
             throw new ArgumentException(
-                "WithRedisPersistence requires a connection source: set ConfigurationString " +
-                "on the options object, or register a RedisConnectionMultiplexerSetup on the " +
-                "builder via builder.AddSetup(...) before calling this overload. The " +
-                "WithRedisPersistence(connectionString:) / WithRedisPersistence(multiplexer:) / " +
-                "WithRedisPersistence(multiplexerFactory:) overloads enforce this at the type level.");
+                "Each Redis persistence plugin requires a connection source: set ConfigurationString " +
+                "on the options object, or register a RedisConnectionMultiplexerSetup entry for " +
+                "that plugin id before calling this overload.");
 
-        return (journalOptions, snapshotOptions) switch
-        {
-            (_, null) =>
-                builder
-                    .WithJournal(journalOptions, journalBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
+        if (snapshotOptions is null)
+            return builder
+                .WithJournal(journalOptions!, journalBuilder)
+                .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
 
-            (null, _) =>
-                builder
-                    .WithSnapshot(snapshotOptions, snapshotBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
+        if (journalOptions is null)
+            return builder
+                .WithSnapshot(snapshotOptions, snapshotBuilder)
+                .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
 
-            (_, _) =>
-                builder
-                    .WithJournalAndSnapshot(journalOptions, snapshotOptions, journalBuilder, snapshotBuilder)
-                    .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append),
-        };
+        return builder
+            .WithJournalAndSnapshot(journalOptions, snapshotOptions, journalBuilder, snapshotBuilder)
+            .AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append);
     }
 
     private static (RedisJournalOptions Journal, RedisSnapshotOptions Snapshot) BuildOptions(
@@ -219,18 +203,55 @@ public static class AkkaPersistenceRedisHostingExtensions
         };
     }
 
-    private static void RegisterMultiplexerSetup(
+    internal static void RegisterMultiplexerSetup(
         AkkaConfigurationBuilder builder,
+        PersistenceMode mode,
+        RedisJournalOptions journalOptions,
+        RedisSnapshotOptions snapshotOptions,
         Func<Task<IConnectionMultiplexer>> factory,
-        bool ownedByPlugin)
+        RedisConnectionOwnership ownership)
     {
-        if (builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Any())
-            throw new InvalidOperationException(
-                "A RedisConnectionMultiplexerSetup is already registered on the builder. " +
-                "Pass at most one source of multiplexer configuration: either register the " +
-                "Setup directly via builder.AddSetup(...), or use one of the WithRedisPersistence " +
-                "overloads that takes a multiplexer / multiplexerFactory — not both.");
+        var setup = GetOrCreateSetup(builder);
 
-        builder.Setups.Add(new RedisConnectionMultiplexerSetup(factory, ownedByPlugin));
+        if (mode is PersistenceMode.Journal or PersistenceMode.Both)
+            setup.Add(journalOptions.PluginId, factory, ownership);
+
+        if (mode is PersistenceMode.SnapshotStore or PersistenceMode.Both)
+            setup.Add(snapshotOptions.PluginId, factory, ownership);
+    }
+
+    private static RedisConnectionMultiplexerSetup GetOrCreateSetup(AkkaConfigurationBuilder builder)
+    {
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().FirstOrDefault();
+        if (setup is not null)
+            return setup;
+
+        setup = new RedisConnectionMultiplexerSetup();
+        builder.Setups.Add(setup);
+        return setup;
+    }
+
+    private static bool HasConnectionSource(AkkaConfigurationBuilder builder, RedisJournalOptions? options)
+    {
+        if (options is null)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(options.ConfigurationString))
+            return true;
+
+        return builder.Setups.OfType<RedisConnectionMultiplexerSetup>()
+            .Any(setup => setup.TryGetSource(options.PluginId, out _));
+    }
+
+    private static bool HasConnectionSource(AkkaConfigurationBuilder builder, RedisSnapshotOptions? options)
+    {
+        if (options is null)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(options.ConfigurationString))
+            return true;
+
+        return builder.Setups.OfType<RedisConnectionMultiplexerSetup>()
+            .Any(setup => setup.TryGetSource(options.PluginId, out _));
     }
 }

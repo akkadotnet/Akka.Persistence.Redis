@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Actor.Setup;
@@ -13,51 +14,68 @@ using StackExchange.Redis;
 #nullable enable
 namespace Akka.Persistence.Redis
 {
+    public enum RedisConnectionOwnership
+    {
+        CallerOwned,
+        PluginOwned,
+        ActorSystemOwned
+    }
+
     /// <summary>
-    /// Per-<see cref="ActorSystem"/> setup that supplies an
-    /// <see cref="IConnectionMultiplexer"/> factory to every Redis journal and snapshot
-    /// store in the system. Use this to inject a multiplexer that needs custom construction
-    /// — Azure Managed Identity / Entra ID, custom retry policies, RESP3 protocol, a
-    /// pre-built instance, etc.
+    /// Per-<see cref="ActorSystem"/> setup that supplies Redis connection factories keyed
+    /// by journal or snapshot-store plugin id.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// One Setup applies to every Redis plugin in the <see cref="ActorSystem"/>. Each plugin
-    /// instance invokes <see cref="Factory"/> once during construction. Whether multiple
-    /// plugins receive the same <see cref="IConnectionMultiplexer"/> instance is determined
-    /// entirely by <see cref="Factory"/>: a delegate that caches its result (a closure-
-    /// captured <see cref="Lazy{T}"/> for example) shares the multiplexer; a delegate that
-    /// builds a fresh multiplexer on each call gives every plugin its own.
+    /// Connection injection is plugin-scoped. A factory registered for
+    /// <c>akka.persistence.journal.redis</c> does not affect any other Redis plugin unless
+    /// that plugin id is explicitly registered to the same factory.
     /// </para>
     /// <para>
-    /// <see cref="OwnedByPlugin"/> controls disposal. When <see langword="false"/> (the
-    /// default), the plugin treats the multiplexer as caller-owned and never disposes it on
-    /// <see cref="UntypedActor.PostStop"/>. When <see langword="true"/>, the plugin disposes
-    /// whatever <see cref="Factory"/> returned — useful when the factory is purely a
-    /// construction hook (e.g. async initialization) and the caller wants the plugin to
-    /// manage lifetime.
-    /// </para>
-    /// <para>
-    /// Akka.Hosting users normally do not construct this Setup directly — pass
-    /// <c>multiplexerFactory:</c>, <c>multiplexer:</c>, or use
-    /// <see cref="P:Akka.Persistence.Redis.Hosting.AzureRedisHostingExtensions"/> on the
-    /// <c>WithRedisPersistence</c> overloads instead. Construct this class explicitly only
-    /// when bootstrapping outside Akka.Hosting via
-    /// <see cref="ActorSystem.Create(string, ActorSystemSetup)"/>.
+    /// Ownership controls disposal. Caller-owned connections are never disposed by the
+    /// plugin. Plugin-owned connections are disposed from <see cref="UntypedActor.PostStop"/>.
+    /// ActorSystem-owned connections are expected to be disposed once by the code that
+    /// registered the setup, typically via CoordinatedShutdown.
     /// </para>
     /// </remarks>
     public sealed class RedisConnectionMultiplexerSetup : Setup
     {
-        public RedisConnectionMultiplexerSetup(
+        private readonly Dictionary<string, RedisConnectionSource> _sources = new();
+
+        public RedisConnectionMultiplexerSetup Add(
+            string pluginId,
             Func<Task<IConnectionMultiplexer>> factory,
-            bool ownedByPlugin = false)
+            RedisConnectionOwnership ownership = RedisConnectionOwnership.CallerOwned)
         {
-            Factory = factory ?? throw new ArgumentNullException(nameof(factory));
-            OwnedByPlugin = ownedByPlugin;
+            if (string.IsNullOrWhiteSpace(pluginId)) throw new ArgumentException("Plugin id must not be empty.", nameof(pluginId));
+            if (factory is null) throw new ArgumentNullException(nameof(factory));
+
+            if (_sources.ContainsKey(pluginId))
+                throw new InvalidOperationException($"A Redis connection source is already registered for plugin id [{pluginId}].");
+
+            _sources.Add(pluginId, new RedisConnectionSource(factory, ownership));
+            return this;
+        }
+
+        public bool TryGetSource(string pluginId, out RedisConnectionSource? source)
+        {
+            if (pluginId is null) throw new ArgumentNullException(nameof(pluginId));
+            return _sources.TryGetValue(pluginId, out source);
+        }
+    }
+
+    public sealed class RedisConnectionSource
+    {
+        internal RedisConnectionSource(
+            Func<Task<IConnectionMultiplexer>> factory,
+            RedisConnectionOwnership ownership)
+        {
+            Factory = factory;
+            Ownership = ownership;
         }
 
         public Func<Task<IConnectionMultiplexer>> Factory { get; }
 
-        public bool OwnedByPlugin { get; }
+        public RedisConnectionOwnership Ownership { get; }
     }
 }

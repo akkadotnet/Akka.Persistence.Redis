@@ -33,7 +33,7 @@ namespace Akka.Persistence.Redis.Snapshot
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
             _system = Context.System;
 
-            var resolved = RedisConnectionResolver.Resolve(_system, _settings);
+            var resolved = RedisConnectionResolver.Resolve(_system, _settings, Self.Path.Name);
             _connection = resolved.Connection;
             _ownsConnection = resolved.OwnsConnection;
             Database = resolved.Database;

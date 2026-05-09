@@ -15,7 +15,11 @@ namespace Akka.Persistence.Redis.Hosting;
 public sealed class RedisSnapshotStoreConnectivityCheck : RedisConnectivityCheckBase
 {
     public RedisSnapshotStoreConnectivityCheck(string connectionString, string snapshotStoreId)
-        : base(connectionString, "snapshot store", snapshotStoreId ?? throw new ArgumentNullException(nameof(snapshotStoreId)))
+        : base(
+            connectionString,
+            "snapshot store",
+            snapshotStoreId ?? throw new ArgumentNullException(nameof(snapshotStoreId)),
+            $"akka.persistence.snapshot-store.{snapshotStoreId}")
     {
     }
 }

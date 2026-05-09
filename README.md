@@ -210,7 +210,7 @@ For deployments that aren't Azure-managed but still need an `IConnectionMultiple
 builder.WithRedisPersistence("your-redis-connection-string");
 
 // 2) Pre-built IConnectionMultiplexer. Caller-owned by default — the plugin will not
-//    dispose it on actor shutdown. Set ownedByPlugin: true to hand off disposal.
+//    dispose it on actor shutdown. Use PluginOwned to hand off disposal.
 var multiplexer = await ConnectionMultiplexer.ConnectAsync(new ConfigurationOptions
 {
     EndPoints = { { "your-redis-host", 6380 } },
@@ -242,11 +242,11 @@ builder
         pluginIdentifier: "snapshots", isDefaultPlugin: false, mode: PersistenceMode.SnapshotStore);
 ```
 
-The single-`RedisConnectionMultiplexerSetup` model intentionally applies one multiplexer to every Redis plugin in an `ActorSystem`. If you need per-plugin programmatically-authored multiplexers, run them in separate `ActorSystem` instances (each with its own Setup), or use a smart factory that branches on application state.
+Connection injection is plugin-scoped. A source registered for `akka.persistence.journal.events` does not affect `akka.persistence.journal.redis` or any other Redis plugin unless that plugin id is explicitly registered to the same source. Plugins without a registered source fall back to their own HOCON connection string.
 
 #### How it works under the hood
 
-The hosting extension carries the multiplexer factory through Akka.NET's typed `ActorSystemSetup` container. The `multiplexer:` and `multiplexerFactory:` overloads register a `RedisConnectionMultiplexerSetup` on the builder. The journal and snapshot store actors read it via `Context.System.Settings.Setup.Get<RedisConnectionMultiplexerSetup>()` once at construction. When no Setup is registered, each plugin opens its own multiplexer from the HOCON connection string and disposes it on `PostStop`. The connectivity health check resolves the same Setup at probe time, so a single source of configuration drives both the plugin and its liveness probe.
+The hosting extension carries multiplexer factories through Akka.NET's typed `ActorSystemSetup` container. The `multiplexer:` and `multiplexerFactory:` overloads register entries in `RedisConnectionMultiplexerSetup` for the journal and/or snapshot plugin ids configured by the call. The journal and snapshot store actors read their plugin-specific entry once at construction. When no entry exists for that plugin id, the plugin opens its own multiplexer from the HOCON connection string and disposes it on `PostStop`. The connectivity health check resolves the same plugin-specific setup entry at probe time, so a single source of configuration drives both the plugin and its liveness probe.
 
 #### Without Akka.Hosting
 
@@ -257,14 +257,20 @@ var multiplexer = await ConnectionMultiplexer.ConnectAsync(configurationOptions)
 
 var setup = ActorSystemSetup.Create(
     BootstrapSetup.Create().WithConfig(redisHocon),
-    new RedisConnectionMultiplexerSetup(
-        () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
-        ownedByPlugin: false));
+    new RedisConnectionMultiplexerSetup()
+        .Add(
+            "akka.persistence.journal.redis",
+            () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+            RedisConnectionOwnership.CallerOwned)
+        .Add(
+            "akka.persistence.snapshot-store.redis",
+            () => Task.FromResult<IConnectionMultiplexer>(multiplexer),
+            RedisConnectionOwnership.CallerOwned));
 
 var system = ActorSystem.Create("my-system", setup);
 ```
 
-`ownedByPlugin` defaults to `false` (caller-owned, plugin will not dispose). Set it to `true` when you want the plugin to take over disposal — e.g. when the factory is purely an async-construction hook and you want lifetime tied to the `ActorSystem`.
+`RedisConnectionOwnership.CallerOwned` means the plugin will not dispose the multiplexer. Use `RedisConnectionOwnership.PluginOwned` when the factory is purely a construction hook and each plugin should dispose the connection it receives.
 
 ### Health Checks
 

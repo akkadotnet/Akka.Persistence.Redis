@@ -70,8 +70,10 @@ public class AzureRedisHostingExtensionsSpec
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().FirstOrDefault();
         setup.Should().NotBeNull(
             "WithAzureRedisPersistence must register a RedisConnectionMultiplexerSetup for the Azure-built factory");
-        setup!.OwnedByPlugin.Should().BeFalse(
-            "Azure-supplied multiplexer is caller-owned (the helper holds a Lazy<Task<>> across plugin lifetimes)");
+        setup!.TryGetSource("akka.persistence.journal.redis", out var journalSource).Should().BeTrue();
+        journalSource.Ownership.Should().Be(RedisConnectionOwnership.ActorSystemOwned);
+        setup.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource).Should().BeTrue();
+        snapshotSource.Ownership.Should().Be(RedisConnectionOwnership.ActorSystemOwned);
     }
 
     [Fact]
@@ -84,6 +86,40 @@ public class AzureRedisHostingExtensionsSpec
 
         builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Should().BeEmpty(
             "non-Azure hosts must use the HOCON connection-string path, not the factory path");
+    }
+
+    [Fact]
+    public void WithAzureRedisPersistence_should_not_register_sources_for_unrelated_plugin_ids()
+    {
+        var builder = NewBuilder();
+
+        builder
+            .WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000")
+            .WithRedisPersistence(
+                "localhost:6379",
+                mode: PersistenceMode.Journal,
+                pluginIdentifier: "events",
+                isDefaultPlugin: false);
+
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
+        setup.TryGetSource("akka.persistence.journal.redis", out _).Should().BeTrue();
+        setup.TryGetSource("akka.persistence.snapshot-store.redis", out _).Should().BeTrue();
+        setup.TryGetSource("akka.persistence.journal.events", out _).Should().BeFalse(
+            "a source registered for the default Azure plugin must not override a separate HOCON-backed plugin");
+    }
+
+    [Fact]
+    public void WithAzureRedisPersistence_with_journal_mode_should_register_only_journal_plugin_id()
+    {
+        var builder = NewBuilder();
+
+        builder.WithAzureRedisPersistence(
+            "your-redis.swedencentral.redis.azure.net:10000",
+            mode: PersistenceMode.Journal);
+
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
+        setup.TryGetSource("akka.persistence.journal.redis", out _).Should().BeTrue();
+        setup.TryGetSource("akka.persistence.snapshot-store.redis", out _).Should().BeFalse();
     }
 
     [Fact]

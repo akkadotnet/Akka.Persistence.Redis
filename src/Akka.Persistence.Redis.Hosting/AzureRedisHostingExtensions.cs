@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Akka.Actor;
 using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis;
@@ -33,7 +34,7 @@ public static class AzureRedisHostingExtensions
     /// the connection string targets an Azure-managed Redis host. The host suffix is
     /// auto-detected (<c>.redis.azure.net</c> for Azure Managed Redis,
     /// <c>.redis.cache.windows.net</c> for Azure Cache for Redis); for any other host the
-    /// helper falls through to <see cref="AkkaPersistenceRedisHostingExtensions.WithRedisPersistence(AkkaConfigurationBuilder, string, IConnectionMultiplexer?, Func{Task{IConnectionMultiplexer}}?, bool, PersistenceMode, bool, Action{AkkaPersistenceJournalBuilder}?, Action{AkkaPersistenceSnapshotBuilder}?, string, bool)"/>.
+    /// helper falls through to the plain connection-string <c>WithRedisPersistence</c> overload.
     /// </summary>
     /// <remarks>
     /// The Azure helper builds a single <see cref="IConnectionMultiplexer"/>, cached behind a
@@ -59,10 +60,18 @@ public static class AzureRedisHostingExtensions
         if (IsAzureRedisHost(connectionString))
         {
             var resolvedCredential = credential ?? new ManagedIdentityCredential();
-            var factory = CreateAzureConnectionFactory(connectionString, resolvedCredential);
+            var source = CreateAzureConnectionSource(connectionString, resolvedCredential);
+            builder.AddStartup((system, _) =>
+            {
+                CoordinatedShutdown.Get(system).AddTask(
+                    CoordinatedShutdown.PhaseBeforeActorSystemTerminate,
+                    $"dispose-redis-azure-multiplexer-{pluginIdentifier}-{mode}",
+                    source.DisposeAsync);
+            });
+
             return builder.WithRedisPersistence(
-                multiplexerFactory: factory,
-                ownedByPlugin: false,
+                multiplexerFactory: source.Factory,
+                ownership: RedisConnectionOwnership.ActorSystemOwned,
                 mode: mode,
                 autoInitialize: autoInitialize,
                 journalBuilder: journalBuilder,
@@ -109,7 +118,7 @@ public static class AzureRedisHostingExtensions
         }
     }
 
-    private static Func<Task<IConnectionMultiplexer>> CreateAzureConnectionFactory(
+    private static AzureConnectionSource CreateAzureConnectionSource(
         string connectionString, TokenCredential credential)
     {
         // Single shared multiplexer behind a Lazy so every Redis plugin in the system uses
@@ -119,7 +128,7 @@ public static class AzureRedisHostingExtensions
         var shared = new Lazy<Task<IConnectionMultiplexer>>(
             () => ConnectAsync(connectionString, credential),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        return () => shared.Value;
+        return new AzureConnectionSource(shared);
     }
 
     private static async Task<IConnectionMultiplexer> ConnectAsync(
@@ -152,5 +161,29 @@ public static class AzureRedisHostingExtensions
             return ipEndpoint.Address.ToString();
 
         return null;
+    }
+
+    private sealed class AzureConnectionSource
+    {
+        private readonly Lazy<Task<IConnectionMultiplexer>> _shared;
+        private int _disposed;
+
+        public AzureConnectionSource(Lazy<Task<IConnectionMultiplexer>> shared)
+        {
+            _shared = shared;
+        }
+
+        public Task<IConnectionMultiplexer> Factory() => _shared.Value;
+
+        public Task<Done> DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                return Task.FromResult(Done.Instance);
+
+            if (_shared.IsValueCreated && _shared.Value.Status == TaskStatus.RanToCompletion)
+                _shared.Value.Result.Dispose();
+
+            return Task.FromResult(Done.Instance);
+        }
     }
 }

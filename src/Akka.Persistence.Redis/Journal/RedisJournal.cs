@@ -36,7 +36,7 @@ namespace Akka.Persistence.Redis.Journal
             _settings = RedisSettings.Create(journalConfig.WithFallback(Extension.DefaultJournalConfig));
             _journalHelper = new JournalHelper(Context.System, _settings.KeyPrefix);
 
-            var resolved = RedisConnectionResolver.Resolve(Context.System, _settings);
+            var resolved = RedisConnectionResolver.Resolve(Context.System, _settings, Self.Path.Name);
             _connection = resolved.Connection;
             _ownsConnection = resolved.OwnsConnection;
             Database = resolved.Database;
