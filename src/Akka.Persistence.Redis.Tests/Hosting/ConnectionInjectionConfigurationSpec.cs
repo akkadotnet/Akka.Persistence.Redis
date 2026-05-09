@@ -55,10 +55,16 @@ public class ConnectionInjectionConfigurationSpec
         setup.TryGetSource("akka.persistence.snapshot-store.custom", out var snapshotSource).Should().Be(expectSnapshot);
 
         if (expectJournal)
+        {
             journalSource!.Ownership.Should().Be(RedisConnectionOwnership.PluginOwned);
+            journalSource.Factory.Should().BeSameAs(factory);
+        }
 
         if (expectSnapshot)
+        {
             snapshotSource!.Ownership.Should().Be(RedisConnectionOwnership.PluginOwned);
+            snapshotSource.Factory.Should().BeSameAs(factory);
+        }
     }
 
     [Fact]
