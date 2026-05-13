@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
+using Akka.Event;
 using Akka.Persistence.Snapshot;
 using StackExchange.Redis;
 
@@ -24,6 +25,8 @@ namespace Akka.Persistence.Redis.Snapshot
         private readonly ActorSystem _system;
         private readonly IConnectionMultiplexer _connection;
         private readonly bool _ownsConnection;
+        private readonly ILoggingAdapter _log;
+        private readonly RedisTopologyRefresher _topology;
 
         public IDatabase Database { get; }
         public bool IsClustered { get; }
@@ -38,6 +41,9 @@ namespace Akka.Persistence.Redis.Snapshot
             _ownsConnection = resolved.OwnsConnection;
             Database = resolved.Database;
             IsClustered = resolved.IsClustered;
+
+            _log = Context.GetLogger();
+            _topology = RedisTopologyRefresher.Create(_connection, _log);
         }
 
         protected override void PostStop()
@@ -70,16 +76,24 @@ namespace Akka.Persistence.Redis.Snapshot
             return found;
         }
 
-        protected override Task SaveAsync(SnapshotMetadata metadata, object snapshot, CancellationToken cancellationToken)
+        protected override async Task SaveAsync(SnapshotMetadata metadata, object snapshot, CancellationToken cancellationToken)
         {
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
-            return Database.SortedSetAddAsync(
-                GetSnapshotKey(metadata.PersistenceId, IsClustered),
-                PersistentToBytes(metadata, snapshot),
-                metadata.SequenceNr,
-                flags: CommandFlags.DemandMaster);
+            try
+            {
+                await Database.SortedSetAddAsync(
+                    GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                    PersistentToBytes(metadata, snapshot),
+                    metadata.SequenceNr,
+                    flags: CommandFlags.DemandMaster);
+            }
+            catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+            {
+                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
+                throw;
+            }
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata, CancellationToken cancellationToken)
@@ -89,11 +103,19 @@ namespace Akka.Persistence.Redis.Snapshot
 
             if(metadata.Timestamp == DateTime.MinValue)
             {
-                await Database.SortedSetRemoveRangeByScoreAsync(
-                    GetSnapshotKey(metadata.PersistenceId, IsClustered),
-                    metadata.SequenceNr,
-                    metadata.SequenceNr,
-                    flags: CommandFlags.DemandMaster);
+                try
+                {
+                    await Database.SortedSetRemoveRangeByScoreAsync(
+                        GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                        metadata.SequenceNr,
+                        metadata.SequenceNr,
+                        flags: CommandFlags.DemandMaster);
+                }
+                catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+                {
+                    _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                    throw;
+                }
                 return;
             }
 
@@ -115,7 +137,15 @@ namespace Akka.Persistence.Redis.Snapshot
                     flags: CommandFlags.DemandMaster))
                 .ToArray();
 
-            await Task.WhenAll(found);
+            try
+            {
+                await Task.WhenAll(found);
+            }
+            catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+            {
+                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                throw;
+            }
         }
 
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria, CancellationToken cancellationToken)
@@ -141,7 +171,15 @@ namespace Akka.Persistence.Redis.Snapshot
                     flags: CommandFlags.DemandMaster))
                 .ToArray();
 
-            await Task.WhenAll(found);
+            try
+            {
+                await Task.WhenAll(found);
+            }
+            catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+            {
+                _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
+                throw;
+            }
         }
 
         private byte[] PersistentToBytes(SnapshotMetadata metadata, object snapshot)
