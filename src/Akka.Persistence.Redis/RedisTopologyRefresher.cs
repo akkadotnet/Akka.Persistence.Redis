@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Event;
@@ -20,47 +21,76 @@ namespace Akka.Persistence.Redis
     ///
     /// SE.Redis 2.6.86+ already auto-refreshes on MOVED redirects (with a 5-second
     /// internal debounce). The one cluster-failover failure mode it does NOT handle is
-    /// a node refusing a write with the literal server-side message
-    /// "Command cannot be issued to a replica" — surfaced as a plain
-    /// <see cref="RedisCommandException"/> with no typed subtype. That happens when a
-    /// failover has demoted a node to replica but the multiplexer's slot-map cache is
-    /// still routing writes there. This refresher detects that exact case, fires
-    /// <see cref="IConnectionMultiplexer.ConfigureAsync(System.IO.TextWriter?)"/> in
-    /// the background, and lets the journal's circuit breaker handle retry cadence as
-    /// normal.
+    /// a write that lands on a node SE.Redis has just observed serve a
+    /// <c>-READONLY</c> response (i.e. been demoted to replica). SE.Redis flips that
+    /// node's <see cref="IServer.IsReplica"/> flag and then refuses the next write to
+    /// it with a <see cref="RedisCommandException"/>, but does not refresh the cluster
+    /// slot map, so subsequent writes keep routing to the same demoted node until the
+    /// next periodic <c>configCheckSeconds</c> tick.
     /// </summary>
     internal sealed class RedisTopologyRefresher
     {
-        // Literal message produced by SE.Redis when a write reaches a node that is
-        // currently serving as a replica. Stable since SE.Redis 2.6.86. Re-verify on
-        // any SE.Redis package bump.
+        // Fallback message marker for the rare case where IncludeDetailInExceptions
+        // is set to false on the multiplexer's ConfigurationOptions — then SE.Redis
+        // omits the "redis-server" data key, and the only signal left is the message
+        // text. Stable since SE.Redis 2.6.86. Re-verify on any SE.Redis package bump.
         private const string ReplicaRefusalMarker = "Command cannot be issued to a replica";
 
+        // SE.Redis populates Exception.Data with this key for every server-attributed
+        // exception when IncludeDetailInExceptions is true (the default). See
+        // StackExchange.Redis.ExceptionFactory.AddExceptionDetail.
+        private const string RedisServerDataKey = "redis-server";
+
         private readonly Func<Task> _refresh;
+        private readonly IConnectionMultiplexer? _connection;
         private readonly ILoggingAdapter _log;
 
         // 0 = idle, 1 = refresh already in flight. Suppresses log spam and redundant
         // refresh dispatches when many concurrent writes all hit the same demoted node.
         private int _refreshInFlight;
 
-        // Test seam: lets specs inject a Func<Task> in place of the real ConfigureAsync.
-        internal RedisTopologyRefresher(Func<Task> refresh, ILoggingAdapter log)
+        // Test seam: lets specs inject a Func<Task> in place of the real ConfigureAsync
+        // and an optional multiplexer for IsReplicaRefusal's typed check.
+        internal RedisTopologyRefresher(Func<Task> refresh, ILoggingAdapter log, IConnectionMultiplexer? connection = null)
         {
             _refresh = refresh;
             _log = log;
+            _connection = connection;
         }
 
         public static RedisTopologyRefresher Create(IConnectionMultiplexer connection, ILoggingAdapter log)
-            => new(() => connection.ConfigureAsync(null), log);
+            => new(() => connection.ConfigureAsync(null), log, connection);
 
         /// <summary>
-        /// True when the given exception is the "Command cannot be issued to a replica"
-        /// runtime refusal that this refresher reacts to. MOVED, ASK, CROSSSLOT and
-        /// every other <see cref="RedisCommandException"/> shape returns false — they
-        /// either auto-heal in SE.Redis or are user-mode programming errors.
+        /// True when this exception was produced because a write was routed to a node
+        /// that is currently flagged as a replica. Primary signal is the typed check:
+        /// <see cref="Exception.Data"/>[<c>"redis-server"</c>] identifies the endpoint
+        /// that refused, and <see cref="IServer.IsReplica"/> tells us its actual state.
+        /// Falls back to the literal SE.Redis message text only when
+        /// <c>ConfigurationOptions.IncludeDetailInExceptions</c> is false (the data
+        /// dictionary is then empty).
         /// </summary>
-        public static bool IsReplicaRefusal(RedisCommandException ex)
-            => ex.Message.IndexOf(ReplicaRefusalMarker, StringComparison.Ordinal) >= 0;
+        public bool IsReplicaRefusal(RedisCommandException ex)
+        {
+            if (_connection is not null
+                && ex.Data[RedisServerDataKey] is string endpointString
+                && TryParseEndPoint(endpointString, out var endpoint))
+            {
+                try
+                {
+                    var server = _connection.GetServer(endpoint);
+                    if (server.IsReplica)
+                        return true;
+                }
+                catch
+                {
+                    // Endpoint not recognized by the multiplexer (e.g. stale entry).
+                    // Fall through to the message-text fallback.
+                }
+            }
+
+            return ex.Message.IndexOf(ReplicaRefusalMarker, StringComparison.Ordinal) >= 0;
+        }
 
         /// <summary>
         /// Fire-and-forget topology refresh against the multiplexer. Always returns
@@ -98,6 +128,30 @@ namespace Akka.Persistence.Redis
             {
                 Interlocked.Exchange(ref _refreshInFlight, 0);
             }
+        }
+
+        // SE.Redis formats endpoints as host:port for DNS/IP, /path for Unix sockets,
+        // or as the raw IPEndPoint ToString shape. Accept what IPEndPoint.TryParse
+        // handles and DnsEndPoint as the fallback for hostnames.
+        private static bool TryParseEndPoint(string raw, out EndPoint endpoint)
+        {
+            if (IPEndPoint.TryParse(raw, out var ipe))
+            {
+                endpoint = ipe;
+                return true;
+            }
+
+            var colon = raw.LastIndexOf(':');
+            if (colon > 0 && colon < raw.Length - 1
+                && int.TryParse(raw.AsSpan(colon + 1), out var port)
+                && port is > 0 and <= 65535)
+            {
+                endpoint = new DnsEndPoint(raw.Substring(0, colon), port);
+                return true;
+            }
+
+            endpoint = null!;
+            return false;
         }
     }
 }

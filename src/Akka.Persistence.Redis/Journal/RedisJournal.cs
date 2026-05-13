@@ -98,7 +98,7 @@ namespace Akka.Persistence.Redis.Journal
                     toSequenceNr,
                     flags: CommandFlags.DemandMaster);
             }
-            catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
             {
                 _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteMessagesToAsync), ex);
                 throw;
@@ -156,7 +156,7 @@ namespace Akka.Persistence.Redis.Journal
             {
                 transactionSucceeded = await transaction.ExecuteAsync();
             }
-            catch (RedisCommandException ex) when (RedisTopologyRefresher.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
             {
                 _topology.TriggerBackgroundRefresh(aw.PersistenceId, nameof(WriteBatchAsync), ex);
                 throw;

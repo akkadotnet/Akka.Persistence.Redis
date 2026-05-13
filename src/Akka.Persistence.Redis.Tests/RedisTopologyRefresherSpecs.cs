@@ -15,13 +15,18 @@ namespace Akka.Persistence.Redis.Tests
 {
     public class RedisTopologyRefresherSpecs : Akka.TestKit.Xunit.TestKit
     {
+        private RedisTopologyRefresher NewRefresher(Func<Task>? refresh = null)
+            => new(refresh ?? (() => Task.CompletedTask), Log);
+
         [Fact]
-        public void IsReplicaRefusal_returns_true_for_canonical_replica_message()
+        public void IsReplicaRefusal_returns_true_for_canonical_replica_message_fallback()
         {
+            // No IConnectionMultiplexer wired up, so the typed check is skipped and
+            // the fallback message match drives the result.
             var ex = new RedisCommandException(
                 "Command cannot be issued to a replica: SET {_EventId-1}.Catalog.MarketSnapshot");
 
-            RedisTopologyRefresher.IsReplicaRefusal(ex).Should().BeTrue();
+            NewRefresher().IsReplicaRefusal(ex).Should().BeTrue();
         }
 
         [Fact]
@@ -31,7 +36,7 @@ namespace Akka.Persistence.Redis.Tests
             // react to it (would cause double-refresh storms).
             var ex = new RedisCommandException("MOVED 1234 192.168.0.5:6379");
 
-            RedisTopologyRefresher.IsReplicaRefusal(ex).Should().BeFalse();
+            NewRefresher().IsReplicaRefusal(ex).Should().BeFalse();
         }
 
         [Fact]
@@ -39,7 +44,7 @@ namespace Akka.Persistence.Redis.Tests
         {
             var ex = new RedisCommandException("WRONGTYPE Operation against a key holding the wrong kind of value");
 
-            RedisTopologyRefresher.IsReplicaRefusal(ex).Should().BeFalse();
+            NewRefresher().IsReplicaRefusal(ex).Should().BeFalse();
         }
 
         [Fact]
