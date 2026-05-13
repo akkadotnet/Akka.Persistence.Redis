@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
+using Akka.Event;
 using Akka.Persistence.Journal;
 using Akka.Util.Internal;
 using StackExchange.Redis;
@@ -27,6 +28,8 @@ namespace Akka.Persistence.Redis.Journal
         private readonly JournalHelper _journalHelper;
         private readonly IConnectionMultiplexer _connection;
         private readonly bool _ownsConnection;
+        private readonly ILoggingAdapter _log;
+        private readonly RedisTopologyRefresher _topology;
 
         public IDatabase Database { get; }
         public bool IsClustered { get; }
@@ -41,6 +44,9 @@ namespace Akka.Persistence.Redis.Journal
             _ownsConnection = resolved.OwnsConnection;
             Database = resolved.Database;
             IsClustered = resolved.IsClustered;
+
+            _log = Context.GetLogger();
+            _topology = RedisTopologyRefresher.Create(_connection, _log);
         }
 
         protected override void PostStop()
@@ -84,11 +90,19 @@ namespace Akka.Persistence.Redis.Journal
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
-            await Database.SortedSetRemoveRangeByScoreAsync(
-                _journalHelper.GetJournalKey(persistenceId, IsClustered),
-                -1,
-                toSequenceNr,
-                flags: CommandFlags.DemandMaster);
+            try
+            {
+                await Database.SortedSetRemoveRangeByScoreAsync(
+                    _journalHelper.GetJournalKey(persistenceId, IsClustered),
+                    -1,
+                    toSequenceNr,
+                    flags: CommandFlags.DemandMaster);
+            }
+            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            {
+                _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteMessagesToAsync), ex);
+                throw;
+            }
         }
 
         protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages, CancellationToken cancellationToken)
@@ -137,7 +151,18 @@ namespace Akka.Persistence.Redis.Journal
                 aw.HighestSequenceNr,
                 flags: CommandFlags.DemandMaster);
 
-            if (!await transaction.ExecuteAsync())
+            bool transactionSucceeded;
+            try
+            {
+                transactionSucceeded = await transaction.ExecuteAsync();
+            }
+            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            {
+                _topology.TriggerBackgroundRefresh(aw.PersistenceId, nameof(WriteBatchAsync), ex);
+                throw;
+            }
+
+            if (!transactionSucceeded)
                 throw new Exception(
                     $"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
         }

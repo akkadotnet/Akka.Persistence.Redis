@@ -150,6 +150,65 @@ These are the minimum Redis commands that are needed by Akka.Persistence.Redis t
 | PUBLISH          | Pub/Sub Publish                  |
 
 
+## Running against Redis Cluster
+
+Redis Cluster failovers shift slot ownership between nodes. During the brief window between a node being demoted to replica and the SE.Redis client refreshing its slot-map cache, writes can be routed to a node that now refuses them (`Command cannot be issued to a replica`). Production deployments need three layers of mitigation, two of which are user-configured and the third of which the plugin does for you automatically.
+
+### 1. Tune the StackExchange.Redis connection string
+
+```
+{addresses},abortConnect=false,connectRetry=5,configCheckSeconds=10,syncTimeout=5000,asyncTimeout=5000
+```
+
+| Setting | Why |
+|---------|-----|
+| `abortConnect=false` | Without it, initial connection failures can leave the multiplexer permanently unhealthy. |
+| `connectRetry=5` | Number of times SE.Redis retries the initial connection attempt. Helps during transient failover. |
+| `configCheckSeconds=10` | How often SE.Redis re-queries cluster topology (`CLUSTER NODES`/`CLUSTER SLOTS`). Default is 60s — cutting to 10s shrinks the stale-topology window after a failover. |
+| `syncTimeout` / `asyncTimeout` (`5000` ms) | Per-operation timeouts at the SE.Redis layer. Should be **lower than** the Akka circuit-breaker `call-timeout` so the breaker trips on real hangs rather than waiting on SE.Redis's own timeout. |
+
+> Do **not** add `allowAdmin=true` unless you genuinely need admin commands (`FLUSHDB`, `CONFIG`, etc.). It enables dangerous operations and is not needed for persistence.
+
+### 2. Tune the Akka.Persistence circuit breaker and recovery concurrency
+
+```hocon
+akka.persistence {
+    max-concurrent-recoveries = 64    # or 128 for large sharded deployments — NOT higher
+    journal.redis {
+        circuit-breaker {
+            call-timeout  = 10s       # do NOT set to 120s
+            reset-timeout = 30s
+            max-failures  = 10
+        }
+    }
+    snapshot-store.redis {
+        circuit-breaker {
+            call-timeout  = 10s
+            reset-timeout = 30s
+            max-failures  = 10
+        }
+    }
+}
+```
+
+- **`max-concurrent-recoveries = 64`–`128`** — higher values turn a cluster blip into a recovery storm.
+- **`call-timeout = 10s`** — values like 120s are an **amplifier**, not a safety margin. They turn a 30-second cluster failover into a 30-minute outage by holding hundreds of in-flight recoveries open for two minutes each.
+- **App-level `Ask` timeouts must be _larger_ than `call-timeout`**, never smaller. Otherwise the `Ask` fails before the journal has any chance to fail fast its own way, and upstream consumers (RabbitMQ requeues, HTTP retries, etc.) hammer the system while persistence is still on its first attempt. Rule of thumb: `Ask timeout ≥ call-timeout × max-failures × 1.5`.
+
+### 3. What the plugin does for you automatically
+
+Two failure modes need different handling:
+
+- **`MOVED` redirects** — handled by StackExchange.Redis itself (since 2.6.86). It proactively refreshes its slot map on a 5-second debounce when it sees a `MOVED` response. No plugin involvement.
+- **`Command cannot be issued to a replica`** — runtime refusal from a node that thinks it's a replica. SE.Redis does NOT auto-handle this. The plugin catches it inside the journal and snapshot-store write paths, fires `IConnectionMultiplexer.ConfigureAsync()` in the background to force a topology refresh, and rethrows so the journal's circuit breaker handles retry timing. By the time `reset-timeout` (e.g. 30s) elapses, the refresh has completed and the next attempt sees fresh topology.
+
+No manual restart or topology poke is required.
+
+### 4. Full `ConfigurationOptions` control via `WithRedisPersistence`
+
+The connection string above expresses most of what you need, but some tunings (e.g. an `ExponentialRetry` `ReconnectRetryPolicy`, custom `SocketManager`, explicit `EndPoints`) can only be set programmatically. For those, supply a pre-configured `IConnectionMultiplexer` — see [_Supplying a Pre-Configured IConnectionMultiplexer (Non-Azure)_](#supplying-a-pre-configured-iconnectionmultiplexer-non-azure) below. The plugin's auto-topology-refresh works identically whether you let the plugin own the connection or supply your own.
+
+
 ## Akka.Hosting Integration
 
 [Akka.Persistence.Redis.Hosting](https://github.com/akkadotnet/Akka.Persistence.Redis/tree/dev/src/Akka.Persistence.Redis.Hosting) provides a set of extension methods for integrating Akka.Persistence.Redis with [Akka.Hosting](https://github.com/akkadotnet/Akka.Hosting), making it easy to configure Redis persistence and health checks using Microsoft's dependency injection and hosting model.
