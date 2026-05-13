@@ -1,4 +1,6 @@
-#### 1.5.68 TBD ####
+#### 1.5.68-beta1 May 13th 2026 ####
+
+This is a prerelease of the post-1.5.67 Redis hardening work. Customers running against Redis Cluster are the primary audience: try this in staging, validate failover recovery against your topology, and report back before the stable 1.5.68 ships.
 
 **Behavior Changes / Compatibility Notes**
 
@@ -17,6 +19,9 @@
 * Added `CommandFlags.DemandMaster` to Redis write operations as defense-in-depth for primary-only writes.
 * Removed the `ConnectionMultiplexer` leak in journal and snapshot actors by tracking connection ownership and disposing plugin-owned connections from `PostStop`.
 * Reworked Redis test fixtures to use Testcontainers and hardened cluster readiness / CI failure behavior.
+* Added automatic Redis Cluster topology refresh on the "Command cannot be issued to a replica" error that surfaces after a failover demotes a primary. The journal and snapshot store catch this case, fire `IConnectionMultiplexer.ConfigureAsync()` in the background, and rethrow so the existing circuit breaker handles retry timing. Detection uses `IServer.IsReplica` against the endpoint in `Exception.Data["redis-server"]`, with the literal message as a fallback when `ConfigurationOptions.IncludeDetailInExceptions = false`.
+* Added a new "Running against Redis Cluster" section to `README.md` covering the recommended SE.Redis connection string, Akka.Persistence circuit-breaker tuning, the `Ask` timeout vs `call-timeout` rule, and which cluster-failover failure modes are handled by StackExchange.Redis vs the plugin.
+* Added commented circuit-breaker tuning guidance under the journal and snapshot-store sections of `reference.conf`. No HOCON defaults change.
 
 **Dependencies**
 
