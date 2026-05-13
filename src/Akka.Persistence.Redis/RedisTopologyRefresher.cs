@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Event;
@@ -74,7 +73,7 @@ namespace Akka.Persistence.Redis
         {
             if (_connection is not null
                 && ex.Data[RedisServerDataKey] is string endpointString
-                && TryParseEndPoint(endpointString, out var endpoint))
+                && EndPointCollection.TryParse(endpointString) is { } endpoint)
             {
                 try
                 {
@@ -130,28 +129,5 @@ namespace Akka.Persistence.Redis
             }
         }
 
-        // SE.Redis formats endpoints as host:port for DNS/IP, /path for Unix sockets,
-        // or as the raw IPEndPoint ToString shape. Accept what IPEndPoint.TryParse
-        // handles and DnsEndPoint as the fallback for hostnames.
-        private static bool TryParseEndPoint(string raw, out EndPoint endpoint)
-        {
-            if (IPEndPoint.TryParse(raw, out var ipe))
-            {
-                endpoint = ipe;
-                return true;
-            }
-
-            var colon = raw.LastIndexOf(':');
-            if (colon > 0 && colon < raw.Length - 1
-                && int.TryParse(raw.AsSpan(colon + 1), out var port)
-                && port is > 0 and <= 65535)
-            {
-                endpoint = new DnsEndPoint(raw.Substring(0, colon), port);
-                return true;
-            }
-
-            endpoint = null!;
-            return false;
-        }
     }
 }

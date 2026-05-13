@@ -101,7 +101,10 @@ namespace Akka.Persistence.Redis.Tests
         {
             // After the refresh task finishes, a fresh trigger must dispatch a new
             // refresh — otherwise a one-time topology blip would permanently disable
-            // subsequent refreshes.
+            // subsequent refreshes. The flag is reset in RunRefreshAsync's finally,
+            // which runs asynchronously after the inner Task completes, so the test
+            // polls the second trigger rather than relying on it firing on the first
+            // attempt.
             var invocations = 0;
             TaskCompletionSource<int> gate = new();
             var refresher = new RedisTopologyRefresher(
@@ -115,14 +118,15 @@ namespace Akka.Persistence.Redis.Tests
             var ex = new RedisCommandException("Command cannot be issued to a replica");
 
             refresher.TriggerBackgroundRefresh("pid-1", "WriteBatch", ex);
+            invocations.Should().Be(1);
             gate.SetResult(0);
 
-            await AwaitConditionAsync(() => Task.FromResult(invocations == 1), TimeSpan.FromSeconds(2));
-
             gate = new TaskCompletionSource<int>();
-            refresher.TriggerBackgroundRefresh("pid-2", "WriteBatch", ex);
-
-            await AwaitConditionAsync(() => Task.FromResult(invocations == 2), TimeSpan.FromSeconds(2));
+            await AwaitAssertAsync(() =>
+            {
+                refresher.TriggerBackgroundRefresh("pid-2", "WriteBatch", ex);
+                invocations.Should().Be(2);
+            }, TimeSpan.FromSeconds(2));
 
             gate.SetResult(0);
         }
@@ -147,7 +151,7 @@ namespace Akka.Persistence.Redis.Tests
         }
 
         [Fact]
-        public void TriggerBackgroundRefresh_swallows_synchronous_refresh_exception()
+        public async Task TriggerBackgroundRefresh_swallows_synchronous_refresh_exception()
         {
             // If the refresh callable throws synchronously (before returning a Task),
             // the refresher must not propagate (it's fire-and-forget by contract) and
@@ -166,7 +170,7 @@ namespace Akka.Persistence.Redis.Tests
             Action act = () => refresher.TriggerBackgroundRefresh("pid-1", "WriteBatch", ex);
             act.Should().NotThrow();
 
-            AwaitAssert(() => invocations.Should().BeGreaterOrEqualTo(1), TimeSpan.FromSeconds(2));
+            await AwaitAssertAsync(() => invocations.Should().BeGreaterOrEqualTo(1), TimeSpan.FromSeconds(2));
         }
     }
 }
