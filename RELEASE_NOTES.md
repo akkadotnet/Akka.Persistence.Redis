@@ -1,6 +1,6 @@
-#### 1.5.68-beta1 May 13th 2026 ####
+#### 1.5.68 June 1st 2026 ####
 
-This is a prerelease of the post-1.5.67 Redis hardening work. Customers running against Redis Cluster are the primary audience: try this in staging, validate failover recovery against your topology, and report back before the stable 1.5.68 ships.
+This is the stable release of the post-1.5.67 Redis hardening work.
 
 **Behavior Changes / Compatibility Notes**
 
