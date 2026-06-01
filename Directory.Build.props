@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Copyright>Copyright © 2013-2023 Akka.NET Project</Copyright>
     <Authors>Akka.NET</Authors>
-    <VersionPrefix>1.5.59</VersionPrefix>
+    <VersionPrefix>1.5.68</VersionPrefix>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
