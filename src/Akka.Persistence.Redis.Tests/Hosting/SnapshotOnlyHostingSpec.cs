@@ -8,7 +8,6 @@ using System;
 using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis.Hosting;
-using FluentAssertions;
 using Xunit;
 
 namespace Akka.Persistence.Redis.Tests.Hosting;
@@ -43,18 +42,14 @@ public class SnapshotOnlyHostingSpec : Akka.Hosting.TestKit.TestKit, IClassFixtu
     {
         var snapshotStoreConfig = Sys.Settings.Config.GetConfig("akka.persistence.snapshot-store.redis");
 
-        snapshotStoreConfig.Should().NotBeNull(
-            "the snapshot-only branch must call AddHocon(RedisPersistence.DefaultConfig(), HoconAddMode.Append)");
+        Assert.NotNull(snapshotStoreConfig);
 
-        snapshotStoreConfig.GetString("class")
-            .Should().Contain("RedisSnapshotStore",
-                "the redis snapshot-store HOCON section must include the plugin class name");
+        Assert.Contains("RedisSnapshotStore", snapshotStoreConfig.GetString("class"));
     }
 
     [Fact]
     public void Snapshot_only_configuration_should_set_snapshot_store_plugin_to_redis()
     {
-        Sys.Settings.Config.GetString("akka.persistence.snapshot-store.plugin")
-            .Should().Be("akka.persistence.snapshot-store.redis");
+        Assert.Equal("akka.persistence.snapshot-store.redis", Sys.Settings.Config.GetString("akka.persistence.snapshot-store.plugin"));
     }
 }

@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Akka.Hosting;
 using Akka.Persistence.Redis.Hosting;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -65,7 +64,7 @@ public class SimplifiedConnectivityCheckApiSpec : Akka.Hosting.TestKit.TestKit, 
         var healthReport = await healthCheckService.CheckHealthAsync(CancellationToken.None);
 
         // Assert
-        healthReport.Entries.Should().NotBeEmpty("health checks should be registered");
+        Assert.NotEmpty(healthReport.Entries);
 
         // Look for connectivity checks
         var journalConnectivityCheck = healthReport.Entries
@@ -76,8 +75,8 @@ public class SimplifiedConnectivityCheckApiSpec : Akka.Hosting.TestKit.TestKit, 
             .FirstOrDefault(e => e.Key.Contains("Redis.SnapshotStore", StringComparison.OrdinalIgnoreCase) &&
                                 e.Key.Contains("Connectivity", StringComparison.OrdinalIgnoreCase));
 
-        journalConnectivityCheck.Key.Should().NotBeNull("journal connectivity check should be registered");
-        snapshotConnectivityCheck.Key.Should().NotBeNull("snapshot connectivity check should be registered");
+        Assert.NotNull(journalConnectivityCheck.Key);
+        Assert.NotNull(snapshotConnectivityCheck.Key);
     }
 }
 
@@ -127,12 +126,12 @@ public class CustomConnectivityCheckConfigSpec : Akka.Hosting.TestKit.TestKit, I
         var healthReport = await healthCheckService.CheckHealthAsync(CancellationToken.None);
 
         // Assert
-        healthReport.Entries.Should().NotBeEmpty("health checks should be registered");
+        Assert.NotEmpty(healthReport.Entries);
 
         // Look for the custom named check
         var customCheck = healthReport.Entries
             .FirstOrDefault(e => e.Key == "MyCustomRedisJournalCheck");
 
-        customCheck.Key.Should().NotBeNull("custom named health check should be registered");
+        Assert.NotNull(customCheck.Key);
     }
 }
