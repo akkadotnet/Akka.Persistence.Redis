@@ -102,7 +102,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisJournalConnectivityCheck((string)null!, "redis");
-        Assert.Throws<ArgumentNullException>(action).Where(ex => ex.ParamName == "connectionString");
+        var ex1 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("connectionString", ex1.ParamName);
     }
 
     [Fact]
@@ -110,7 +111,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisJournalConnectivityCheck("localhost:6379", null!);
-        Assert.Throws<ArgumentNullException>(action).Where(ex => ex.ParamName == "journalId");
+        var ex2 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("journalId", ex2.ParamName);
     }
 
     [Fact]
@@ -118,7 +120,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisSnapshotStoreConnectivityCheck((string)null!, "redis");
-        Assert.Throws<ArgumentNullException>(action).Where(ex => ex.ParamName == "connectionString");
+        var ex3 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("connectionString", ex3.ParamName);
     }
 
     [Fact]
@@ -126,7 +129,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisSnapshotStoreConnectivityCheck("localhost:6379", null!);
-        Assert.Throws<ArgumentNullException>(action).Where(ex => ex.ParamName == "snapshotStoreId");
+        var ex4 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("snapshotStoreId", ex4.ParamName);
     }
 
     [Fact]

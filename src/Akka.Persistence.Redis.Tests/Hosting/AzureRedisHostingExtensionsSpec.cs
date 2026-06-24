@@ -121,8 +121,9 @@ public class AzureRedisHostingExtensionsSpec
     {
         var builder = NewBuilder();
         var act = () => builder.WithAzureRedisPersistence(string.Empty);
-        Assert.Throws<System.ArgumentException>(act)
-            .WithMessage("*connection string*", "*").Where(ex => ex.ParamName == "connectionString");
+        var ex = Assert.Throws<System.ArgumentException>(act);
+        Assert.Contains("connection string", ex.Message);
+        Assert.Equal("connectionString", ex.ParamName);
     }
 
     private static AkkaConfigurationBuilder NewBuilder()

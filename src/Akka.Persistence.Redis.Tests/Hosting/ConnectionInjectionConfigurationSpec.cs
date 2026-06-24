@@ -112,8 +112,8 @@ public class ConnectionInjectionConfigurationSpec
 
         var act = () => builder.WithRedisPersistence(journalOptions, snapshotOptions: null);
 
-        Assert.Throws<ArgumentException>(act)
-            .WithMessage("*requires a connection source*");
+        var ex = Assert.Throws<ArgumentException>(act);
+        Assert.Contains("requires a connection source", ex.Message);
     }
 
     [Fact]
@@ -130,8 +130,8 @@ public class ConnectionInjectionConfigurationSpec
             FakeFactory(),
             RedisConnectionOwnership.PluginOwned);
 
-        Assert.Throws<InvalidOperationException>(act)
-            .WithMessage("*akka.persistence.journal.redis*");
+        var ex = Assert.Throws<InvalidOperationException>(act);
+        Assert.Contains("akka.persistence.journal.redis", ex.Message);
     }
 
     private static AkkaConfigurationBuilder NewBuilder()
