@@ -67,8 +67,8 @@ namespace Akka.Persistence.Redis.Tests
                 () =>
                 {
                     var afterShutdown = TotalClientCountAsync(observer).GetAwaiter().GetResult();
-                    afterShutdown.Should().BeLessThanOrEqualTo(baseline,
-                        because: "the owned multiplexer should be disposed on PostStop, releasing every connection it opened");
+                    Assert.True(afterShutdown <= baseline,
+                        "the owned multiplexer should be disposed on PostStop, releasing every connection it opened");
                 },
                 TimeSpan.FromSeconds(10));
         }

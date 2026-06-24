@@ -169,7 +169,7 @@ namespace Akka.Persistence.Redis.Tests
             Action act = () => refresher.TriggerBackgroundRefresh("pid-1", "WriteBatch", ex);
             Assert.Null(Record.Exception(act));
 
-            await AwaitAssertAsync(() => invocations.Should().BeGreaterOrEqualTo(1), TimeSpan.FromSeconds(2));
+            await AwaitAssertAsync(() => Assert.True(invocations >= 1), TimeSpan.FromSeconds(2));
         }
     }
 }
