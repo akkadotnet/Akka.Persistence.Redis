@@ -36,6 +36,6 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReleaseNotes>* Upgraded to Akka.NET 1.5.70.
 * Upgraded to Akka.Hosting 1.5.70.
-* Event queries by persistence ID remain supported. Persistence-ID enumeration, tag, and all-events queries, including `Offset.FromEnd`, remain unavailable because Redis Cluster does not provide the required global ordering.</PackageReleaseNotes>
+* Event queries by persistence ID remain supported. Persistence-ID enumeration remains unimplemented. Tag and all-events queries, including `Offset.FromEnd`, remain unavailable because the clustered storage model does not maintain the required global indexes and ordering.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
