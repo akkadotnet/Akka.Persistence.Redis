@@ -1,3 +1,9 @@
+#### 1.5.70 July 29th 2026 ####
+
+* Upgraded to [Akka.NET 1.5.70](https://github.com/akkadotnet/akka.net/releases/tag/1.5.70)
+* Upgraded to [Akka.Hosting 1.5.70](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.70)
+* Event queries by persistence ID remain supported. Persistence-ID enumeration, tag, and all-events queries, including `Offset.FromEnd`, remain unavailable because Redis Cluster does not provide the required global ordering.
+
 #### 1.5.68 June 1st 2026 ####
 
 This is the stable release of the post-1.5.67 Redis hardening work.
