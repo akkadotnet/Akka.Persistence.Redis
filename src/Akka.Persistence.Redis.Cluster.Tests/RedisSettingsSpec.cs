@@ -1,11 +1,4 @@
-﻿// -----------------------------------------------------------------------
-// <copyright file="RedisSettingsSpec.cs" company="Akka.NET Project">
-//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
-// </copyright>
-// -----------------------------------------------------------------------
-
-using FluentAssertions;
-using Xunit;
+﻿using Xunit;
 
 namespace Akka.Persistence.Redis.Cluster.Tests
 {
@@ -16,9 +9,9 @@ namespace Akka.Persistence.Redis.Cluster.Tests
         {
             var redisPersistence = RedisPersistence.Get(Sys);
 
-            redisPersistence.JournalSettings.ConfigurationString.Should().Be(string.Empty);
-            redisPersistence.JournalSettings.Database.Should().Be(0);
-            redisPersistence.JournalSettings.KeyPrefix.Should().Be(string.Empty);
+            Assert.Equal(string.Empty, redisPersistence.JournalSettings.ConfigurationString);
+            Assert.Equal(0, redisPersistence.JournalSettings.Database);
+            Assert.Equal(string.Empty, redisPersistence.JournalSettings.KeyPrefix);
         }
 
         [Fact]
@@ -26,9 +19,9 @@ namespace Akka.Persistence.Redis.Cluster.Tests
         {
             var redisPersistence = RedisPersistence.Get(Sys);
 
-            redisPersistence.SnapshotStoreSettings.ConfigurationString.Should().Be(string.Empty);
-            redisPersistence.SnapshotStoreSettings.Database.Should().Be(0);
-            redisPersistence.SnapshotStoreSettings.KeyPrefix.Should().Be(string.Empty);
+            Assert.Equal(string.Empty, redisPersistence.SnapshotStoreSettings.ConfigurationString);
+            Assert.Equal(0, redisPersistence.SnapshotStoreSettings.Database);
+            Assert.Equal(string.Empty, redisPersistence.SnapshotStoreSettings.KeyPrefix);
         }
     }
 }

@@ -1,11 +1,4 @@
-﻿// -----------------------------------------------------------------------
-// <copyright file="RedisSettingsSpec.cs" company="Akka.NET Project">
-//      Copyright (C) 2013-2021 .NET Foundation <https://github.com/akkadotnet/akka.net>
-// </copyright>
-// -----------------------------------------------------------------------
-
-using FluentAssertions;
-using Xunit;
+﻿using Xunit;
 
 namespace Akka.Persistence.Redis.Tests
 {
@@ -17,9 +10,9 @@ namespace Akka.Persistence.Redis.Tests
             var redisPersistence = RedisPersistence.Get(Sys);
             var settings = RedisSettings.Create(redisPersistence.DefaultJournalConfig);
 
-            settings.ConfigurationString.Should().Be(string.Empty);
-            settings.Database.Should().Be(0);
-            settings.KeyPrefix.Should().Be(string.Empty);
+            Assert.Equal(string.Empty, settings.ConfigurationString);
+            Assert.Equal(0, settings.Database);
+            Assert.Equal(string.Empty, settings.KeyPrefix);
         }
 
         [Fact]
@@ -28,9 +21,9 @@ namespace Akka.Persistence.Redis.Tests
             var redisPersistence = RedisPersistence.Get(Sys);
             var settings = RedisSettings.Create(redisPersistence.DefaultSnapshotConfig);
 
-            settings.ConfigurationString.Should().Be(string.Empty);
-            settings.Database.Should().Be(0);
-            settings.KeyPrefix.Should().Be(string.Empty);
+            Assert.Equal(string.Empty, settings.ConfigurationString);
+            Assert.Equal(0, settings.Database);
+            Assert.Equal(string.Empty, settings.KeyPrefix);
         }
     }
 }

@@ -9,7 +9,6 @@ using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -36,7 +35,7 @@ public class AzureRedisHostingExtensionsSpec
     [InlineData("redis.example.com:6379", false)]
     public void IsAzureRedisHost_should_match_only_Azure_managed_redis_suffixes(string connectionString, bool expected)
     {
-        AzureRedisHostingExtensions.IsAzureRedisHost(connectionString).Should().Be(expected);
+        Assert.Equal(expected, AzureRedisHostingExtensions.IsAzureRedisHost(connectionString));
     }
 
     [Fact]
@@ -44,9 +43,8 @@ public class AzureRedisHostingExtensionsSpec
     {
         // Treat an explicit password as an opt-out from token-credential auth, regardless
         // of host suffix. The user clearly wants connection-string auth in that case.
-        AzureRedisHostingExtensions.IsAzureRedisHost(
-            "your-redis.swedencentral.redis.azure.net:10000,password=secret")
-            .Should().BeFalse();
+        Assert.False(AzureRedisHostingExtensions.IsAzureRedisHost(
+            "your-redis.swedencentral.redis.azure.net:10000,password=secret"));
     }
 
     [Fact]
@@ -56,8 +54,7 @@ public class AzureRedisHostingExtensionsSpec
         // and must never throw. A malformed string falls through as `false`; the actual
         // configuration error will surface later from ConnectionMultiplexer.Connect with
         // a clearer message.
-        AzureRedisHostingExtensions.IsAzureRedisHost("definitely::not::a::valid::connection::string")
-            .Should().BeFalse();
+        Assert.False(AzureRedisHostingExtensions.IsAzureRedisHost("definitely::not::a::valid::connection::string"));
     }
 
     [Fact]
@@ -68,12 +65,11 @@ public class AzureRedisHostingExtensionsSpec
         builder.WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000");
 
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().FirstOrDefault();
-        setup.Should().NotBeNull(
-            "WithAzureRedisPersistence must register a RedisConnectionMultiplexerSetup for the Azure-built factory");
-        setup!.TryGetSource("akka.persistence.journal.redis", out var journalSource).Should().BeTrue();
-        journalSource.Ownership.Should().Be(RedisConnectionOwnership.ActorSystemOwned);
-        setup.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource).Should().BeTrue();
-        snapshotSource.Ownership.Should().Be(RedisConnectionOwnership.ActorSystemOwned);
+        Assert.NotNull(setup);
+        Assert.True(setup!.TryGetSource("akka.persistence.journal.redis", out var journalSource));
+        Assert.Equal(RedisConnectionOwnership.ActorSystemOwned, journalSource.Ownership);
+        Assert.True(setup.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource));
+        Assert.Equal(RedisConnectionOwnership.ActorSystemOwned, snapshotSource.Ownership);
     }
 
     [Fact]
@@ -84,8 +80,7 @@ public class AzureRedisHostingExtensionsSpec
         // localhost falls through to the plain HOCON connection-string path; no Setup.
         builder.WithAzureRedisPersistence("localhost:6379");
 
-        builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Should().BeEmpty(
-            "non-Azure hosts must use the HOCON connection-string path, not the factory path");
+        Assert.Empty(builder.Setups.OfType<RedisConnectionMultiplexerSetup>() ?? []);
     }
 
     [Fact]
@@ -102,10 +97,9 @@ public class AzureRedisHostingExtensionsSpec
                 isDefaultPlugin: false);
 
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
-        setup.TryGetSource("akka.persistence.journal.redis", out _).Should().BeTrue();
-        setup.TryGetSource("akka.persistence.snapshot-store.redis", out _).Should().BeTrue();
-        setup.TryGetSource("akka.persistence.journal.events", out _).Should().BeFalse(
-            "a source registered for the default Azure plugin must not override a separate HOCON-backed plugin");
+        Assert.True(setup.TryGetSource("akka.persistence.journal.redis", out _));
+        Assert.True(setup.TryGetSource("akka.persistence.snapshot-store.redis", out _));
+        Assert.False(setup.TryGetSource("akka.persistence.journal.events", out _));
     }
 
     [Fact]
@@ -118,8 +112,8 @@ public class AzureRedisHostingExtensionsSpec
             mode: PersistenceMode.Journal);
 
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
-        setup.TryGetSource("akka.persistence.journal.redis", out _).Should().BeTrue();
-        setup.TryGetSource("akka.persistence.snapshot-store.redis", out _).Should().BeFalse();
+        Assert.True(setup.TryGetSource("akka.persistence.journal.redis", out _));
+        Assert.False(setup.TryGetSource("akka.persistence.snapshot-store.redis", out _));
     }
 
     [Fact]
@@ -127,8 +121,9 @@ public class AzureRedisHostingExtensionsSpec
     {
         var builder = NewBuilder();
         var act = () => builder.WithAzureRedisPersistence(string.Empty);
-        act.Should().Throw<System.ArgumentException>()
-            .WithMessage("*connection string*", "*").Where(ex => ex.ParamName == "connectionString");
+        var ex = Assert.Throws<System.ArgumentException>(act);
+        Assert.Contains("connection string", ex.Message);
+        Assert.Equal("connectionString", ex.ParamName);
     }
 
     private static AkkaConfigurationBuilder NewBuilder()
