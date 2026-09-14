@@ -7,7 +7,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using StackExchange.Redis;
 using Xunit;
 
@@ -26,7 +25,7 @@ namespace Akka.Persistence.Redis.Tests
             var ex = new RedisCommandException(
                 "Command cannot be issued to a replica: SET {_EventId-1}.Catalog.MarketSnapshot");
 
-            NewRefresher().IsReplicaRefusal(ex).Should().BeTrue();
+            Assert.True(NewRefresher().IsReplicaRefusal(ex));
         }
 
         [Fact]
@@ -36,7 +35,7 @@ namespace Akka.Persistence.Redis.Tests
             // react to it (would cause double-refresh storms).
             var ex = new RedisCommandException("MOVED 1234 192.168.0.5:6379");
 
-            NewRefresher().IsReplicaRefusal(ex).Should().BeFalse();
+            Assert.False(NewRefresher().IsReplicaRefusal(ex));
         }
 
         [Fact]
@@ -44,7 +43,7 @@ namespace Akka.Persistence.Redis.Tests
         {
             var ex = new RedisCommandException("WRONGTYPE Operation against a key holding the wrong kind of value");
 
-            NewRefresher().IsReplicaRefusal(ex).Should().BeFalse();
+            Assert.False(NewRefresher().IsReplicaRefusal(ex));
         }
 
         [Fact]
@@ -65,7 +64,7 @@ namespace Akka.Persistence.Redis.Tests
                 "WriteBatch",
                 new RedisCommandException("Command cannot be issued to a replica: SET foo"));
 
-            invocations.Should().Be(1);
+            Assert.Equal(1, invocations);
 
             gate.SetResult(0);
         }
@@ -91,7 +90,7 @@ namespace Akka.Persistence.Redis.Tests
             refresher.TriggerBackgroundRefresh("pid-2", "WriteBatch", ex);
             refresher.TriggerBackgroundRefresh("pid-3", "WriteBatch", ex);
 
-            invocations.Should().Be(1);
+            Assert.Equal(1, invocations);
 
             gate.SetResult(0);
         }
@@ -118,14 +117,14 @@ namespace Akka.Persistence.Redis.Tests
             var ex = new RedisCommandException("Command cannot be issued to a replica");
 
             refresher.TriggerBackgroundRefresh("pid-1", "WriteBatch", ex);
-            invocations.Should().Be(1);
+            Assert.Equal(1, invocations);
             gate.SetResult(0);
 
             gate = new TaskCompletionSource<int>();
             await AwaitAssertAsync(() =>
             {
                 refresher.TriggerBackgroundRefresh("pid-2", "WriteBatch", ex);
-                invocations.Should().Be(2);
+                Assert.Equal(2, invocations);
             }, TimeSpan.FromSeconds(2));
 
             gate.SetResult(0);
@@ -168,9 +167,9 @@ namespace Akka.Persistence.Redis.Tests
             var ex = new RedisCommandException("Command cannot be issued to a replica");
 
             Action act = () => refresher.TriggerBackgroundRefresh("pid-1", "WriteBatch", ex);
-            act.Should().NotThrow();
+            Assert.Null(Record.Exception(act));
 
-            await AwaitAssertAsync(() => invocations.Should().BeGreaterOrEqualTo(1), TimeSpan.FromSeconds(2));
+            await AwaitAssertAsync(() => Assert.True(invocations >= 1), TimeSpan.FromSeconds(2));
         }
     }
 }

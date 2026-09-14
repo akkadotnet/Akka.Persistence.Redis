@@ -10,7 +10,6 @@ using System.Linq;
 using System.Net;
 using Akka.Configuration;
 using Akka.Persistence.TCK.Journal;
-using FluentAssertions;
 using StackExchange.Redis;
 using Xunit;
 
@@ -94,7 +93,7 @@ namespace Akka.Persistence.Redis.Cluster.Tests
             // expected CV is ~1/sqrt(n*p) — at n=10000 with k=3 buckets that is ~0.025; the
             // 99.9% upper bound is well below 0.10. A real distribution failure (one bucket
             // capturing >50% of keys) would push CV well above 0.10.
-            coefficientOfVariation.Should().BeLessThan(0.10);
+            Assert.True((coefficientOfVariation) < (0.10));
         }
 
         private double StandardDeviation(int[] values)

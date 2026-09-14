@@ -11,7 +11,6 @@ using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Xunit;
@@ -28,7 +27,7 @@ public class ConnectionInjectionConfigurationSpec
 
         builder.WithRedisPersistence("localhost:6379");
 
-        builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Should().BeEmpty();
+        Assert.Empty(builder.Setups.OfType<RedisConnectionMultiplexerSetup>() ?? []);
     }
 
     [Theory]
@@ -51,19 +50,19 @@ public class ConnectionInjectionConfigurationSpec
             isDefaultPlugin: false);
 
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
-        setup.TryGetSource("akka.persistence.journal.custom", out var journalSource).Should().Be(expectJournal);
-        setup.TryGetSource("akka.persistence.snapshot-store.custom", out var snapshotSource).Should().Be(expectSnapshot);
+        Assert.Equal(expectJournal, setup.TryGetSource("akka.persistence.journal.custom", out var journalSource));
+        Assert.Equal(expectSnapshot, setup.TryGetSource("akka.persistence.snapshot-store.custom", out var snapshotSource));
 
         if (expectJournal)
         {
-            journalSource!.Ownership.Should().Be(RedisConnectionOwnership.PluginOwned);
-            journalSource.Factory.Should().BeSameAs(factory);
+            Assert.Equal(RedisConnectionOwnership.PluginOwned, journalSource!.Ownership);
+            Assert.Same(factory, journalSource.Factory);
         }
 
         if (expectSnapshot)
         {
-            snapshotSource!.Ownership.Should().Be(RedisConnectionOwnership.PluginOwned);
-            snapshotSource.Factory.Should().BeSameAs(factory);
+            Assert.Equal(RedisConnectionOwnership.PluginOwned, snapshotSource!.Ownership);
+            Assert.Same(factory, snapshotSource.Factory);
         }
     }
 
@@ -81,10 +80,10 @@ public class ConnectionInjectionConfigurationSpec
             isDefaultPlugin: false);
 
         var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
-        setup.TryGetSource("akka.persistence.journal.factory", out var source).Should().BeTrue();
-        source!.Ownership.Should().Be(RedisConnectionOwnership.CallerOwned);
-        source.Factory.Should().BeSameAs(factory);
-        setup.TryGetSource("akka.persistence.snapshot-store.factory", out _).Should().BeFalse();
+        Assert.True(setup.TryGetSource("akka.persistence.journal.factory", out var source));
+        Assert.Equal(RedisConnectionOwnership.CallerOwned, source!.Ownership);
+        Assert.Same(factory, source.Factory);
+        Assert.False(setup.TryGetSource("akka.persistence.snapshot-store.factory", out _));
     }
 
     [Fact]
@@ -102,7 +101,7 @@ public class ConnectionInjectionConfigurationSpec
 
         var act = () => builder.WithRedisPersistence(journalOptions, snapshotOptions: null);
 
-        act.Should().NotThrow();
+        Assert.Null(Record.Exception(act));
     }
 
     [Fact]
@@ -113,8 +112,8 @@ public class ConnectionInjectionConfigurationSpec
 
         var act = () => builder.WithRedisPersistence(journalOptions, snapshotOptions: null);
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*requires a connection source*");
+        var ex = Assert.Throws<ArgumentException>(act);
+        Assert.Contains("requires a connection source", ex.Message);
     }
 
     [Fact]
@@ -131,8 +130,8 @@ public class ConnectionInjectionConfigurationSpec
             FakeFactory(),
             RedisConnectionOwnership.PluginOwned);
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*akka.persistence.journal.redis*");
+        var ex = Assert.Throws<InvalidOperationException>(act);
+        Assert.Contains("akka.persistence.journal.redis", ex.Message);
     }
 
     private static AkkaConfigurationBuilder NewBuilder()

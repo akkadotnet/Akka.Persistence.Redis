@@ -12,7 +12,6 @@ using Akka.Actor.Setup;
 using Akka.Hosting;
 using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
-using FluentAssertions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
 using Xunit;
@@ -46,9 +45,9 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
         var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(HealthStatus.Healthy);
-        result.Exception.Should().BeNull();
-        result.Description.Should().Contain("successful");
+        Assert.Equal(HealthStatus.Healthy, result.Status);
+        Assert.Null(result.Exception);
+        Assert.Contains("successful", result.Description);
     }
 
     [Fact]
@@ -62,9 +61,9 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
         var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(HealthStatus.Healthy);
-        result.Exception.Should().BeNull();
-        result.Description.Should().Contain("successful");
+        Assert.Equal(HealthStatus.Healthy, result.Status);
+        Assert.Null(result.Exception);
+        Assert.Contains("successful", result.Description);
     }
 
     // Unhappy path tests - verify health checks detect connection failures
@@ -79,8 +78,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
         var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(HealthStatus.Unhealthy);
-        result.Exception.Should().NotBeNull();
+        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        Assert.NotNull(result.Exception);
     }
 
     [Fact]
@@ -94,8 +93,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
         var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(HealthStatus.Unhealthy);
-        result.Exception.Should().NotBeNull();
+        Assert.Equal(HealthStatus.Unhealthy, result.Status);
+        Assert.NotNull(result.Exception);
     }
 
     [Fact]
@@ -103,7 +102,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisJournalConnectivityCheck((string)null!, "redis");
-        action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "connectionString");
+        var ex1 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("connectionString", ex1.ParamName);
     }
 
     [Fact]
@@ -111,7 +111,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisJournalConnectivityCheck("localhost:6379", null!);
-        action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "journalId");
+        var ex2 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("journalId", ex2.ParamName);
     }
 
     [Fact]
@@ -119,7 +120,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisSnapshotStoreConnectivityCheck((string)null!, "redis");
-        action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "connectionString");
+        var ex3 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("connectionString", ex3.ParamName);
     }
 
     [Fact]
@@ -127,7 +129,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
     {
         // Act & Assert
         var action = () => new RedisSnapshotStoreConnectivityCheck("localhost:6379", null!);
-        action.Should().Throw<ArgumentNullException>().Where(ex => ex.ParamName == "snapshotStoreId");
+        var ex4 = Assert.Throws<ArgumentNullException>(action);
+        Assert.Equal("snapshotStoreId", ex4.ParamName);
     }
 
     [Fact]
@@ -148,8 +151,7 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
 
             var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
-            result.Status.Should().Be(HealthStatus.Healthy,
-                "the health check should use the registered journal source instead of the fallback connection string");
+            Assert.Equal(HealthStatus.Healthy, result.Status);
         }
         finally
         {
@@ -175,8 +177,7 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
 
             var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
-            result.Status.Should().Be(HealthStatus.Healthy,
-                "the health check should use the registered snapshot source instead of the fallback connection string");
+            Assert.Equal(HealthStatus.Healthy, result.Status);
         }
         finally
         {
@@ -202,9 +203,8 @@ public class RedisConnectivityCheckSpec : IClassFixture<RedisFixture>
 
             var result = await check.CheckHealthAsync(context, CancellationToken.None);
 
-            result.Status.Should().Be(HealthStatus.Unhealthy,
-                "a setup source for akka.persistence.journal.redis must not be reused for akka.persistence.journal.custom");
-            result.Exception.Should().NotBeNull();
+            Assert.Equal(HealthStatus.Unhealthy, result.Status);
+            Assert.NotNull(result.Exception);
         }
         finally
         {

@@ -11,7 +11,6 @@ using Akka.Actor;
 using Akka.Configuration;
 using Akka.TestKit;
 using Akka.TestKit.Xunit;
-using FluentAssertions;
 using StackExchange.Redis;
 using Xunit;
 
@@ -57,8 +56,7 @@ namespace Akka.Persistence.Redis.Tests
                 probe.ExpectMsg<LoadSnapshotResult>(TimeSpan.FromSeconds(10));
 
                 var withSnapshotStore = await TotalClientCountAsync(observer);
-                withSnapshotStore.Should().BeGreaterThan(baseline,
-                    because: "the snapshot store's ConnectionMultiplexer should hold at least one client connection while the actor is alive");
+                Assert.True((withSnapshotStore) > (baseline));
             }
             finally
             {
@@ -69,8 +67,8 @@ namespace Akka.Persistence.Redis.Tests
                 () =>
                 {
                     var afterShutdown = TotalClientCountAsync(observer).GetAwaiter().GetResult();
-                    afterShutdown.Should().BeLessThanOrEqualTo(baseline,
-                        because: "the owned multiplexer should be disposed on PostStop, releasing every connection it opened");
+                    Assert.True(afterShutdown <= baseline,
+                        "the owned multiplexer should be disposed on PostStop, releasing every connection it opened");
                 },
                 TimeSpan.FromSeconds(10));
         }

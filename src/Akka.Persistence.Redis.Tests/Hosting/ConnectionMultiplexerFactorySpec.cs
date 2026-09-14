@@ -13,7 +13,6 @@ using Akka.Persistence;
 using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
 using Akka.Persistence.Redis.Tests;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StackExchange.Redis;
@@ -47,9 +46,8 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
     protected override async Task AfterAllAsync()
     {
         // Caller-owned multiplexer: the plugin must NOT have disposed it.
-        _suppliedMultiplexer.Should().NotBeNull();
-        _suppliedMultiplexer!.IsConnected.Should().BeTrue(
-            "the plugin must not dispose caller-owned multiplexers supplied via RedisConnectionMultiplexerSetup");
+        Assert.NotNull(_suppliedMultiplexer);
+        Assert.True(_suppliedMultiplexer!.IsConnected);
 
         _suppliedMultiplexer.Dispose();
 
@@ -76,12 +74,11 @@ public class ConnectionMultiplexerFactorySpec : Akka.Hosting.TestKit.TestKit, IC
     public void Setup_should_be_registered_when_multiplexer_is_supplied()
     {
         var setup = Sys.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
-        setup.HasValue.Should().BeTrue(
-            "WithRedisPersistence(multiplexer:) must register a RedisConnectionMultiplexerSetup");
-        setup.Value.TryGetSource("akka.persistence.journal.redis", out var journalSource).Should().BeTrue();
-        journalSource!.Ownership.Should().Be(RedisConnectionOwnership.CallerOwned);
-        setup.Value.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource).Should().BeTrue();
-        snapshotSource!.Ownership.Should().Be(RedisConnectionOwnership.CallerOwned);
+        Assert.True(setup.HasValue);
+        Assert.True(setup.Value.TryGetSource("akka.persistence.journal.redis", out var journalSource));
+        Assert.Equal(RedisConnectionOwnership.CallerOwned, journalSource!.Ownership);
+        Assert.True(setup.Value.TryGetSource("akka.persistence.snapshot-store.redis", out var snapshotSource));
+        Assert.Equal(RedisConnectionOwnership.CallerOwned, snapshotSource!.Ownership);
     }
 
     private sealed class FactoryProbeActor : Akka.Persistence.ReceivePersistentActor

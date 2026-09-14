@@ -9,7 +9,6 @@ using Akka.Cluster.Sharding;
 using Akka.Configuration;
 using Akka.Persistence.Redis.Journal;
 using Akka.Persistence.TCK;
-using FluentAssertions;
 using Xunit;
 
 namespace Akka.Persistence.Redis.Tests
@@ -63,22 +62,22 @@ akka.persistence {
         public void PluginMustBeAbleToUseDifferentConfigurationForPersistence()
         {
             var cluster = ClusterSharding.Get(Sys);
-            cluster.Settings.JournalPluginId.Should().Be("akka.persistence.journal.sharding");
-            cluster.Settings.SnapshotPluginId.Should().Be("akka.persistence.snapshot-store.sharding");
+            Assert.Equal("akka.persistence.journal.sharding", cluster.Settings.JournalPluginId);
+            Assert.Equal("akka.persistence.snapshot-store.sharding", cluster.Settings.SnapshotPluginId);
 
             var persistence = Persistence.Instance.Get(Sys);
             
             var @ref = persistence.JournalFor("akka.persistence.journal.redis");
-            @ref.Should().NotBeNull();
+            Assert.NotNull(@ref);
 
             @ref = persistence.SnapshotStoreFor("akka.persistence.snapshot-store.redis");
-            @ref.Should().NotBeNull();
+            Assert.NotNull(@ref);
             
             @ref = persistence.JournalFor("akka.persistence.journal.sharding");
-            @ref.Should().NotBeNull();
+            Assert.NotNull(@ref);
 
             @ref = persistence.SnapshotStoreFor("akka.persistence.snapshot-store.sharding");
-            @ref.Should().NotBeNull();
+            Assert.NotNull(@ref);
         }
     }
 }
