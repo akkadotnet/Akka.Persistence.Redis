@@ -1,3 +1,18 @@
+#### 1.6.0-beta1 October 6th 2026 ####
+
+First prerelease on the Akka.NET 1.6 line. Built against Akka.NET 1.6.0-beta2.
+
+**Breaking changes**
+
+* All packages target `net10.0` only. The `netstandard2.0` and `net6.0` targets are gone, so .NET Framework, .NET 6 and .NET 8 apps cannot reference this version. Stay on the 1.5.x line (`v1.5` branch) for those runtimes.
+* Requires Akka.NET 1.6.0-beta2 or later, including `Akka.Persistence.Hosting` 1.6.0-beta2 (the Akka.Hosting packages now ship from the akka.net repository at the same version as Akka.NET). See [Akka.NET v1.6 breaking changes](https://github.com/akkadotnet/akka.net/blob/dev/BREAKING_CHANGES_V1.6.md).
+
+**Dependencies**
+
+* Upgraded to Akka.NET 1.6.0-beta2 and Akka.Persistence.Hosting 1.6.0-beta2.
+* Test projects now target `net10.0` only (the .NET Framework 4.8 target of the cluster tests is dropped) and use `Microsoft.Extensions.Hosting` 10.0.0.
+* Build SDK moved to .NET 10.
+
 #### 1.5.70 July 29th 2026 ####
 
 * Upgraded to [Akka.NET 1.5.70](https://github.com/akkadotnet/akka.net/releases/tag/1.5.70)

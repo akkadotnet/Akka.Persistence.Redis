@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>$(NetTestVersion)</TargetFramework>
+    <TargetFramework>$(NetVersion)</TargetFramework>
     <RootNamespace>Akka.Persistence.Redis.BenchmarkTests.Docker</RootNamespace>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
