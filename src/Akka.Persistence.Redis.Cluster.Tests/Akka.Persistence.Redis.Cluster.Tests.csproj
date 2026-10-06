@@ -5,13 +5,8 @@
         <OutputType>Exe</OutputType>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
-        <TargetFrameworks>$(NetFrameworkTestVersion);$(NetTestVersion)</TargetFrameworks>
-    </PropertyGroup>
-
-    <!-- disable .NET Framework (Mono) on Linux-->
-    <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-        <TargetFramework>$(NetTestVersion)</TargetFramework>
+    <PropertyGroup>
+        <TargetFramework>$(NetVersion)</TargetFramework>
     </PropertyGroup>
 
 

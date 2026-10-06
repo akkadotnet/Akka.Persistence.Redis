@@ -17,6 +17,10 @@ variables:
   - name: githubRepositoryName
     value: akkadotnet/Akka.Persistence.Redis
 
+  # a tag with a suffix (1.6.0-beta2, 1.6.0-rc1) is a pre-release, so it never becomes the repo's "Latest" release
+  - name: isPreRelease
+    value: $[contains(variables['Build.SourceBranchName'], '-')]
+
 jobs:
   - job: Release
     pool:
@@ -54,4 +58,5 @@ jobs:
           repositoryName: $(githubRepositoryName)
           title: '$(projectName) v$(Build.SourceBranchName)'
           releaseNotesFile: 'RELEASE_NOTES_LATEST.md'
+          isPreRelease: $(isPreRelease)
           assets: '$(Build.ArtifactStagingDirectory)/nuget/*.nupkg'

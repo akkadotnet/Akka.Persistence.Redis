@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(NetStandardVersion);$(NetVersion)</TargetFrameworks>
+    <TargetFramework>$(NetVersion)</TargetFramework>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

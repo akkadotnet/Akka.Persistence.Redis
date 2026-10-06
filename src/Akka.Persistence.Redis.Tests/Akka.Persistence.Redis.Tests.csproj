@@ -6,7 +6,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <TargetFramework>$(NetTestVersion)</TargetFramework>
+    <TargetFramework>$(NetVersion)</TargetFramework>
   </PropertyGroup>
 
   
