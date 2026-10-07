@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Copyright>Copyright © 2013-2023 Akka.NET Project</Copyright>
     <Authors>Akka.NET</Authors>
-    <VersionPrefix>1.6.0-beta2</VersionPrefix>
+    <VersionPrefix>1.6.0-beta3</VersionPrefix>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
@@ -31,17 +31,14 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageReleaseNotes>First prerelease on the Akka.NET 1.6 line. Built against Akka.NET 1.6.0-beta2.
+    <PackageReleaseNotes>Built against Akka.NET 1.6.0-beta3.
 
-**Breaking changes**
+**Fixes**
 
-* All packages target `net10.0` only. The `netstandard2.0` and `net6.0` targets are gone, so .NET Framework, .NET 6 and .NET 8 apps cannot reference this version. Stay on the 1.5.x line (`v1.5` branch) for those runtimes.
-* Requires Akka.NET 1.6.0-beta2 or later, including `Akka.Persistence.Hosting` 1.6.0-beta2 (the Akka.Hosting packages now ship from the akka.net repository at the same version as Akka.NET). See [Akka.NET v1.6 breaking changes](https://github.com/akkadotnet/akka.net/blob/dev/BREAKING_CHANGES_V1.6.md).
+* Snapshots of types handled by a source-generated (`Akka.Serialization.V2`) serializer failed to load under 1.6.0-beta2, because the snapshot stored a CLR type name instead of the serializer's own manifest. Akka.NET 1.6.0-beta3 fixes this ([akkadotnet/akka.net#8784](https://github.com/akkadotnet/akka.net/issues/8784)). Snapshots that 1.6.0-beta2 already wrote this way are not repaired.
 
 **Dependencies**
 
-* Upgraded to Akka.NET 1.6.0-beta2 and Akka.Persistence.Hosting 1.6.0-beta2.
-* Test projects now target `net10.0` only (the .NET Framework 4.8 target of the cluster tests is dropped) and use `Microsoft.Extensions.Hosting` 10.0.0.
-* Build SDK moved to .NET 10.</PackageReleaseNotes>
+* Upgraded to Akka.NET 1.6.0-beta3 and Akka.Persistence.Hosting 1.6.0-beta3.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
