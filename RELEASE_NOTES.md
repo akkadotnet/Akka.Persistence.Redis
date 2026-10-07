@@ -1,3 +1,15 @@
+#### 1.6.0-beta3 October 7th 2026 ####
+
+Built against Akka.NET 1.6.0-beta3.
+
+**Fixes**
+
+* Snapshots of types handled by a source-generated (`Akka.Serialization.V2`) serializer failed to load under 1.6.0-beta2, because the snapshot stored a CLR type name instead of the serializer's own manifest. Akka.NET 1.6.0-beta3 fixes this ([akkadotnet/akka.net#8784](https://github.com/akkadotnet/akka.net/issues/8784)). Snapshots that 1.6.0-beta2 already wrote this way are not repaired.
+
+**Dependencies**
+
+* Upgraded to Akka.NET 1.6.0-beta3 and Akka.Persistence.Hosting 1.6.0-beta3.
+
 #### 1.6.0-beta2 October 6th 2026 ####
 
 First prerelease on the Akka.NET 1.6 line. Built against Akka.NET 1.6.0-beta2.
