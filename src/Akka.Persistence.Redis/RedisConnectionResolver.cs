@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using Akka.Actor;
+using Akka.Event;
 using StackExchange.Redis;
 
 #nullable enable
@@ -18,8 +19,7 @@ namespace Akka.Persistence.Redis
     /// </summary>
     internal static class RedisConnectionResolver
     {
-        public static (IConnectionMultiplexer Connection, IDatabase Database, bool IsClustered, bool OwnsConnection)
-            Resolve(ActorSystem system, RedisSettings settings, string pluginId)
+        public static RedisPluginConnection Resolve(ActorSystem system, RedisSettings settings, string pluginId, ILoggingAdapter log)
         {
             IConnectionMultiplexer connection;
             bool ownsConnection;
@@ -36,30 +36,9 @@ namespace Akka.Persistence.Redis
                 ownsConnection = true;
             }
 
-            var isClustered = connection.IsClustered();
-            var database = connection.GetDatabase(ResolveDatabaseNumber(settings, ownsConnection, isClustered));
-            return (connection, database, isClustered, ownsConnection);
-        }
-
-        private static int ResolveDatabaseNumber(RedisSettings settings, bool ownsConnection, bool isClustered)
-        {
-            if (isClustered)
-            {
-                // Redis Cluster pins everything to db 0 — https://redis.io/topics/cluster-spec#implemented-subset
-                return 0;
-            }
-
-            // DatabaseFromConnectionString is only meaningful when we own the connection
-            // string ourselves; an injected multiplexer is opaque so fall back to the
-            // explicitly configured Database value.
-            if (ownsConnection && settings.DatabaseFromConnectionString)
-            {
-                var conf = ConfigurationOptions.Parse(settings.ConfigurationString);
-                if (conf.DefaultDatabase.HasValue)
-                    return conf.DefaultDatabase.Value;
-            }
-
-            return settings.Database;
+            // The cluster mode is not read here: a multiplexer created with abortConnect=false
+            // may not be connected yet, and would report every endpoint as Standalone.
+            return new RedisPluginConnection(connection, ownsConnection, settings, log);
         }
     }
 }

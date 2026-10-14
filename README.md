@@ -204,6 +204,8 @@ Two failure modes need different handling:
 
 No manual restart or topology poke is required.
 
+The plugin also waits for the connection before deciding whether it is talking to a Redis Cluster. With `abortConnect=false`, `ConnectionMultiplexer.Connect` can return before the connection is established, and until then every endpoint reports `ServerType.Standalone`. The journal and snapshot store therefore resolve the cluster mode (which selects the hash-tagged key names) on the first operation after the connection is up, and fix it for the life of the plugin. An operation that runs before that waits for the connection, up to the multiplexer's `syncTimeout`, and fails with a `RedisConnectionException` rather than guessing.
+
 ### 4. Full `ConfigurationOptions` control via `WithRedisPersistence`
 
 The connection string above expresses most of what you need, but some tunings (e.g. an `ExponentialRetry` `ReconnectRetryPolicy`, custom `SocketManager`, explicit `EndPoints`) can only be set programmatically. For those, supply a pre-configured `IConnectionMultiplexer` — see [_Supplying a Pre-Configured IConnectionMultiplexer (Non-Azure)_](#supplying-a-pre-configured-iconnectionmultiplexer-non-azure) below. The plugin's auto-topology-refresh works identically whether you let the plugin own the connection or supply your own.
