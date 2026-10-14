@@ -135,6 +135,7 @@ These are the minimum Redis commands that are needed by Akka.Persistence.Redis t
 | LLEN             |                                  |
 | ZADD             | Sorted Set Add                   |
 | ZREMRANGEBYSCORE | Delete Sorted Set by Score Range |
+| ZREM             | Sorted Set Remove                |
 | ZREVRANGEBYSCORE | Get Sorted Set by Score Range    |
 | ZRANGEBYSCORE    |                                  |
 | WITHSCORES       |                                  |
