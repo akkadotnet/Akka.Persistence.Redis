@@ -50,6 +50,9 @@ akka.persistence.journal.redis {
 
 NOTE: Redis Standalone supports deploying multiple instances, but Redis cluster does not. The default database with Redis Cluster is always 0 - If you are deploying Redis Cluster, you don't need to add the `defaultDatabase` to the `connection-string`'! [cluster-spec](https://redis.io/topics/cluster-spec#implemented-subset)
 
+### Write semantics
+Each journal write (one `AtomicWrite`) runs as a Lua script that appends the events and updates the highest sequence number only when no event with the same or a higher sequence number is stored yet. A write that loses that check, for example the delayed write of an earlier incarnation of the persistent actor that timed out on the client but was still applied after a new incarnation took over, fails with `RedisJournalWriteConflictException`, and the persistent actor's `OnPersistFailure` is called. Redis errors and timeouts during a write are also reported as failures, because the write may still be applied; only serialization errors are reported as rejections.
+
 ## Snapshot Store
 To activate the snapshot plugin, add the following line to your HOCON config:
 ```
@@ -136,6 +139,9 @@ These are the minimum Redis commands that are needed by Akka.Persistence.Redis t
 | ZADD             | Sorted Set Add                   |
 | ZREMRANGEBYSCORE | Delete Sorted Set by Score Range |
 | ZREM             | Sorted Set Remove                |
+| ZCOUNT           | Sorted Set Length (score range)  |
+| EVAL             | Script Evaluate (journal writes) |
+| EVALSHA          |                                  |
 | ZREVRANGEBYSCORE | Get Sorted Set by Score Range    |
 | ZRANGEBYSCORE    |                                  |
 | WITHSCORES       |                                  |
