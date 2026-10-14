@@ -149,16 +149,21 @@ namespace Akka.Persistence.Redis.Snapshot
 
             // Only the snapshots at this sequence number can match. Decode all of them before
             // deleting anything, so a snapshot that cannot be deserialized fails the request
-            // without a partial delete.
+            // without a partial delete. Several snapshots can share a sequence number (each save
+            // adds a member), so remove the matching members themselves: a range delete by score
+            // would also remove a newer snapshot at the same sequence number.
             var snapshots = await database.SortedSetRangeByScoreAsync(
                 key: key,
                 start: metadata.SequenceNr,
                 stop: metadata.SequenceNr);
 
             var found = snapshots
-                .Select(c => PersistentFromBytes(c!))
-                .Where(snapshot => snapshot.Metadata.Timestamp <= metadata.Timestamp &&
-                                   snapshot.Metadata.SequenceNr == metadata.SequenceNr)
+                .Where(member =>
+                {
+                    var snapshot = PersistentFromBytes(member!);
+                    return snapshot.Metadata.Timestamp <= metadata.Timestamp &&
+                           snapshot.Metadata.SequenceNr == metadata.SequenceNr;
+                })
                 .ToArray();
 
             if (found.Length == 0)
@@ -166,11 +171,7 @@ namespace Akka.Persistence.Redis.Snapshot
 
             try
             {
-                await database.SortedSetRemoveRangeByScoreAsync(
-                    key: key,
-                    start: metadata.SequenceNr,
-                    stop: metadata.SequenceNr,
-                    flags: CommandFlags.DemandMaster);
+                await database.SortedSetRemoveAsync(key, found, CommandFlags.DemandMaster);
             }
             catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
@@ -214,19 +215,17 @@ namespace Akka.Persistence.Redis.Snapshot
                     Order.Descending);
 
                 var found = snapshots
-                    .Select(c => PersistentFromBytes(c!))
-                    .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
-                                       snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
+                    .Where(member =>
+                    {
+                        var snapshot = PersistentFromBytes(member!);
+                        return snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
+                               snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr;
+                    })
                     .ToArray();
 
-                await Task.WhenAll(found
-                    .Select(s => s.Metadata.SequenceNr)
-                    .Distinct()
-                    .Select(sequenceNr => database.SortedSetRemoveRangeByScoreAsync(
-                        key,
-                        sequenceNr,
-                        sequenceNr,
-                        flags: CommandFlags.DemandMaster)));
+                // Remove the matching members, not every snapshot at their sequence numbers.
+                if (found.Length > 0)
+                    await database.SortedSetRemoveAsync(key, found, CommandFlags.DemandMaster);
             }
             catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
