@@ -4,11 +4,15 @@
 //  </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Akka.Hosting;
 using Akka.Persistence.Hosting;
 using Akka.Persistence.Redis;
 using Akka.Persistence.Redis.Hosting;
+using Azure.Core;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -129,6 +133,48 @@ public class AzureRedisHostingExtensionsSpec
         var act = () => builder.WithAzureRedisPersistence(string.Empty);
         act.Should().Throw<System.ArgumentException>()
             .WithMessage("*connection string*", "*").Where(ex => ex.ParamName == "connectionString");
+    }
+
+    [Fact(DisplayName = "Azure connection source must start a new connection attempt after a failed one")]
+    public async Task WithAzureRedisPersistence_should_not_cache_a_failed_connection()
+    {
+        // A credential that cannot produce a token makes ConfigureForAzureWithTokenCredentialAsync
+        // throw before any network access. The placeholder host is never contacted.
+        var credential = new FailingCredential();
+        var builder = NewBuilder();
+        builder.WithAzureRedisPersistence("your-redis.swedencentral.redis.azure.net:10000", credential);
+
+        var setup = builder.Setups.OfType<RedisConnectionMultiplexerSetup>().Single();
+        setup.TryGetSource("akka.persistence.journal.redis", out var source).Should().BeTrue();
+
+        var first = source!.Factory();
+        await first.Invoking(t => t).Should().ThrowAsync<Exception>();
+        var callsAfterFirst = credential.Calls;
+        callsAfterFirst.Should().BeGreaterThan(0);
+
+        var second = source.Factory();
+        second.Should().NotBeSameAs(first, "a faulted connection attempt must not be handed out again");
+        await second.Invoking(t => t).Should().ThrowAsync<Exception>();
+        credential.Calls.Should().BeGreaterThan(callsAfterFirst, "the second call must try to acquire a token again");
+    }
+
+    private sealed class FailingCredential : TokenCredential
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            throw new InvalidOperationException("token endpoint unavailable");
+        }
+
+        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            return new ValueTask<AccessToken>(Task.FromException<AccessToken>(new InvalidOperationException("token endpoint unavailable")));
+        }
     }
 
     private static AkkaConfigurationBuilder NewBuilder()

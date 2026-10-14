@@ -28,7 +28,6 @@ namespace Akka.Persistence.Redis.Journal
         private readonly JournalHelper _journalHelper;
         private readonly RedisPluginConnection _connection;
         private readonly ILoggingAdapter _log;
-        private readonly RedisTopologyRefresher _topology;
 
         /// <summary>
         /// The Redis database used by this journal. Throws <see cref="InvalidOperationException"/>
@@ -54,13 +53,11 @@ namespace Akka.Persistence.Redis.Journal
 
             _log = Context.GetLogger();
             _connection = RedisConnectionResolver.Resolve(Context.System, _settings, Self.Path.Name, _log);
-            _topology = RedisTopologyRefresher.Create(_connection.Connection, _log);
         }
 
         protected override void PostStop()
         {
-            if (_connection.OwnsConnection)
-                _connection.Connection.Dispose();
+            _connection.Dispose();
             base.PostStop();
         }
 
@@ -109,9 +106,9 @@ namespace Akka.Persistence.Redis.Journal
                     toSequenceNr,
                     flags: CommandFlags.DemandMaster);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteMessagesToAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(persistenceId, nameof(DeleteMessagesToAsync), ex);
                 throw;
             }
         }
@@ -173,9 +170,9 @@ namespace Akka.Persistence.Redis.Journal
             {
                 transactionSucceeded = await transaction.ExecuteAsync();
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(aw.PersistenceId, nameof(WriteBatchAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(aw.PersistenceId, nameof(WriteBatchAsync), ex);
                 throw;
             }
 

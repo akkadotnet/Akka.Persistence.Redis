@@ -25,7 +25,6 @@ namespace Akka.Persistence.Redis.Snapshot
         private readonly ActorSystem _system;
         private readonly RedisPluginConnection _connection;
         private readonly ILoggingAdapter _log;
-        private readonly RedisTopologyRefresher _topology;
 
         /// <summary>
         /// The Redis database used by this snapshot store. Throws <see cref="InvalidOperationException"/>
@@ -51,13 +50,11 @@ namespace Akka.Persistence.Redis.Snapshot
 
             _log = Context.GetLogger();
             _connection = RedisConnectionResolver.Resolve(_system, _settings, Self.Path.Name, _log);
-            _topology = RedisTopologyRefresher.Create(_connection.Connection, _log);
         }
 
         protected override void PostStop()
         {
-            if (_connection.OwnsConnection)
-                _connection.Connection.Dispose();
+            _connection.Dispose();
             base.PostStop();
         }
 
@@ -99,9 +96,9 @@ namespace Akka.Persistence.Redis.Snapshot
                     metadata.SequenceNr,
                     flags: CommandFlags.DemandMaster);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
                 throw;
             }
         }
@@ -125,9 +122,9 @@ namespace Akka.Persistence.Redis.Snapshot
                         metadata.SequenceNr,
                         flags: CommandFlags.DemandMaster);
                 }
-                catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+                catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
                 {
-                    _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                    topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
                     throw;
                 }
                 return;
@@ -155,9 +152,9 @@ namespace Akka.Persistence.Redis.Snapshot
             {
                 await Task.WhenAll(found);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
                 throw;
             }
         }
@@ -193,9 +190,9 @@ namespace Akka.Persistence.Redis.Snapshot
             {
                 await Task.WhenAll(found);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
                 throw;
             }
         }

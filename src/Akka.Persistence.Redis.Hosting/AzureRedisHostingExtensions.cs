@@ -37,11 +37,13 @@ public static class AzureRedisHostingExtensions
     /// helper falls through to the plain connection-string <c>WithRedisPersistence</c> overload.
     /// </summary>
     /// <remarks>
-    /// The Azure helper builds a single <see cref="IConnectionMultiplexer"/>, cached behind a
-    /// <see cref="Lazy{T}"/>, and registers a <see cref="RedisConnectionMultiplexerSetup"/>
-    /// so every Redis plugin in the <see cref="Akka.Actor.ActorSystem"/> shares one
-    /// multiplexer (one Azure auth handshake, one token refresh cycle, one TCP pool). The
-    /// multiplexer is treated as caller-owned and is not disposed by the plugin.
+    /// The Azure helper builds a single <see cref="IConnectionMultiplexer"/> and registers a
+    /// <see cref="RedisConnectionMultiplexerSetup"/> so every Redis plugin in the
+    /// <see cref="Akka.Actor.ActorSystem"/> shares one multiplexer (one Azure auth handshake,
+    /// one token refresh cycle, one TCP pool). A failed connection attempt, such as a token
+    /// that cannot be acquired yet, is not cached: the next request for the connection starts
+    /// a new attempt. The multiplexer is owned by the <see cref="Akka.Actor.ActorSystem"/> and
+    /// disposed during <see cref="CoordinatedShutdown"/>, not by the plugins.
     /// </remarks>
     public static AkkaConfigurationBuilder WithAzureRedisPersistence(
         this AkkaConfigurationBuilder builder,
@@ -121,14 +123,11 @@ public static class AzureRedisHostingExtensions
     private static AzureConnectionSource CreateAzureConnectionSource(
         string connectionString, TokenCredential credential)
     {
-        // Single shared multiplexer behind a Lazy so every Redis plugin in the system uses
-        // one Azure auth handshake and one token-refresh cycle. Without this caching, each
-        // plugin instance would do its own ConfigureForAzureWithTokenCredentialAsync call,
-        // which is the opposite of what users asking for the Azure helper expect.
-        var shared = new Lazy<Task<IConnectionMultiplexer>>(
-            () => ConnectAsync(connectionString, credential),
-            LazyThreadSafetyMode.ExecutionAndPublication);
-        return new AzureConnectionSource(shared);
+        // Single shared multiplexer so every Redis plugin in the system uses one Azure auth
+        // handshake and one token-refresh cycle. Without this caching, each plugin instance
+        // would do its own ConfigureForAzureWithTokenCredentialAsync call, which is the
+        // opposite of what users asking for the Azure helper expect.
+        return new AzureConnectionSource(() => ConnectAsync(connectionString, credential));
     }
 
     private static async Task<IConnectionMultiplexer> ConnectAsync(
@@ -165,23 +164,61 @@ public static class AzureRedisHostingExtensions
 
     private sealed class AzureConnectionSource
     {
-        private readonly Lazy<Task<IConnectionMultiplexer>> _shared;
-        private int _disposed;
+        private readonly Func<Task<IConnectionMultiplexer>> _connect;
+        private readonly object _lock = new();
+        private Task<IConnectionMultiplexer>? _shared;
+        private bool _disposed;
 
-        public AzureConnectionSource(Lazy<Task<IConnectionMultiplexer>> shared)
+        public AzureConnectionSource(Func<Task<IConnectionMultiplexer>> connect)
         {
-            _shared = shared;
+            _connect = connect;
         }
 
-        public Task<IConnectionMultiplexer> Factory() => _shared.Value;
+        /// <summary>
+        /// Returns the shared connection. The first call starts connecting; later calls share
+        /// that attempt while it is in flight or once it has succeeded. A faulted or canceled
+        /// attempt is never handed out twice: the next call starts a new one.
+        /// </summary>
+        public Task<IConnectionMultiplexer> Factory()
+        {
+            lock (_lock)
+            {
+                if (_disposed)
+                    return Task.FromException<IConnectionMultiplexer>(new ObjectDisposedException(nameof(AzureConnectionSource)));
+
+                if (_shared is null || _shared.IsFaulted || _shared.IsCanceled)
+                {
+                    try
+                    {
+                        _shared = _connect();
+                    }
+                    catch (Exception ex)
+                    {
+                        _shared = Task.FromException<IConnectionMultiplexer>(ex);
+                    }
+                }
+
+                return _shared;
+            }
+        }
 
         public Task<Done> DisposeAsync()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1)
-                return Task.FromResult(Done.Instance);
+            Task<IConnectionMultiplexer>? shared;
+            lock (_lock)
+            {
+                if (_disposed)
+                    return Task.FromResult(Done.Instance);
+                _disposed = true;
+                shared = _shared;
+            }
 
-            if (_shared.IsValueCreated && _shared.Value.Status == TaskStatus.RanToCompletion)
-                _shared.Value.Result.Dispose();
+            // Dispose the multiplexer once it exists, including one that is still connecting.
+            shared?.ContinueWith(
+                t => t.Result.Dispose(),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
 
             return Task.FromResult(Done.Instance);
         }

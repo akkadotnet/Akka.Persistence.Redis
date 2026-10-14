@@ -19,6 +19,15 @@ namespace Akka.Persistence.Redis
     /// with the cluster mode that the plugin's key names depend on.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The connection is requested when the plugin is constructed, but the constructor does not
+    /// wait for it, and a failed attempt is not cached: the next operation starts a new one.
+    /// A transient failure at startup (an unreachable server with <c>abortConnect=true</c>, a
+    /// token that cannot be acquired yet, a throwing factory) therefore fails the operations
+    /// that run while it lasts instead of failing the plugin actor for good. The journal's and
+    /// snapshot store's circuit breakers pace the retries.
+    /// </para>
+    /// <para>
     /// Whether the server is a Redis Cluster decides the key names (hash-tagged or not) and
     /// the database number, and it can only be read from a connected multiplexer:
     /// <see cref="IServer.ServerType"/> reports <see cref="ServerType.Standalone"/> until the
@@ -28,37 +37,30 @@ namespace Akka.Persistence.Redis
     /// established, and is then fixed for the life of the plugin. Operations never run
     /// against a guessed cluster mode: until it is known they wait for the connection, and
     /// fail if it is not established within the multiplexer's timeout.
+    /// </para>
     /// </remarks>
-    internal sealed class RedisPluginConnection
+    internal sealed class RedisPluginConnection : IDisposable
     {
         private const int ConnectPollIntervalMs = 50;
 
+        private readonly Func<Task<IConnectionMultiplexer>> _connect;
         private readonly RedisSettings _settings;
         private readonly ILoggingAdapter _log;
         private readonly object _lock = new();
+        private Task<IConnectionMultiplexer> _connection;
         private RedisPluginTopology? _topology;
+        private bool _disposed;
 
-        public RedisPluginConnection(IConnectionMultiplexer connection, bool ownsConnection, RedisSettings settings, ILoggingAdapter log)
+        public RedisPluginConnection(Func<Task<IConnectionMultiplexer>> connect, bool ownsConnection, RedisSettings settings, ILoggingAdapter log)
         {
-            Connection = connection;
+            _connect = connect;
             OwnsConnection = ownsConnection;
             _settings = settings;
             _log = log;
 
-            if (connection.IsConnected)
-            {
-                Resolve();
-            }
-            else
-            {
-                _log.Warning(
-                    "Redis connection is not established yet; cluster-mode detection is deferred until it is. " +
-                    "Operations wait for the connection and fail if it is not established within {0} ms.",
-                    WaitTimeoutMs);
-            }
+            // Start connecting right away, as before, but don't block the actor constructor on it.
+            _connection = StartConnect();
         }
-
-        public IConnectionMultiplexer Connection { get; }
 
         public bool OwnsConnection { get; }
 
@@ -67,11 +69,9 @@ namespace Akka.Persistence.Redis
         /// </summary>
         public RedisPluginTopology? Topology => Volatile.Read(ref _topology);
 
-        private int WaitTimeoutMs => Math.Max(Connection.TimeoutMilliseconds, 1000);
-
         /// <summary>
-        /// Returns the resolved topology, waiting for the connection to be established when
-        /// the cluster mode is not known yet.
+        /// Returns the resolved topology. While it is not known yet, this obtains the connection
+        /// (starting a new attempt if the previous one failed) and waits for it to be established.
         /// </summary>
         /// <exception cref="RedisConnectionException">
         /// The connection was not established within the multiplexer's timeout.
@@ -79,14 +79,16 @@ namespace Akka.Persistence.Redis
         public Task<RedisPluginTopology> GetTopologyAsync()
         {
             var topology = Volatile.Read(ref _topology);
-            return topology is not null ? Task.FromResult(topology) : WaitForTopologyAsync();
+            return topology is not null ? Task.FromResult(topology) : ResolveAsync();
         }
 
-        private async Task<RedisPluginTopology> WaitForTopologyAsync()
+        private async Task<RedisPluginTopology> ResolveAsync()
         {
-            var timeoutMs = WaitTimeoutMs;
+            var connection = await GetConnectionAsync().ConfigureAwait(false);
+
+            var timeoutMs = Math.Max(connection.TimeoutMilliseconds, 1000);
             var stopwatch = Stopwatch.StartNew();
-            while (!Connection.IsConnected)
+            while (!connection.IsConnected)
             {
                 if (stopwatch.ElapsedMilliseconds >= timeoutMs)
                 {
@@ -99,18 +101,77 @@ namespace Akka.Persistence.Redis
                 await Task.Delay(ConnectPollIntervalMs).ConfigureAwait(false);
             }
 
-            return Resolve();
+            return Resolve(connection);
         }
 
-        private RedisPluginTopology Resolve()
+        private Task<IConnectionMultiplexer> GetConnectionAsync()
+        {
+            lock (_lock)
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(RedisPluginConnection));
+
+                // Never hand out a failed attempt twice: retry on the next operation.
+                if (_connection.IsFaulted || _connection.IsCanceled)
+                    _connection = StartConnect();
+
+                return _connection;
+            }
+        }
+
+        private Task<IConnectionMultiplexer> StartConnect()
+        {
+            Task<IConnectionMultiplexer> attempt;
+            try
+            {
+                attempt = ConnectAsync();
+            }
+            catch (Exception ex)
+            {
+                attempt = Task.FromException<IConnectionMultiplexer>(ex);
+            }
+
+            attempt.ContinueWith(
+                (t, state) => ((ILoggingAdapter)state!).Warning(
+                    t.Exception!.GetBaseException(),
+                    "Failed to create the Redis connection. The next operation will try again."),
+                _log,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            return attempt;
+        }
+
+        private async Task<IConnectionMultiplexer> ConnectAsync()
+        {
+            var connection = await _connect().ConfigureAwait(false);
+            if (connection is null)
+                throw new InvalidOperationException("The Redis connection factory returned null.");
+
+            if (!connection.IsConnected)
+            {
+                _log.Warning(
+                    "Redis connection is not established yet; cluster-mode detection is deferred until it is. " +
+                    "Operations wait for the connection and fail if it is not established within {0} ms.",
+                    Math.Max(connection.TimeoutMilliseconds, 1000));
+            }
+
+            return connection;
+        }
+
+        private RedisPluginTopology Resolve(IConnectionMultiplexer connection)
         {
             lock (_lock)
             {
                 if (_topology is not null)
                     return _topology;
 
-                var isClustered = Connection.IsClustered();
-                var topology = new RedisPluginTopology(Connection.GetDatabase(ResolveDatabaseNumber(isClustered)), isClustered);
+                var isClustered = connection.IsClustered();
+                var topology = new RedisPluginTopology(
+                    connection.GetDatabase(ResolveDatabaseNumber(isClustered)),
+                    isClustered,
+                    RedisTopologyRefresher.Create(connection, _log));
                 Volatile.Write(ref _topology, topology);
                 _log.Debug("Redis cluster mode resolved: IsClustered={0}, database={1}", isClustered, topology.Database.Database);
                 return topology;
@@ -137,21 +198,50 @@ namespace Akka.Persistence.Redis
 
             return _settings.Database;
         }
+
+        /// <summary>
+        /// Disposes the connection if the plugin owns it, including one that is still being
+        /// created: it is disposed as soon as it is available.
+        /// </summary>
+        public void Dispose()
+        {
+            Task<IConnectionMultiplexer> connection;
+            lock (_lock)
+            {
+                if (_disposed)
+                    return;
+                _disposed = true;
+                connection = _connection;
+            }
+
+            if (!OwnsConnection)
+                return;
+
+            connection.ContinueWith(
+                t => t.Result.Dispose(),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
     }
 
     /// <summary>
-    /// The cluster mode of a connected Redis plugin and the database it uses.
+    /// The cluster mode of a connected Redis plugin, the database it uses, and the topology
+    /// refresher bound to its connection.
     /// </summary>
     internal sealed class RedisPluginTopology
     {
-        public RedisPluginTopology(IDatabase database, bool isClustered)
+        public RedisPluginTopology(IDatabase database, bool isClustered, RedisTopologyRefresher refresher)
         {
             Database = database;
             IsClustered = isClustered;
+            Refresher = refresher;
         }
 
         public IDatabase Database { get; }
 
         public bool IsClustered { get; }
+
+        public RedisTopologyRefresher Refresher { get; }
     }
 }
