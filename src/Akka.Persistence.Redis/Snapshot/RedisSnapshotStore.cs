@@ -23,33 +23,38 @@ namespace Akka.Persistence.Redis.Snapshot
 
         private readonly RedisSettings _settings;
         private readonly ActorSystem _system;
-        private readonly IConnectionMultiplexer _connection;
-        private readonly bool _ownsConnection;
+        private readonly RedisPluginConnection _connection;
         private readonly ILoggingAdapter _log;
-        private readonly RedisTopologyRefresher _topology;
 
-        public IDatabase Database { get; }
-        public bool IsClustered { get; }
+        /// <summary>
+        /// The Redis database used by this snapshot store. Throws <see cref="InvalidOperationException"/>
+        /// while the connection has not been established yet, because the database depends on
+        /// whether the server is a Redis Cluster.
+        /// </summary>
+        public IDatabase Database => ResolvedTopology.Database;
+
+        /// <summary>
+        /// Whether the server is a Redis Cluster, which decides the key names this snapshot store
+        /// uses. Throws <see cref="InvalidOperationException"/> while the connection has not been
+        /// established yet.
+        /// </summary>
+        public bool IsClustered => ResolvedTopology.IsClustered;
+
+        private RedisPluginTopology ResolvedTopology => _connection.Topology
+            ?? throw new InvalidOperationException("The Redis connection has not been established yet.");
 
         public RedisSnapshotStore(Config snapshotConfig)
         {
             _settings = RedisSettings.Create(snapshotConfig.WithFallback(Extension.DefaultSnapshotConfig));
             _system = Context.System;
 
-            var resolved = RedisConnectionResolver.Resolve(_system, _settings, Self.Path.Name);
-            _connection = resolved.Connection;
-            _ownsConnection = resolved.OwnsConnection;
-            Database = resolved.Database;
-            IsClustered = resolved.IsClustered;
-
             _log = Context.GetLogger();
-            _topology = RedisTopologyRefresher.Create(_connection, _log);
+            _connection = RedisConnectionResolver.Resolve(_system, _settings, Self.Path.Name, _log);
         }
 
         protected override void PostStop()
         {
-            if (_ownsConnection)
-                _connection.Dispose();
+            _connection.Dispose();
             base.PostStop();
         }
 
@@ -59,8 +64,9 @@ namespace Akka.Persistence.Redis.Snapshot
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
-            var snapshots = await Database.SortedSetRangeByScoreAsync(
-                GetSnapshotKey(persistenceId, IsClustered),
+            var topology = await _connection.GetTopologyAsync();
+            var snapshots = await topology.Database.SortedSetRangeByScoreAsync(
+                GetSnapshotKey(persistenceId, topology.IsClustered),
                 criteria.MaxSequenceNr,
                 -1,
                 Exclude.None,
@@ -81,17 +87,18 @@ namespace Akka.Persistence.Redis.Snapshot
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
+            var topology = await _connection.GetTopologyAsync();
             try
             {
-                await Database.SortedSetAddAsync(
-                    GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                await topology.Database.SortedSetAddAsync(
+                    GetSnapshotKey(metadata.PersistenceId, topology.IsClustered),
                     PersistentToBytes(metadata, snapshot),
                     metadata.SequenceNr,
                     flags: CommandFlags.DemandMaster);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
                 throw;
             }
         }
@@ -101,26 +108,30 @@ namespace Akka.Persistence.Redis.Snapshot
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
+            var topology = await _connection.GetTopologyAsync();
+            var database = topology.Database;
+            var key = GetSnapshotKey(metadata.PersistenceId, topology.IsClustered);
+
             if(metadata.Timestamp == DateTime.MinValue)
             {
                 try
                 {
-                    await Database.SortedSetRemoveRangeByScoreAsync(
-                        GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                    await database.SortedSetRemoveRangeByScoreAsync(
+                        key,
                         metadata.SequenceNr,
                         metadata.SequenceNr,
                         flags: CommandFlags.DemandMaster);
                 }
-                catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+                catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
                 {
-                    _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                    topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
                     throw;
                 }
                 return;
             }
 
-            var snapshots = await Database.SortedSetRangeByScoreAsync(
-                key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
+            var snapshots = await database.SortedSetRangeByScoreAsync(
+                key: key,
                 start: metadata.SequenceNr,
                 stop: 0L,
                 exclude: Exclude.None,
@@ -130,8 +141,8 @@ namespace Akka.Persistence.Redis.Snapshot
                 .Select(c => PersistentFromBytes(c))
                 .Where(snapshot => snapshot.Metadata.Timestamp <= metadata.Timestamp &&
                                    snapshot.Metadata.SequenceNr == metadata.SequenceNr)
-                .Select(s => Database.SortedSetRemoveRangeByScoreAsync(
-                    key: GetSnapshotKey(metadata.PersistenceId, IsClustered),
+                .Select(s => database.SortedSetRemoveRangeByScoreAsync(
+                    key: key,
                     start: s.Metadata.SequenceNr,
                     stop: s.Metadata.SequenceNr,
                     flags: CommandFlags.DemandMaster))
@@ -141,9 +152,9 @@ namespace Akka.Persistence.Redis.Snapshot
             {
                 await Task.WhenAll(found);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
                 throw;
             }
         }
@@ -153,8 +164,12 @@ namespace Akka.Persistence.Redis.Snapshot
             // Redis driver does not support cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
-            var snapshots = await Database.SortedSetRangeByScoreAsync(
-                GetSnapshotKey(persistenceId, IsClustered),
+            var topology = await _connection.GetTopologyAsync();
+            var database = topology.Database;
+            var key = GetSnapshotKey(persistenceId, topology.IsClustered);
+
+            var snapshots = await database.SortedSetRangeByScoreAsync(
+                key,
                 criteria.MaxSequenceNr,
                 0L,
                 Exclude.None,
@@ -164,8 +179,8 @@ namespace Akka.Persistence.Redis.Snapshot
                 .Select(c => PersistentFromBytes(c))
                 .Where(snapshot => snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
                                    snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr)
-                .Select(s => Database.SortedSetRemoveRangeByScoreAsync(
-                    GetSnapshotKey(persistenceId, IsClustered),
+                .Select(s => database.SortedSetRemoveRangeByScoreAsync(
+                    key,
                     s.Metadata.SequenceNr,
                     s.Metadata.SequenceNr,
                     flags: CommandFlags.DemandMaster))
@@ -175,9 +190,9 @@ namespace Akka.Persistence.Redis.Snapshot
             {
                 await Task.WhenAll(found);
             }
-            catch (RedisCommandException ex) when (_topology.IsReplicaRefusal(ex))
+            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
-                _topology.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
+                topology.Refresher.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
                 throw;
             }
         }

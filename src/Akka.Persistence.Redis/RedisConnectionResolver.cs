@@ -4,7 +4,10 @@
 //  </copyright>
 // -----------------------------------------------------------------------
 
+using System;
+using System.Threading.Tasks;
 using Akka.Actor;
+using Akka.Event;
 using StackExchange.Redis;
 
 #nullable enable
@@ -13,53 +16,33 @@ namespace Akka.Persistence.Redis
     /// <summary>
     /// Shared connection resolution for <c>RedisJournal</c> and <c>RedisSnapshotStore</c>.
     /// Reads the optional <see cref="RedisConnectionMultiplexerSetup"/> once at plugin
-    /// construction; falls back to <see cref="ConnectionMultiplexer.Connect(string, System.IO.TextWriter)"/>
-    /// against the HOCON connection string when none is registered.
+    /// construction; falls back to <see cref="ConnectionMultiplexer.ConnectAsync(string, System.IO.TextWriter)"/>
+    /// against the HOCON connection string when none is registered. The connection itself is
+    /// created asynchronously by <see cref="RedisPluginConnection"/>, which retries a failed attempt.
     /// </summary>
     internal static class RedisConnectionResolver
     {
-        public static (IConnectionMultiplexer Connection, IDatabase Database, bool IsClustered, bool OwnsConnection)
-            Resolve(ActorSystem system, RedisSettings settings, string pluginId)
+        public static RedisPluginConnection Resolve(ActorSystem system, RedisSettings settings, string pluginId, ILoggingAdapter log)
         {
-            IConnectionMultiplexer connection;
+            Func<Task<IConnectionMultiplexer>> connect;
             bool ownsConnection;
 
             var setup = system.Settings.Setup.Get<RedisConnectionMultiplexerSetup>();
             if (setup.HasValue && setup.Value.TryGetSource(pluginId, out var source))
             {
-                connection = source!.Factory().GetAwaiter().GetResult();
+                connect = source!.Factory;
                 ownsConnection = source.Ownership == RedisConnectionOwnership.PluginOwned;
             }
             else
             {
-                connection = ConnectionMultiplexer.Connect(settings.ConfigurationString);
+                var configurationString = settings.ConfigurationString;
+                connect = async () => await ConnectionMultiplexer.ConnectAsync(configurationString).ConfigureAwait(false);
                 ownsConnection = true;
             }
 
-            var isClustered = connection.IsClustered();
-            var database = connection.GetDatabase(ResolveDatabaseNumber(settings, ownsConnection, isClustered));
-            return (connection, database, isClustered, ownsConnection);
-        }
-
-        private static int ResolveDatabaseNumber(RedisSettings settings, bool ownsConnection, bool isClustered)
-        {
-            if (isClustered)
-            {
-                // Redis Cluster pins everything to db 0 — https://redis.io/topics/cluster-spec#implemented-subset
-                return 0;
-            }
-
-            // DatabaseFromConnectionString is only meaningful when we own the connection
-            // string ourselves; an injected multiplexer is opaque so fall back to the
-            // explicitly configured Database value.
-            if (ownsConnection && settings.DatabaseFromConnectionString)
-            {
-                var conf = ConfigurationOptions.Parse(settings.ConfigurationString);
-                if (conf.DefaultDatabase.HasValue)
-                    return conf.DefaultDatabase.Value;
-            }
-
-            return settings.Database;
+            // The cluster mode is not read here: a multiplexer created with abortConnect=false
+            // may not be connected yet, and would report every endpoint as Standalone.
+            return new RedisPluginConnection(connect, ownsConnection, settings, log);
         }
     }
 }
