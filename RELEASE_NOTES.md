@@ -1,3 +1,8 @@
+#### 1.5.73 October 13th 2026 ####
+
+* Upgraded to [Akka.NET 1.5.73](https://github.com/akkadotnet/akka.net/releases/tag/1.5.73)
+* Upgraded to [Akka.Hosting 1.5.73](https://github.com/akkadotnet/Akka.Hosting/releases/tag/1.5.73)
+
 #### 1.5.70 July 29th 2026 ####
 
 * Upgraded to [Akka.NET 1.5.70](https://github.com/akkadotnet/akka.net/releases/tag/1.5.70)
