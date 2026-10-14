@@ -1,15 +1,21 @@
-# Pull request validation for Windows against the `dev` and `master` branches
+# Pull request validation against `dev`, `master`, the `v1.5` servicing branch, and the
+# stacked-PR integration branches (`chore/*`, `fix/*`) that pull requests target each other
 # See https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema for reference
+# note: Azure Pipelines reads this YAML from the PR's *source* branch, so a branch only
+# gets a real run once its own copy of this file includes the patterns below
 trigger:
   branches:
     include:
       - dev
       - master
+      - v1.5
+      - chore/*
+      - fix/*
 
 pr:
   autoCancel: true # indicates whether additional pushes to a PR should cancel in-progress runs for the same PR. Defaults to true
   branches:
-    include: [ dev, master ] # branch names which will trigger a build
+    include: [ dev, master, v1.5, chore/*, fix/* ] # branch names which will trigger a build
 
 name: $(SourceBranchName)_$(Year:yyyy).$(Month).$(DayOfMonth)$(Rev:.r)
 
