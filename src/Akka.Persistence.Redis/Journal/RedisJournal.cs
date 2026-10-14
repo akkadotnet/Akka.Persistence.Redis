@@ -113,6 +113,25 @@ namespace Akka.Persistence.Redis.Journal
             }
         }
 
+        // Appends one AtomicWrite only if no write with an equal or higher sequence number has been
+        // stored yet, the same first-writer-wins rule a unique (persistence_id, sequence_nr)
+        // constraint gives a SQL journal. Both keys share the persistence id's hash tag in cluster
+        // mode, so the script runs on a single slot.
+        //   KEYS[1] journal sorted set, KEYS[2] highest sequence number
+        //   ARGV[1] lowest sequence number of the write, ARGV[2] its highest, then score/member pairs
+        // Returns -1 when the write was applied, otherwise the stored highest sequence number.
+        private const string ConditionalWriteScript = @"
+local highest = tonumber(redis.call('GET', KEYS[2]) or '0')
+local lowest = tonumber(ARGV[1])
+if highest >= lowest or redis.call('ZCOUNT', KEYS[1], lowest, '+inf') > 0 then
+  return highest
+end
+for i = 3, #ARGV, 2 do
+  redis.call('ZADD', KEYS[1], ARGV[i], ARGV[i + 1])
+end
+redis.call('SET', KEYS[2], ARGV[2])
+return -1";
+
         protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages, CancellationToken cancellationToken)
         {
             // Redis driver does not support cancellation token
@@ -124,51 +143,72 @@ namespace Akka.Persistence.Redis.Journal
             if (writes.Length == 0)
                 return ImmutableList<Exception>.Empty;
 
+            // Serialize first. A write that cannot be serialized is rejected: it was never sent,
+            // so it is certain that it was not stored, and the persistent actor can carry on.
+            var rejections = new Exception?[writes.Length];
+            var arguments = new RedisValue[]?[writes.Length];
+            for (var i = 0; i < writes.Length; i++)
+            {
+                try
+                {
+                    arguments[i] = ToScriptArguments(writes[i]);
+                }
+                catch (Exception ex)
+                {
+                    rejections[i] = ex;
+                }
+            }
+
             // Resolve the topology before issuing any write. The writes of one batch are sent
             // without awaiting each other, and must reach Redis in order: none of them may
             // wait for the connection on its own.
             var topology = await _connection.GetTopologyAsync();
-            var writeTasks = writes.Select(aw => WriteBatchAsync(aw, topology)).ToArray();
-
-            var result = await Task<IImmutableList<Exception>>
-                .Factory
-                .ContinueWhenAll(
-                    writeTasks,
-                    tasks => tasks.Select(t => t.IsFaulted ? TryUnwrapException(t.Exception) : null)
-                        .ToImmutableList(), cancellationToken);
-
-            return result;
-        }
-
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-        private async Task WriteBatchAsync(AtomicWrite aw, RedisPluginTopology topology)
-        {
-            var eventList = new List<SortedSetEntry>();
-            var payloads = aw.Payload.AsInstanceOf<IImmutableList<IPersistentRepresentation>>();
-            foreach (var payload in payloads)
+            var writeTasks = new List<Task>(writes.Length);
+            for (var i = 0; i < writes.Length; i++)
             {
-                var bytes = _journalHelper.PersistentToBytes(payload.WithTimestamp(DateTime.UtcNow.Ticks));
-
-                // save the payload
-                eventList.Add(new SortedSetEntry(bytes, payload.SequenceNr));
+                if (arguments[i] is { } args)
+                    writeTasks.Add(WriteBatchAsync(writes[i], args, topology));
             }
 
-            var transaction = topology.Database.CreateTransaction();
-            transaction.SortedSetAddAsync(
-                _journalHelper.GetJournalKey(aw.PersistenceId, topology.IsClustered),
-                eventList.ToArray(),
-                flags: CommandFlags.DemandMaster);
+            // Any other error fails the whole call (OnPersistFailure, and the actor stops) instead of
+            // rejecting the write: after a timeout or a lost connection the write may still be
+            // applied, and after a sequence-number conflict another writer owns the persistence id.
+            // Neither may be reported as "not stored".
+            await Task.WhenAll(writeTasks);
 
-            // set highest sequence number key
-            transaction.StringSetAsync(
-                _journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, topology.IsClustered),
-                aw.HighestSequenceNr,
-                flags: CommandFlags.DemandMaster);
+            return rejections.ToImmutableList()!;
+        }
 
-            bool transactionSucceeded;
+        private RedisValue[] ToScriptArguments(AtomicWrite aw)
+        {
+            var payloads = aw.Payload.AsInstanceOf<IImmutableList<IPersistentRepresentation>>();
+            var arguments = new RedisValue[2 + payloads.Count * 2];
+            arguments[0] = aw.LowestSequenceNr;
+            arguments[1] = aw.HighestSequenceNr;
+            var i = 2;
+            foreach (var payload in payloads)
+            {
+                arguments[i++] = payload.SequenceNr;
+                arguments[i++] = _journalHelper.PersistentToBytes(payload.WithTimestamp(DateTime.UtcNow.Ticks));
+            }
+
+            return arguments;
+        }
+
+        private async Task WriteBatchAsync(AtomicWrite aw, RedisValue[] arguments, RedisPluginTopology topology)
+        {
+            RedisResult result;
             try
             {
-                transactionSucceeded = await transaction.ExecuteAsync();
+                result = await topology.Database.ScriptEvaluateAsync(
+                    ConditionalWriteScript,
+                    new RedisKey[]
+                    {
+                        _journalHelper.GetJournalKey(aw.PersistenceId, topology.IsClustered),
+                        _journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, topology.IsClustered)
+                    },
+                    arguments,
+                    CommandFlags.DemandMaster);
             }
             catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
             {
@@ -176,10 +216,9 @@ namespace Akka.Persistence.Redis.Journal
                 throw;
             }
 
-            if (!transactionSucceeded)
-                throw new Exception(
-                    $"{nameof(WriteMessagesAsync)}: failed to write {nameof(IPersistentRepresentation)} to redis");
+            var storedHighest = (long)result;
+            if (storedHighest != -1)
+                throw new RedisJournalWriteConflictException(aw.PersistenceId, aw.LowestSequenceNr, aw.HighestSequenceNr, storedHighest);
         }
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
     }
 }
