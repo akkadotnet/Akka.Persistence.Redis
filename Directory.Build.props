@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Copyright>Copyright © 2013-2023 Akka.NET Project</Copyright>
     <Authors>Akka.NET</Authors>
-    <VersionPrefix>1.5.70</VersionPrefix>
+    <VersionPrefix>1.5.73</VersionPrefix>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Akka.NET Persistence journal and snapshot store backed by Redis.</Description>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
@@ -34,8 +34,8 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/akkadotnet/Akka.Persistence.Redis</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageReleaseNotes>* Upgraded to Akka.NET 1.5.70.
-* Upgraded to Akka.Hosting 1.5.70.
+    <PackageReleaseNotes>* Upgraded to Akka.NET 1.5.73.
+* Upgraded to Akka.Hosting 1.5.73.
 * Event queries by persistence ID remain supported. Persistence-ID enumeration remains unimplemented. Tag and all-events queries, including `Offset.FromEnd`, remain unavailable because the clustered storage model does not maintain the required global indexes and ordering.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
