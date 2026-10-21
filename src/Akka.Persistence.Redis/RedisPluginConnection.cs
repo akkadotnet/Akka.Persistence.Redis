@@ -243,5 +243,26 @@ namespace Akka.Persistence.Redis
         public bool IsClustered { get; }
 
         public RedisTopologyRefresher Refresher { get; }
+
+        /// <summary>
+        /// Executes a write or delete transaction on the primary, and throws
+        /// <see cref="RedisTransactionNotCommittedException"/> when one of its conditions was not met.
+        /// </summary>
+        public async Task ExecuteAsync(ITransaction transaction, string persistenceId, string operation)
+        {
+            bool committed;
+            try
+            {
+                committed = await transaction.ExecuteAsync(CommandFlags.DemandMaster).ConfigureAwait(false);
+            }
+            catch (RedisCommandException ex) when (Refresher.IsReplicaRefusal(ex))
+            {
+                Refresher.TriggerBackgroundRefresh(persistenceId, operation, ex);
+                throw;
+            }
+
+            if (!committed)
+                throw new RedisTransactionNotCommittedException(persistenceId, operation);
+        }
     }
 }

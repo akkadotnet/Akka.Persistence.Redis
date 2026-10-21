@@ -61,6 +61,31 @@ namespace Akka.Persistence.Redis.Journal
             base.PostStop();
         }
 
+        /// <summary>
+        /// Creates the Redis transaction that a write or delete for <paramref name="persistenceId"/>
+        /// runs in. Override it to add conditions with <see cref="ITransaction.AddCondition"/>, for
+        /// example a fencing token that stops a stale incarnation of a persistent actor from writing
+        /// after a newer one took over. When a condition is not met nothing is applied, and the
+        /// operation fails with <see cref="RedisTransactionNotCommittedException"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// It is called after the connection is established, so <see cref="Database"/> and
+        /// <see cref="IsClustered"/> can be used. It must not block: the writes of one batch are
+        /// issued in order without awaiting each other.
+        /// </para>
+        /// <para>
+        /// With Redis Cluster (<see cref="IsClustered"/>), every key a condition reads must carry the
+        /// persistence id's hash tag, <c>{__persistenceId}</c>, like the journal's own keys; a
+        /// transaction that spans hash slots fails with <c>CROSSSLOT</c>.
+        /// </para>
+        /// <para>
+        /// Use it to add conditions only. Commands queued on the transaction run before the
+        /// plugin's own commands.
+        /// </para>
+        /// </remarks>
+        protected virtual ITransaction CreateTransaction(string persistenceId) => Database.CreateTransaction();
+
         public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNr, CancellationToken cancellationToken)
         {
             // Redis driver does not support cancellation token
@@ -98,19 +123,15 @@ namespace Akka.Persistence.Redis.Journal
             cancellationToken.ThrowIfCancellationRequested();
 
             var topology = await _connection.GetTopologyAsync();
-            try
-            {
-                await topology.Database.SortedSetRemoveRangeByScoreAsync(
-                    _journalHelper.GetJournalKey(persistenceId, topology.IsClustered),
-                    -1,
-                    toSequenceNr,
-                    flags: CommandFlags.DemandMaster);
-            }
-            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-            {
-                topology.Refresher.TriggerBackgroundRefresh(persistenceId, nameof(DeleteMessagesToAsync), ex);
-                throw;
-            }
+            var transaction = CreateTransaction(persistenceId);
+            var delete = transaction.SortedSetRemoveRangeByScoreAsync(
+                _journalHelper.GetJournalKey(persistenceId, topology.IsClustered),
+                -1,
+                toSequenceNr,
+                flags: CommandFlags.DemandMaster);
+
+            await topology.ExecuteAsync(transaction, persistenceId, nameof(DeleteMessagesToAsync));
+            await delete;
         }
 
         // Appends one AtomicWrite only if no write with an equal or higher sequence number has been
@@ -197,26 +218,20 @@ return -1";
 
         private async Task WriteBatchAsync(AtomicWrite aw, RedisValue[] arguments, RedisPluginTopology topology)
         {
-            RedisResult result;
-            try
-            {
-                result = await topology.Database.ScriptEvaluateAsync(
-                    ConditionalWriteScript,
-                    new RedisKey[]
-                    {
-                        _journalHelper.GetJournalKey(aw.PersistenceId, topology.IsClustered),
-                        _journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, topology.IsClustered)
-                    },
-                    arguments,
-                    CommandFlags.DemandMaster);
-            }
-            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-            {
-                topology.Refresher.TriggerBackgroundRefresh(aw.PersistenceId, nameof(WriteBatchAsync), ex);
-                throw;
-            }
+            var transaction = CreateTransaction(aw.PersistenceId);
+            var write = transaction.ScriptEvaluateAsync(
+                ConditionalWriteScript,
+                new RedisKey[]
+                {
+                    _journalHelper.GetJournalKey(aw.PersistenceId, topology.IsClustered),
+                    _journalHelper.GetHighestSequenceNrKey(aw.PersistenceId, topology.IsClustered)
+                },
+                arguments,
+                CommandFlags.DemandMaster);
 
-            var storedHighest = (long)result;
+            await topology.ExecuteAsync(transaction, aw.PersistenceId, nameof(WriteMessagesAsync));
+
+            var storedHighest = (long)await write;
             if (storedHighest != -1)
                 throw new RedisJournalWriteConflictException(aw.PersistenceId, aw.LowestSequenceNr, aw.HighestSequenceNr, storedHighest);
         }

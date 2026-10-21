@@ -58,6 +58,30 @@ namespace Akka.Persistence.Redis.Snapshot
             base.PostStop();
         }
 
+        /// <summary>
+        /// Creates the Redis transaction that a save or delete for <paramref name="persistenceId"/>
+        /// runs in. Override it to add conditions with <see cref="ITransaction.AddCondition"/>, for
+        /// example a fencing token that stops a stale incarnation of a persistent actor from writing
+        /// after a newer one took over. When a condition is not met nothing is applied, and the
+        /// operation fails with <see cref="RedisTransactionNotCommittedException"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// It is called after the connection is established, so <see cref="Database"/> and
+        /// <see cref="IsClustered"/> can be used.
+        /// </para>
+        /// <para>
+        /// With Redis Cluster (<see cref="IsClustered"/>), every key a condition reads must carry the
+        /// persistence id's hash tag, <c>{__persistenceId}</c>, like the snapshot store's own keys;
+        /// a transaction that spans hash slots fails with <c>CROSSSLOT</c>.
+        /// </para>
+        /// <para>
+        /// Use it to add conditions only. Commands queued on the transaction run before the
+        /// plugin's own commands.
+        /// </para>
+        /// </remarks>
+        protected virtual ITransaction CreateTransaction(string persistenceId) => Database.CreateTransaction();
+
         protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId,
             SnapshotSelectionCriteria criteria, CancellationToken cancellationToken)
         {
@@ -105,19 +129,15 @@ namespace Akka.Persistence.Redis.Snapshot
             cancellationToken.ThrowIfCancellationRequested();
 
             var topology = await _connection.GetTopologyAsync();
-            try
-            {
-                await topology.Database.SortedSetAddAsync(
-                    GetSnapshotKey(metadata.PersistenceId, topology.IsClustered),
-                    PersistentToBytes(metadata, snapshot),
-                    metadata.SequenceNr,
-                    flags: CommandFlags.DemandMaster);
-            }
-            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-            {
-                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(SaveAsync), ex);
-                throw;
-            }
+            var transaction = CreateTransaction(metadata.PersistenceId);
+            var save = transaction.SortedSetAddAsync(
+                GetSnapshotKey(metadata.PersistenceId, topology.IsClustered),
+                PersistentToBytes(metadata, snapshot),
+                metadata.SequenceNr,
+                flags: CommandFlags.DemandMaster);
+
+            await topology.ExecuteAsync(transaction, metadata.PersistenceId, nameof(SaveAsync));
+            await save;
         }
 
         protected override async Task DeleteAsync(SnapshotMetadata metadata, CancellationToken cancellationToken)
@@ -131,19 +151,15 @@ namespace Akka.Persistence.Redis.Snapshot
 
             if(metadata.Timestamp == DateTime.MinValue)
             {
-                try
-                {
-                    await database.SortedSetRemoveRangeByScoreAsync(
-                        key,
-                        metadata.SequenceNr,
-                        metadata.SequenceNr,
-                        flags: CommandFlags.DemandMaster);
-                }
-                catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-                {
-                    topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
-                    throw;
-                }
+                var transaction = CreateTransaction(metadata.PersistenceId);
+                var delete = transaction.SortedSetRemoveRangeByScoreAsync(
+                    key,
+                    metadata.SequenceNr,
+                    metadata.SequenceNr,
+                    flags: CommandFlags.DemandMaster);
+
+                await topology.ExecuteAsync(transaction, metadata.PersistenceId, nameof(DeleteAsync));
+                await delete;
                 return;
             }
 
@@ -169,15 +185,7 @@ namespace Akka.Persistence.Redis.Snapshot
             if (found.Length == 0)
                 return;
 
-            try
-            {
-                await database.SortedSetRemoveAsync(key, found, CommandFlags.DemandMaster);
-            }
-            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-            {
-                topology.Refresher.TriggerBackgroundRefresh(metadata.PersistenceId, nameof(DeleteAsync), ex);
-                throw;
-            }
+            await RemoveAsync(topology, metadata.PersistenceId, key, found);
         }
 
         protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria, CancellationToken cancellationToken)
@@ -189,49 +197,54 @@ namespace Akka.Persistence.Redis.Snapshot
             var database = topology.Database;
             var key = GetSnapshotKey(persistenceId, topology.IsClustered);
 
-            try
+            if (criteria.MaxTimeStamp == DateTime.MaxValue)
             {
-                if (criteria.MaxTimeStamp == DateTime.MaxValue)
-                {
-                    // Bounded by sequence number only: the score is the sequence number, so
-                    // delete by score without deserializing anything. This also removes
-                    // snapshots that can no longer be deserialized.
-                    await database.SortedSetRemoveRangeByScoreAsync(
-                        key,
-                        0L,
-                        criteria.MaxSequenceNr,
-                        flags: CommandFlags.DemandMaster);
-                    return;
-                }
-
-                // The timestamp bound needs the deserialized metadata. Decode every candidate
-                // before deleting any, so a snapshot that cannot be deserialized fails the
-                // request without a partial delete.
-                var snapshots = await database.SortedSetRangeByScoreAsync(
+                // Bounded by sequence number only: the score is the sequence number, so
+                // delete by score without deserializing anything. This also removes
+                // snapshots that can no longer be deserialized.
+                var transaction = CreateTransaction(persistenceId);
+                var delete = transaction.SortedSetRemoveRangeByScoreAsync(
                     key,
-                    criteria.MaxSequenceNr,
                     0L,
-                    Exclude.None,
-                    Order.Descending);
+                    criteria.MaxSequenceNr,
+                    flags: CommandFlags.DemandMaster);
 
-                var found = snapshots
-                    .Where(member =>
-                    {
-                        var snapshot = PersistentFromBytes(member!);
-                        return snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
-                               snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr;
-                    })
-                    .ToArray();
+                await topology.ExecuteAsync(transaction, persistenceId, nameof(DeleteAsync));
+                await delete;
+                return;
+            }
 
-                // Remove the matching members, not every snapshot at their sequence numbers.
-                if (found.Length > 0)
-                    await database.SortedSetRemoveAsync(key, found, CommandFlags.DemandMaster);
-            }
-            catch (RedisCommandException ex) when (topology.Refresher.IsReplicaRefusal(ex))
-            {
-                topology.Refresher.TriggerBackgroundRefresh(persistenceId, nameof(DeleteAsync), ex);
-                throw;
-            }
+            // The timestamp bound needs the deserialized metadata. Decode every candidate
+            // before deleting any, so a snapshot that cannot be deserialized fails the
+            // request without a partial delete.
+            var snapshots = await database.SortedSetRangeByScoreAsync(
+                key,
+                criteria.MaxSequenceNr,
+                0L,
+                Exclude.None,
+                Order.Descending);
+
+            var found = snapshots
+                .Where(member =>
+                {
+                    var snapshot = PersistentFromBytes(member!);
+                    return snapshot.Metadata.Timestamp <= criteria.MaxTimeStamp &&
+                           snapshot.Metadata.SequenceNr <= criteria.MaxSequenceNr;
+                })
+                .ToArray();
+
+            // Remove the matching members, not every snapshot at their sequence numbers.
+            if (found.Length > 0)
+                await RemoveAsync(topology, persistenceId, key, found);
+        }
+
+        private async Task RemoveAsync(RedisPluginTopology topology, string persistenceId, RedisKey key, RedisValue[] members)
+        {
+            var transaction = CreateTransaction(persistenceId);
+            var remove = transaction.SortedSetRemoveAsync(key, members, CommandFlags.DemandMaster);
+
+            await topology.ExecuteAsync(transaction, persistenceId, nameof(DeleteAsync));
+            await remove;
         }
 
         private byte[] PersistentToBytes(SnapshotMetadata metadata, object snapshot)

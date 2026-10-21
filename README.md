@@ -78,6 +78,31 @@ akka.persistence.snapshot-store.redis {
 - `configuration-string` - connection string, as described here: https://stackexchange.github.io/StackExchange.Redis/Configuration#basic-configuration-strings
 - `key-prefix` - Redis journals key prefixes. Leave it for default or change it to appropriate value. WARNING: don't change it on production instances.
 
+## Fencing writes with transaction conditions
+Every write and delete of the journal and snapshot store runs in a Redis transaction created by the protected virtual `CreateTransaction(string persistenceId)`. A subclass can override it to add conditions, for example a fencing token, so that a stale incarnation of a persistent actor (such as a cluster singleton that resumed after a long pause, after a newer instance took over) can no longer write:
+
+```csharp
+public sealed class FencedRedisJournal : RedisJournal
+{
+    public FencedRedisJournal(Config config) : base(config) { }
+
+    protected override ITransaction CreateTransaction(string persistenceId)
+    {
+        var transaction = base.CreateTransaction(persistenceId);
+        // The fencing token this incarnation obtained when it started, e.g. with INCR.
+        transaction.AddCondition(Condition.StringEqual($"{{__{persistenceId}}}.epoch", CurrentEpoch(persistenceId)));
+        return transaction;
+    }
+}
+```
+
+Register the subclass with the plugin's `class` setting. `RedisSnapshotStore` has the same method.
+
+When a condition is not met, nothing is applied and the operation fails with `RedisTransactionNotCommittedException`: a journal write calls the persistent actor's `OnPersistFailure`, which stops it, and deletes and snapshot operations reply with their usual failure messages.
+
+- With Redis Cluster, every key a condition reads must carry the persistence id's hash tag, `{__<persistenceId>}`, like the plugin's own keys. A transaction that spans hash slots fails with `CROSSSLOT`.
+- Add conditions only. `CreateTransaction` must not block, and commands queued on the transaction run before the plugin's own commands.
+
 ## Security and Access Control
 You can secure the Redis server Akka.Persistence.Redis connects to by leveraging Redis ACL and requiring users to use AUTH to connect to the Redis server.
 
@@ -127,6 +152,8 @@ These are the minimum Redis commands that are needed by Akka.Persistence.Redis t
 | MULTI            | Transaction                      |
 | EXEC             |                                  |
 | DISCARD          |                                  |
+| WATCH            | Transaction conditions           |
+| UNWATCH          |                                  |
 | SET              | String Set                       |
 | SETNX            |                                  |
 | SETEX            |                                  |
